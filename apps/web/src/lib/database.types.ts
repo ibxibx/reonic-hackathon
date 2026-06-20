@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -107,6 +107,54 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      lead_orchestration: {
+        Row: {
+          current_step: number
+          id: string
+          lead_id: string
+          next_action_at: string | null
+          status: string
+          strategy_id: string | null
+          total_steps: number
+          updated_at: string
+        }
+        Insert: {
+          current_step?: number
+          id?: string
+          lead_id: string
+          next_action_at?: string | null
+          status?: string
+          strategy_id?: string | null
+          total_steps?: number
+          updated_at?: string
+        }
+        Update: {
+          current_step?: number
+          id?: string
+          lead_id?: string
+          next_action_at?: string | null
+          status?: string
+          strategy_id?: string | null
+          total_steps?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_orchestration_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_orchestration_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "strategies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leads: {
         Row: {

@@ -17,6 +17,7 @@ import {
   getLeadWithQuote,
   getLatestPredictionForLead,
   getStrategyForLead,
+  getOrchestrationForLead,
 } from '@/data/user/leads-read';
 import {
   FINANCING_TYPE_LABELS,
@@ -56,6 +57,7 @@ export default async function LeadDetailPage(props: {
   const strategy = await getStrategyForLead(leadId);
   const prediction = await getLatestPredictionForLead(leadId);
   const confidence = strategy?.persona_confidence ?? null;
+  const orchestration = await getOrchestrationForLead(leadId);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 max-w-5xl w-full">
@@ -226,6 +228,10 @@ export default async function LeadDetailPage(props: {
                 {strategy.strategy_summary}
               </p>
 
+              {orchestration ? (
+                <OrchestrationStatus orchestration={orchestration} />
+              ) : null}
+
               <Button asChild variant="outline" size="sm">
                 <Link href={`/leads/${leadId}/strategy`}>
                   View full strategy & timeline
@@ -244,6 +250,39 @@ export default async function LeadDetailPage(props: {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function OrchestrationStatus({
+  orchestration,
+}: {
+  orchestration: {
+    current_step: number;
+    total_steps: number;
+    status: string;
+  };
+}) {
+  const STATUS_LABELS: Record<string, string> = {
+    not_started: 'Not started',
+    in_progress: 'In progress',
+    awaiting_reply: 'Awaiting reply',
+    completed: 'Completed',
+    paused: 'Paused',
+  };
+  const label = STATUS_LABELS[orchestration.status] ?? orchestration.status;
+  const stepDisplay =
+    orchestration.total_steps > 0
+      ? `Step ${Math.min(orchestration.current_step, orchestration.total_steps)} of ${orchestration.total_steps}`
+      : 'No steps';
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="font-medium">{stepDisplay}</span>
+      <span className="text-muted-foreground">·</span>
+      <Badge variant="outline" className="font-normal">
+        {label}
+      </Badge>
     </div>
   );
 }

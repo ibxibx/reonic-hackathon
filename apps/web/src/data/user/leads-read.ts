@@ -98,6 +98,20 @@ export async function getMessagesForLead(
   return data;
 }
 
+export async function getOrchestrationForLead(
+  leadId: string
+): Promise<Table<'lead_orchestration'> | null> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from('lead_orchestration')
+    .select('*')
+    .eq('lead_id', leadId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export interface LeadStats {
   total: number;
   byStatus: Record<LeadStatus, number>;
