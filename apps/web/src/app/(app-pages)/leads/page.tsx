@@ -1,13 +1,13 @@
 import { LeadsTable } from '@/components/leads/leads-table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getLeads } from '@/data/user/leads-read';
+import { getLeadsWithProblemCodes } from '@/data/user/leads-read';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
 async function LeadsSection() {
-  const leads = await getLeads();
+  const leads = await getLeadsWithProblemCodes();
   return <LeadsTable leads={leads} />;
 }
 

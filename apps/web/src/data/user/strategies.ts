@@ -3,6 +3,7 @@
 import { authActionClient } from '@/lib/safe-action';
 import { generateStrategy } from '@/lib/ai/provider';
 import { buildStrategyPrompt } from '@/lib/ai/prompts';
+import { PROBLEM_CODE_LIBRARY } from '@/lib/problem-codes';
 import { createSupabaseClient } from '@/supabase-clients/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -40,8 +41,16 @@ export const generateStrategyAction = authActionClient
       throw new Error('Quote not found');
     }
 
-    // Eliminar estrategia anterior si existe
+    // Replace the current strategy diagnosis for this lead.
     await supabase.from('strategies').delete().eq('lead_id', leadId);
+    const { error: previousCodesError } = await supabase
+      .from('problem_codes')
+      .delete()
+      .eq('lead_id', leadId);
+
+    if (previousCodesError) {
+      throw new Error('Failed to replace problem-code diagnosis');
+    }
 
     // Generar estrategia con IA
     const systemPrompt = buildStrategyPrompt(lead, quote);
@@ -108,6 +117,22 @@ export const generateStrategyAction = authActionClient
 
     if (messagesError) {
       throw new Error('Failed to save messages');
+    }
+
+    const { error: problemCodesError } = await supabase
+      .from('problem_codes')
+      .insert(
+        strategy.problemCodes.map((problemCode) => ({
+          lead_id: leadId,
+          code: problemCode.code,
+          family: PROBLEM_CODE_LIBRARY[problemCode.code].family,
+          confidence: problemCode.confidence,
+          evidence: problemCode.evidence,
+        }))
+      );
+
+    if (problemCodesError) {
+      throw new Error('Failed to save problem-code diagnosis');
     }
 
     revalidatePath(`/leads/${leadId}`);

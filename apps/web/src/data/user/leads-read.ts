@@ -84,6 +84,55 @@ export async function getLatestPredictionForLead(
   return data;
 }
 
+export async function getProblemCodesForLead(
+  leadId: string
+): Promise<Array<Table<'problem_codes'>>> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from('problem_codes')
+    .select('*')
+    .eq('lead_id', leadId)
+    .is('resolved_at', null)
+    .order('confidence', { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
+
+export type LeadWithProblemCodes = Table<'leads'> & {
+  problemCodes: Array<Table<'problem_codes'>>;
+};
+
+export async function getLeadsWithProblemCodes(): Promise<
+  Array<LeadWithProblemCodes>
+> {
+  const supabase = await createSupabaseClient();
+  const [{ data: leads, error: leadsError }, { data: problemCodes, error: codesError }] =
+    await Promise.all([
+      supabase.from('leads').select('*').order('created_at', { ascending: false }),
+      supabase
+        .from('problem_codes')
+        .select('*')
+        .is('resolved_at', null)
+        .order('confidence', { ascending: false }),
+    ]);
+
+  if (leadsError) throw leadsError;
+  if (codesError) throw codesError;
+
+  const codesByLead = new Map<string, Array<Table<'problem_codes'>>>();
+  for (const problemCode of problemCodes) {
+    const current = codesByLead.get(problemCode.lead_id) ?? [];
+    current.push(problemCode);
+    codesByLead.set(problemCode.lead_id, current);
+  }
+
+  return leads.map((lead) => ({
+    ...lead,
+    problemCodes: codesByLead.get(lead.id) ?? [],
+  }));
+}
+
 export async function getMessagesForLead(
   leadId: string
 ): Promise<Array<Table<'messages'>>> {

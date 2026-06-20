@@ -3,6 +3,7 @@ import { StatusBadge } from '@/components/leads/status-badge';
 import { GenerateStrategyButton } from '@/components/strategy/generate-strategy-button';
 import { PersonaBadge } from '@/components/strategy/persona-badge';
 import { OraclePanel } from '@/components/strategy/oracle-panel';
+import { ProblemCodeChips } from '@/components/strategy/problem-code-chips';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   getLeadWithQuote,
   getLatestPredictionForLead,
+  getProblemCodesForLead,
   getStrategyForLead,
 } from '@/data/user/leads-read';
 import {
@@ -55,6 +57,7 @@ export default async function LeadDetailPage(props: {
 
   const strategy = await getStrategyForLead(leadId);
   const prediction = await getLatestPredictionForLead(leadId);
+  const problemCodes = await getProblemCodesForLead(leadId);
   const confidence = strategy?.persona_confidence ?? null;
 
   return (
@@ -116,6 +119,20 @@ export default async function LeadDetailPage(props: {
       </div>
 
       <OraclePanel leadId={leadId} prediction={prediction} />
+
+      {problemCodes.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Diagnosed blockers</CardTitle>
+            <CardDescription>
+              Evidence-backed objections the strategy should resolve.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ProblemCodeChips codes={problemCodes} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Property + bill */}

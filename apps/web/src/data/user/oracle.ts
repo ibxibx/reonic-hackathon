@@ -50,7 +50,20 @@ export const generateOracleAction = authActionClient
       throw new Error('Failed to load strategy signals');
     }
 
-    const oracle = await generateOracle(buildOraclePrompt(lead, quote, strategy));
+    const { data: problemCodes, error: problemCodesError } = await supabase
+      .from('problem_codes')
+      .select('code, confidence, evidence')
+      .eq('lead_id', leadId)
+      .is('resolved_at', null)
+      .order('confidence', { ascending: false });
+
+    if (problemCodesError) {
+      throw new Error('Failed to load problem-code diagnosis');
+    }
+
+    const oracle = await generateOracle(
+      buildOraclePrompt(lead, quote, strategy, problemCodes)
+    );
 
     const { data: prediction, error: predictionError } = await supabase
       .from('predictions')

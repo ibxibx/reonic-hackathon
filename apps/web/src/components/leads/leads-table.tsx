@@ -2,6 +2,7 @@
 
 import { DeleteLeadButton } from '@/components/leads/delete-lead-button';
 import { StatusBadge } from '@/components/leads/status-badge';
+import { ProblemCodeChips } from '@/components/strategy/problem-code-chips';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -27,13 +28,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { LEAD_STATUSES, formatCurrency, type LeadStatus } from '@/lib/solar';
-import type { Table as DbTable } from '@/types';
+import type { LeadWithProblemCodes } from '@/data/user/leads-read';
 import { format } from 'date-fns';
 import { Eye, Plus, Search, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
-type Lead = DbTable<'leads'>;
+type Lead = LeadWithProblemCodes;
 
 export function LeadsTable({ leads }: { leads: Lead[] }) {
   const [search, setSearch] = useState('');
@@ -122,6 +123,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                 <TableHead className="hidden md:table-cell">Address</TableHead>
                 <TableHead className="text-right">Monthly bill</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="hidden xl:table-cell">Situation</TableHead>
                 <TableHead className="hidden lg:table-cell">Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -130,7 +132,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
               {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-24 text-center text-muted-foreground"
                   >
                     No leads match your filters.
@@ -158,6 +160,9 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={lead.status} />
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell">
+                      <ProblemCodeChips codes={lead.problemCodes} />
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-muted-foreground">
                       {format(new Date(lead.created_at), 'MMM d, yyyy')}

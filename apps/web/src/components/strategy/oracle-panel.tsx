@@ -1,6 +1,5 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -139,17 +138,9 @@ export function OraclePanel({
             </div>
 
             <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium">Predicted blocker</span>
-                  <Badge variant="secondary" className="font-mono">
-                    {prediction.predicted_code ?? 'Uncoded'}
-                  </Badge>
-                </div>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {prediction.evidence}
-                </p>
-              </div>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {prediction.evidence}
+              </p>
 
               <div className="rounded-lg border bg-background/70 p-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

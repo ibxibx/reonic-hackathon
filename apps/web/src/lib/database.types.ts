@@ -286,6 +286,47 @@ export type Database = {
         }
         Relationships: []
       }
+      problem_codes: {
+        Row: {
+          code: string
+          confidence: number
+          created_at: string
+          evidence: string
+          family: string
+          id: string
+          lead_id: string
+          resolved_at: string | null
+        }
+        Insert: {
+          code: string
+          confidence: number
+          created_at?: string
+          evidence: string
+          family: string
+          id?: string
+          lead_id: string
+          resolved_at?: string | null
+        }
+        Update: {
+          code?: string
+          confidence?: number
+          created_at?: string
+          evidence?: string
+          family?: string
+          id?: string
+          lead_id?: string
+          resolved_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "problem_codes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_name: string

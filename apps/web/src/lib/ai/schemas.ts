@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PROBLEM_CODES } from '@/lib/problem-codes';
 
 export const personaEnum = z.enum([
   'family',
@@ -41,6 +42,16 @@ export const strategySchema = z.object({
     body: z.string().min(20).max(1200),
     goal: z.string().min(10).max(300),
   }),
+  problemCodes: z
+    .array(
+      z.object({
+        code: z.enum(PROBLEM_CODES),
+        confidence: z.number().min(0).max(1),
+        evidence: z.string().min(20).max(500),
+      })
+    )
+    .min(1)
+    .max(3),
 });
 
 export type GeneratedStrategy = z.infer<typeof strategySchema>;
@@ -48,7 +59,7 @@ export type GeneratedStrategy = z.infer<typeof strategySchema>;
 export const oracleSchema = z.object({
   signProbability: z.number().int().min(0).max(100),
   ghostRisk: z.number().int().min(0).max(100),
-  predictedCode: z.string().min(2).max(50),
+  predictedCode: z.enum(PROBLEM_CODES),
   recommendedAction: z.string().min(20).max(500),
   evidence: z.string().min(40).max(1200),
 });
