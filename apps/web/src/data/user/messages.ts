@@ -12,6 +12,12 @@ const messageIdSchema = z.object({
   messageId: z.uuid(),
 });
 
+const updateMessageSchema = z.object({
+  messageId: z.uuid(),
+  subject: z.string().max(200).nullable().optional(),
+  content: z.string().min(1).max(5000),
+});
+
 export const generateVoiceNoteAction = authActionClient
   .schema(messageIdSchema)
   .action(async ({ parsedInput, ctx }) => {
@@ -172,4 +178,51 @@ export const sendSmsAction = authActionClient
       mock: result.mock || false,
       error: result.error,
     };
+  });
+
+
+export const updateMessageAction = authActionClient
+  .schema(updateMessageSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { messageId, subject, content } = parsedInput;
+    const supabase = await createSupabaseClient();
+
+    // Obtener mensaje con verificación de ownership
+    const { data: message, error: messageError } = await supabase
+      .from('messages')
+      .select('*, leads!inner(installer_id)')
+      .eq('id', messageId)
+      .eq('leads.installer_id', ctx.userId)
+      .single();
+
+    if (messageError || !message) {
+      throw new Error('Message not found');
+    }
+
+    // No editar un mensaje ya enviado
+    if (message.status === 'sent') {
+      throw new Error('Cannot edit a message that has already been sent');
+    }
+
+    const updatePayload: { content: string; subject?: string | null } = {
+      content,
+    };
+    // Solo los mensajes de email tienen subject editable
+    if (message.channel_type === 'email') {
+      updatePayload.subject = subject ?? null;
+    }
+
+    const { error: updateError } = await supabase
+      .from('messages')
+      .update(updatePayload)
+      .eq('id', messageId);
+
+    if (updateError) {
+      throw new Error('Failed to update message');
+    }
+
+    revalidatePath(`/leads/${message.lead_id}`);
+    revalidatePath(`/leads/${message.lead_id}/strategy`);
+
+    return { success: true };
   });
