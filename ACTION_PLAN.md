@@ -108,6 +108,29 @@ The brief's core ask is *believable, tailored, visual, iterable, 2+ profiles*. T
 
 ---
 
+### Phase 2.5 — Orchestrator (per-lead strategy-execution state) · **Ian + Ivan**
+A hybrid state manager that tracks where each lead sits in its strategy sequence and drives what happens next. **DB holds the state; AI defines the strategy and the detail of each step.** Built before Ian's 2b Oracle action. The Oracle still ships as planned (Phase 2) — the orchestrator consumes the Oracle's output, it does not replace it.
+
+**Concept:** each lead is assigned a strategy-execution **state** = which step of its multi-channel sequence it's currently on (e.g. `step 0 / not started` → `step 2 / call sent, awaiting reply` → `done`). The orchestrator reads lead data + the generated strategy, advances the state, and exposes "what's the next step for this lead and why."
+
+**2.5a · Schema (DB = source of truth for state)** — NEW migration, never edit existing:
+`apps/database/supabase/migrations/<ts>_lead_orchestration.sql`
+- `lead_orchestration(lead_id, strategy_id, current_step, total_steps, status, next_action_at, updated_at)` — one row per active lead. `status ∈ (not_started, in_progress, awaiting_reply, completed, paused)`.
+- RLS: copy the `strategies` policy pattern verbatim (`exists(... leads.installer_id = auth.uid())`).
+- index on `(lead_id)`. Apply → `pnpm gen-types-local`.
+
+**2.5b · State logic (DB-driven, no AI)** — `data/user/orchestration.ts`: server actions to `initOrchestration(leadId)` (seed state from the strategy's step count), `advanceStep(leadId)` (move current_step forward, flip status, set next_action_at), `getOrchestrationState(leadId)`. Plain TS + SQL — deterministic, no model call. Match the existing `authActionClient` + ownership pattern from `data/user/messages.ts`.
+
+**2.5c · AI defines the per-step detail** — reuse the existing strategy generation (`lib/ai`) as the source of *what each step is*; the orchestrator does not re-prompt per step. When a step advances, surface that step's already-generated message + its "why this / why now" goal. Only call AI here if a step needs regeneration (out of scope for v1 — flag, don't build).
+
+**2.5d · UI hook** — minimal: show each lead's current state on the lead detail page (e.g. "Step 2 of 4 · awaiting reply · next touch due today"). Full dashboard wiring is Phase 4's engagement column — don't duplicate it here; just expose the state.
+
+**Done when:** opening a lead shows its current strategy-execution step + status from the DB, and advancing a step (e.g. after a send) visibly moves the state forward and persists.
+
+> **Boundary vs. Phase 4:** orchestration = *execution position* (which step, deterministic). Phase 4 engagement signals (E1/E2/E3) = *temperature* (cold/re-engaged/hot, recency-derived). Related but distinct — don't merge them; the orchestrator's `status` can later feed the engagement view.
+
+---
+
 ### Phase 3 — Problem Codes ("something unexpected" bonus) · hours 10–15
 Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Parallelize schema / AI / UI.
 
@@ -166,7 +189,8 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 
 | Who | Phase 1 (now) | Phase 2+ |
 |---|---|---|
-| **Ian** | 1c editable cards → 1d polish, 1b prompt | 2b Oracle action + 3c code-diagnosis prompts/schemas |
+| **Ian** | 1c editable cards → 1d polish, 1b prompt | **2.5 Orchestrator (w/ Ivan)** → 2b Oracle action + 3c code-diagnosis prompts/schemas |
+| **Ivan** | — | **2.5 Orchestrator (w/ Ian)** — state schema + state logic |
 | **Sebastian** | 1a seed: 2 contrasting leads (`seed.sql`) | seed realism + code content library (~12 demo codes) |
 | **Ismael** | 1a output QA / templated-check + DE/EN copy | demo script + Loom + README |
 | **Eng 1 (rejoins P2)** | — | 2a/3a migrations |
