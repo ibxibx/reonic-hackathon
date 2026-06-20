@@ -2,18 +2,19 @@
   <img src="./pics/poster.png" alt="AI × Energy Hackathon poster" width="240">
 </p>
 
-# ☀️ SolarWarm — AI Engagement & Closing Copilot for Solar Installers
+# ☀️ RayCiprocity — AI Sales Copilot for Renewable Installers
 
 > **Track:** Reonic — *AI-Powered Marketing to Enable Renewable Installers*
 > **Event:** {Tech:Europe} AI × Energy Hackathon, Berlin · 20–21 June 2026
 >
-> We **don't** just generate emails. We turn a solar **quote** into a *diagnosed*,
-> persona-matched, **multi-channel closing strategy** — WhatsApp → SMS → email → call →
-> voice note → survey — and we tell the installer **exactly why each customer is
-> stalling** and what to do next.
+> We **don't** just generate emails. We turn a solar quote into a *diagnosed*,
+> persona-matched, **multi-channel closing strategy** — email · SMS · call · voice note —
+> tell the installer **exactly why each customer is stalling**, predict whether they'll
+> sign or ghost, and **rewrite the outreach automatically** when the customer pushes back.
 
-> 📋 Full product spec — features, the 40-code taxonomy, schema, build plan, and demo
-> script — lives in [`PRD.md`](./PRD.md).
+> 📋 Full product spec — features, the 40-code taxonomy, schema, demo script — lives in
+> [`PRD.md`](./PRD.md). Live build plan and shipped status in
+> [`ACTION_PLAN.md`](./ACTION_PLAN.md).
 
 ---
 
@@ -74,22 +75,73 @@ sequence is *traceable back to a diagnosed reason*, not a generic template.
 
 ## 🔮 The "Oracle" — Predictive Next-Best-Action
 
-A *Minority Report*–inspired panel on every lead. Drawing on the lead's per-lead RAG
-store (quote, profile, and every logged interaction), the Oracle outputs:
+A *Minority Report*–inspired panel on every lead. Drawing on the lead's quote, persona,
+problem-code stack, and logged interaction signals, the Oracle outputs:
 
 - **Sign probability** and **Ghost risk** (0–100, with trend arrows)
 - **Predicted objection** — the Problem Code most likely blocking the signature,
   *before* the customer voices it
 - **The one recommended action** — channel + timing + message angle (e.g. *"Send a
-  WhatsApp voice note today reframing the monthly rate vs. their current bill — they're
+  voice note today reframing the monthly rate vs. their current bill — they're
   `P2`-stalled and just re-engaged"*)
 - **Confidence + evidence** — which signals drove the prediction, so the manager trusts
   it
 
-Framed honestly as **decision-support, not a crystal ball.** Mechanically: lead history
-is embedded into a per-lead vector store and a scoring prompt produces the
-probabilities plus the single action, grounded in the retrieved evidence and the active
-code stack.
+Framed honestly as **decision-support, not a crystal ball.** Mechanically: the lead's
+quote, persona, problem-code stack, and interaction signals are fed as structured rows
+straight into a scoring prompt that returns the probabilities plus the single action
+with its evidence. (We deliberately skipped a vector/RAG layer — structured rows are
+faster, cheaper, and more than enough at this scale.)
+
+---
+
+## 🔁 The Orchestrator — Live Strategy-Execution State
+
+A strategy is only useful if someone knows *where each lead is in it right now*. The
+**Orchestrator** is a per-lead state machine, with the database as the source of truth,
+that tracks which step of the multi-channel sequence a lead is on and what happens next:
+
+- Each lead carries a state — `not_started → in_progress → awaiting_reply → completed`
+  (or `paused`) — plus `current_step / total_steps` and a `next_action_at` timestamp.
+- The lead view shows it plainly: *"Step 2 of 4 · awaiting reply · next touch due today,"*
+  and surfaces the **next step's actual message and its "why now" goal**.
+- It's **live-wired to the real send flow**: generating a strategy auto-seeds the state,
+  and every successful email/SMS send **auto-advances the step** — the orchestrator
+  drives and reflects the actual outreach, it isn't a static diagram.
+
+This is the difference between "here's a plan" and "here's the plan, and here's the one
+thing to do for this lead today."
+
+---
+
+## 📥 Inbound Triage + Automatic Outreach Pivot
+
+The feature that turns a one-way sequence into a real conversation. When a customer
+replies, the reply **lands on the dashboard**, and:
+
+1. **The AI categorizes the intent** — `interested · objection · ghost_risk ·
+   ready_to_close` — with reasoning and a suggested next step, persisted to the lead.
+2. **The Orchestrator reacts** — an objection holds the sequence, a ghost-risk pauses it,
+   a ready-to-close flips it toward the closing touch.
+3. **The outreach actually rewrites itself** — every remaining *unsent* message is
+   regenerated to convincingly tackle the customer's specific concern
+   (acknowledge-then-address, in the persona's tone, inventing no fake numbers). A
+   winter-production objection, for example, rewrites the upcoming SMS, call, and voice
+   note to address diffused-light performance and financing.
+4. **The reply is interleaved into the timeline** — customer-side entries render
+   chronologically, so the back-and-forth reads as one thread.
+
+This is the strongest demo beat: paste a real objection, and watch the whole downstream
+strategy re-aim itself at it in seconds.
+
+---
+
+## 🧬 Archetype Classifier (first-pass agent)
+
+A standalone, stateless agent that takes a raw lead and returns a single archetype —
+`family · investor · environmentalist · skeptic` — with a confidence score, the signals
+it keyed on, and its reasoning. It runs as the first pass before a full strategy is
+defined, so persona is locked (and visible) from the very first touch.
 
 ---
 
@@ -128,22 +180,22 @@ We make persona-tailored, reasoning-backed follow-up a one-click action.
    *and* assigns a **Problem-Code stack** (e.g. `P2 + T2 + C1`) naming exactly why the
    deal is stuck, each with confidence and the evidence behind it.
 4. **Strategy generation.** It emits a coherent **multi-channel** plan —
-   WhatsApp → SMS → Email → Call script → Voice-note script — and for **each** step a
+   Email → SMS → Call script → Voice-note script — and for **each** step a
    `timingHint`, a `rationale` (why this channel, this tone, now, for *this* persona and
    *these* codes), and the message body itself.
 5. **Visual timeline.** The plan renders as an interactive vertical timeline. Each
    step is a preview card showing its content, its reasoning, and its status — and is
    **click-to-edit** before anything is sent.
-6. **One-click execution.** WhatsApp/SMS/email fire via their adapters (real where a
-   key exists, gracefully mocked otherwise) and the voice note is synthesized by
-   **ElevenLabs**, stored in Supabase Storage, and played back inline from a signed URL.
-   Every touch is logged back to the lead, updating its status and feeding the RAG store.
-7. **Keep-warm + surveys.** A per-lead cadence engine schedules touches by archetype +
-   code + engagement signal: going-cold (`E1`) triggers a re-warm sequence, re-engaged
-   (`E2`) escalates to a closing touch, high-intent (`E3`) alerts the manager to call.
-   When a code is *uncertain*, a 1-tap micro-survey resolves it and re-routes the strategy.
-8. **The Oracle updates live.** Each logged interaction re-scores sign/ghost likelihood
-   and refreshes the single recommended next action with its evidence.
+6. **One-click execution.** Email/SMS fire via their adapters (real where a key exists,
+   gracefully mocked otherwise), the call script is shown, and the voice note is
+   synthesized by **ElevenLabs**, stored in Supabase Storage, and played back inline from
+   a signed URL. Every send logs an interaction and **auto-advances the Orchestrator step**.
+7. **Inbound triage + pivot.** When the customer replies, the AI categorizes the intent
+   (interested · objection · ghost_risk · ready_to_close), the Orchestrator reacts, and
+   **every remaining unsent message rewrites itself** to address the concern — the reply
+   is interleaved into the timeline as a customer-side entry.
+8. **The Oracle updates.** Sign/ghost likelihood and the single recommended next action
+   are re-scored from the lead's quote, codes, and interaction signals, with evidence.
 
 The output isn't "here are four emails." It's *"here is the diagnosis, here is the
 approach, here is why it fits this customer, and here is how you can adjust it"* — a
@@ -151,24 +203,23 @@ persuasion strategy an installer can understand, trust, and iterate on.
 
 ---
 
-## 📡 Channels & Keep-Warm Engine
+## 📡 Channels
 
-Six touch types, chosen per lead by archetype + code + engagement signal. Each is real
-where an API key is present and **gracefully mocked otherwise**, so the demo never
-hard-fails.
+Four touch types per strategy, chosen per lead by archetype + problem-code stack. Each
+is real where an API key is present and **gracefully mocked otherwise** (`MOCK_EMAIL` /
+`MOCK_SMS` flags), so the demo never hard-fails.
 
 | Channel | Use | Implementation | Fallback |
 |---|---|---|---|
-| **WhatsApp** | Warm, high open-rate; family / environmentalist | WhatsApp Business Cloud API | Mock send + preview card |
+| **Email** | Data, documents, ROI tables; investor / skeptic | Resend | Mock / preview |
 | **SMS** | Short, time-sensitive nudges; investor | Twilio | Mock toast if no key |
-| **Email** | Data, documents, ROI tables; investor / skeptic | Resend | Preview only |
 | **Call** | High-touch objection handling; skeptic / family | AI-generated structured call script | Script always shown |
 | **Voice note** | Human warmth at scale — the wow moment | ElevenLabs TTS → Supabase Storage → signed URL | Pre-cached MP3 |
-| **Survey / micro-poll** | Resolve an uncertain Problem Code | 1-tap WhatsApp/SMS question or 2-click emailed poll | Simulated response in-app |
 
-**Keep-warm logic:** the cadence engine follows up in short windows before
-over-analysis sets in; surveys deploy when a code is uncertain (e.g. *"Is it the upfront
-cost or the timing giving you pause?"* resolves `P1` vs `L1` and re-routes the strategy).
+> **Roadmap channels (designed, not yet built):** WhatsApp (Business Cloud API) for warm,
+> high-open-rate touches, and a Survey / micro-poll channel to resolve an uncertain
+> Problem Code (*"Is it the upfront cost or the timing giving you pause?"* — resolves
+> `P1` vs `L1` and re-routes the strategy). Both are specced in [`PRD.md`](./PRD.md) §6.
 
 ---
 
@@ -183,18 +234,17 @@ flowchart TD
     classDef channel fill:#f1f5f9,stroke:#475569,color:#0f172a
 
     I["👷 Installer<br/>enters lead + quote"]:::installer
-    UI["🖥️ Next.js Dashboard<br/>leads board · lead view · timeline · Oracle"]:::app
-    SB[("🗄️ Supabase Postgres + pgvector<br/>RLS-scoped per installer<br/>profiles · leads · quotes · strategies<br/>messages · interactions · problem_codes<br/>surveys · predictions")]:::data
-    DIAG["🧠 diagnose<br/>Server Action → LLM<br/>persona + Problem-Code stack (JSON)"]:::brain
+    UI["🖥️ Next.js 16 Dashboard<br/>leads board · lead view · timeline · Oracle"]:::app
+    SB[("🗄️ Supabase Postgres<br/>RLS-scoped per installer<br/>profiles · leads · quotes · strategies<br/>messages · interactions · problem_codes<br/>predictions · lead_orchestration · inbound_messages")]:::data
+    DIAG["🧠 diagnose + classify<br/>Server Action → LLM<br/>persona + Problem-Code stack (JSON)"]:::brain
     GEN["🧠 generate-strategy<br/>Server Action → LLM<br/>multi-channel plan (JSON)"]:::brain
-    ORC["🔮 Oracle<br/>sign/ghost score + next action<br/>RAG-grounded"]:::brain
-    RAG[("📚 Per-lead RAG store<br/>pgvector embeddings")]:::data
-    TL["🗂️ Communication Timeline<br/>WhatsApp · SMS · Email · Call · Voice · Survey<br/>editable · per-step rationale"]:::app
-    WA["💚 WhatsApp<br/>Business Cloud API"]:::channel
+    ORC["🔮 Oracle<br/>sign/ghost score + next action<br/>structured-row prompt"]:::brain
+    ORCH["🔁 Orchestrator<br/>per-lead step state<br/>(DB source of truth)"]:::app
+    INB["📥 Inbound triage<br/>categorize + adaptStrategy<br/>rewrites unsent msgs"]:::brain
+    TL["🗂️ Outreach Timeline<br/>Email · SMS · Call · Voice<br/>editable · replies interleaved"]:::app
     SMS["💬 Twilio<br/>SMS"]:::channel
     EM["📧 Resend<br/>email"]:::channel
     EL["🎙️ ElevenLabs TTS<br/>voice note"]:::channel
-    SV["📊 Survey<br/>micro-poll"]:::channel
     ST[("🔊 Supabase Storage<br/>voice-notes · signed URLs")]:::data
 
     I -->|"web form"| UI
@@ -205,28 +255,28 @@ flowchart TD
     DIAG --> GEN
     GEN <-->|"read diagnosis"| SB
     GEN ==>|"plan + draft msgs"| SB
+    GEN -->|"seed state"| ORCH
     SB ==>|"RLS read"| TL
-    TL --> WA
     TL --> SMS
     TL --> EM
     TL --> EL
-    TL --> SV
     EL --> ST
     ST -->|"signed URL"| TL
-    WA -->|"logged touch"| SB
-    SMS -->|"logged touch"| SB
-    EM -->|"logged touch"| SB
-    SV -->|"response"| SB
-    SB -->|"interactions"| RAG
-    RAG --> ORC
+    SMS -->|"logged touch + advance step"| ORCH
+    EM -->|"logged touch + advance step"| ORCH
+    ORCH ==> SB
+    I -->|"paste reply"| INB
+    INB ==>|"intent + rewrite unsent"| SB
+    INB -->|"react"| ORCH
+    SB -->|"signals"| ORC
     ORC ==>|"predictions"| SB
-    SB ==>|"live score"| UI
+    SB ==>|"live score + state"| UI
 ```
 
 Every table is scoped by `installer_id = auth.uid()` through Row Level Security, so an
 installer only ever sees their own leads — the multi-tenant B2B-SaaS shape that answers
-the "could this be a company?" question directly. Full schema and execution order live
-in [`PRD.md`](./PRD.md) (§9).
+the "could this be a company?" question directly. Full schema lives in
+[`PRD.md`](./PRD.md) (§9); shipped status in [`ACTION_PLAN.md`](./ACTION_PLAN.md).
 
 ---
 
@@ -238,18 +288,17 @@ in [`PRD.md`](./PRD.md) (§9).
 
 | Layer | Choice |
 |---|---|
-| **Framework** | Next.js 14+ (App Router), TypeScript, React Server Components |
+| **Framework** | Next.js 16 (App Router, RSC, Turbopack), TypeScript, React 19 |
 | **UI** | Tailwind CSS + shadcn/ui + Lucide icons (premium SaaS look) |
-| **Database & Auth** | **Supabase** — PostgreSQL + **pgvector**, Auth, Storage, **Row Level Security** |
-| **AI** | Vercel AI SDK → OpenAI / Gemini |
-| **RAG** | per-lead embedding store (pgvector) feeding diagnosis + the Oracle |
-| **Data fetching** | TanStack Query (React Query) or Server Actions |
-| **WhatsApp** | WhatsApp Business Cloud API (with mock fallback) |
-| **Email** | Resend |
-| **SMS** | Twilio (with mock fallback) |
+| **Database & Auth** | **Supabase** — PostgreSQL, Auth, Storage, **Row Level Security** |
+| **AI** | Vercel AI SDK → OpenAI (`gpt-4o`, strict JSON-schema mode) |
+| **Data fetching** | `next-safe-action` Server Actions + TanStack Query |
+| **Email** | Resend (with `MOCK_EMAIL` fallback) |
+| **SMS** | Twilio (with `MOCK_SMS` fallback) |
 | **Voice note** | ElevenLabs TTS → stored in Supabase Storage (signed URLs) |
+| **Charts** | Recharts (Oracle gauges) |
 | **Toasts** | `sonner` |
-| **Deploy** | Vercel |
+| **Monorepo / Deploy** | Turborepo + pnpm · Vercel |
 
 > 💡 The ElevenLabs voice note also enters us into the **Best Use of Eleven Labs**
 > side challenge (6 months Scale tier, ~$1,980/member).
@@ -260,27 +309,28 @@ in [`PRD.md`](./PRD.md) (§9).
 
 ## 🧩 Database Schema (Supabase)
 
-Ten objects, with **Row Level Security** so each installer only sees their own data.
-Full SQL migration is generated first (see `PRD.md` §9–10 execution order); shape:
+**Row Level Security** scopes every table so each installer only sees their own data.
+Full SQL lives as timestamped migrations under `apps/database/supabase/migrations`; shape:
 
 | Table | Key columns |
 |---|---|
 | `profiles` | `id uuid → auth.users`, `company_name`, `created_at` |
-| `leads` | `id`, `installer_id → profiles`, `name`, `email`, `phone`, `address`, `roof_type`, `monthly_bill`, `status` (default `new`), `created_at` |
+| `leads` | `id`, `installer_id → profiles`, `name`, `email`, `phone`, `address`, `roof_type`, `monthly_bill`, `status` ∈ {new,contacted,negotiating,closed,ghosted}, `created_at` |
 | `quotes` | `id`, `lead_id → leads`, `system_size_kw`, `total_cost`, `financing_type`, `notes` |
 | `strategies` | `id`, `lead_id → leads`, `persona_detected`, `strategy_summary`, `created_at` |
-| `messages` | `id`, `lead_id`, `strategy_id`, `channel_type` ∈ {whatsapp,sms,email,call,voice,survey}, `content`, `audio_url`, `status` ∈ {draft,sent,failed}, `sent_at`, `error_message` |
-| `interactions` | `id`, `lead_id`, `channel`, `direction`, `content`, `sentiment`, `occurred_at` — warm/cold signal + **RAG source** |
-| `problem_codes` | `id`, `lead_id`, `code`, `confidence`, `evidence`, `resolved_at` — the **code stack** |
-| `surveys` | `id`, `lead_id`, `question`, `channel`, `response`, `asked_at`, `answered_at` |
+| `messages` | `id`, `lead_id`, `strategy_id`, `channel_type` ∈ {email,sms,call,voice}, `content`, `audio_url`, `status` ∈ {draft,sent,failed}, `sent_at`, `error_message` |
+| `interactions` | `id`, `lead_id`, `channel`, `direction`, `content`, `sentiment`, `occurred_at` — warm/cold signal |
+| `problem_codes` | `id`, `lead_id`, `code`, `family`, `confidence`, `evidence`, `resolved_at` — the **code stack** |
 | `predictions` | `id`, `lead_id`, `sign_prob`, `ghost_risk`, `predicted_code`, `recommended_action`, `evidence`, `created_at` — **Oracle** output |
+| `lead_orchestration` | `lead_id`, `strategy_id`, `current_step`, `total_steps`, `status`, `next_action_at`, `updated_at` — **Orchestrator** state |
+| `inbound_messages` | `id`, `lead_id`, `content`, `intent`, `reasoning`, `suggested_step`, `created_at` — **inbound triage** |
 | **Storage** | bucket `voice-notes` — **private**, owner-only via signed URLs |
 
 RLS policy pattern: every table scoped through `installer_id = auth.uid()` (directly on
 `leads`, transitively via `lead_id` on the rest). The persona enum on
 `strategies.persona_detected` maps to the brief's four archetypes; `problem_codes.code`
-holds the 40-code taxonomy. A `pgvector` per-lead embedding store feeds diagnosis + the
-Oracle.
+holds the 40-code taxonomy. *(The `surveys` table is specced in `PRD.md` §9 as roadmap,
+not yet built.)*
 
 ---
 
@@ -323,7 +373,7 @@ solar quote, and the interaction history. Do three things:
    (P*, T*, C*, F*, L*, S*, E*), each with a confidence and the evidence behind it.
 3. Produce a coherent multi-channel strategy to move them from "quote received" to
    "contract signed" — WITHOUT being pushy — that addresses the code stack in
-   priority order. Channels available: WhatsApp, SMS, Email, Call script, Voice note.
+   priority order. Channels available: Email, SMS, Call script, Voice note.
    For EACH step give: channel, timingHint, rationale (why this channel/tone/now for
    THIS persona AND these codes), and the message body (email also has a subject;
    call/voice are scripts).
@@ -331,35 +381,30 @@ Tone, ROI framing, and objection-handling MUST match the persona and the codes.
 Output STRICTLY as JSON matching the schema. No prose outside JSON.
 ```
 
-- Validate with `zod` before the DB insert. UI shows a **skeleton loader** while it runs.
+- Validate with `zod` before the DB insert (OpenAI strict mode → every key `required`,
+  use `.nullable()` not `.optional()`). UI shows a **skeleton loader** while it runs.
 - Constraining persona + codes to enums is what makes the output map onto the judges'
   exact language and keeps the "why" legible and traceable.
 
-### 4. Communication Timeline & Previews
-A vertical **timeline** of the steps (WhatsApp → SMS → Email → Call → Voice → Survey),
-read from `messages`, with **customer replies interleaved chronologically**. Each step
-is a preview card showing its content, its driving Problem Code, and its status, and is
-**click-to-expand and editable** before sending:
-- **WhatsApp** — text/voice, `Send via WhatsApp` button (mock preview if no key)
+### 4. Outreach Timeline & Previews
+A vertical **timeline** of the steps (Email → SMS → Call → Voice), read from `messages`,
+with **customer replies interleaved chronologically**. Each step is a preview card
+showing its content, its driving Problem Code, and its status, and is
+**click-to-edit (pencil)** before sending (edits blocked once a message is sent):
 - **Email** — subject + body, `Send via Resend` button
 - **SMS** — text, `Send via Twilio` button
 - **Call** — structured script (Opening · Value Prop · Objection Handling · Close)
 - **Voice Note** — `Generate Voice` button → custom audio player streaming from Storage
-- `components/timeline.tsx` · `components/step-card.tsx` (edits saved back to `messages`)
+- `components/strategy/strategy-timeline.tsx` · `timeline-step.tsx` · `inbound-timeline-entry.tsx`
 
 ### 5. Sending & Voice Pipeline (Server Actions)
-- **ElevenLabs** — `app/actions/generate-voice-note.ts`: fetch the voice script from
-  `messages` → call TTS (`https://api.elevenlabs.io/v1/text-to-speech/{voice_id}`) →
-  convert the audio stream to a **Blob** → upload to Supabase Storage `voice-notes` as
-  `{message_id}.mp3` → get a **signed URL** → update `messages.audio_url` + `status='draft'`.
-  Player streams the MP3 via the signed URL.
-- **WhatsApp** — `send-whatsapp` Server Action via WhatsApp Business Cloud API; **mock
-  send + preview card** if no key.
-- **Resend** — `send-email` Server Action sends the (possibly edited) body; updates
-  `messages.status` to `sent`/`failed` from the API response.
-- **Twilio** — `send-sms` Server Action; updates DB status; **mock fallback** if
-  `TWILIO_AUTH_TOKEN` is missing, so the demo never hard-fails without a paid number.
-- Every send is logged to `interactions` (feeding the RAG store + engagement signals).
+- **ElevenLabs** — fetch the voice script → call TTS → convert the audio stream to a
+  **Blob** → upload to Supabase Storage `voice-notes` as `{message_id}.mp3` → get a
+  **signed URL** → update `messages.audio_url`. Player streams the MP3 via the signed URL.
+- **Resend** — `send-email` sends the (possibly edited) body; updates `messages.status`
+  to `sent`/`failed`; `MOCK_EMAIL` fallback so the demo never hard-fails.
+- **Twilio** — `send-sms`; updates DB status; `MOCK_SMS` fallback if no paid number.
+- Every send logs an `interactions` row **and auto-advances the Orchestrator step**.
 - Every Server Action wraps in try/catch and returns `{ error: string }`; buttons show
   spinners while pending; `sonner` toasts on success/failure.
 
@@ -370,17 +415,34 @@ detected stack into `problem_codes` with confidence + evidence; the dashboard re
 them as chips and the strategy generator consumes them. See PRD §4 for the full table.
 
 ### 7. The Oracle — Predictive Next-Best-Action ⭐
-`app/actions/score-lead.ts` embeds the lead's interaction history into the per-lead
-`pgvector` store and runs a scoring prompt → writes `predictions` (sign prob, ghost
-risk, predicted code, recommended action, evidence). The lead view shows a
-*Minority Report*–style panel; the dashboard surfaces the risk score as a sortable
-column. Re-scores live on every new logged interaction.
+`generateOracle(leadId)` feeds the lead's quote, persona, code stack, and interaction
+signals as structured rows into a scoring prompt → writes `predictions` (sign prob,
+ghost risk, predicted blocker, recommended action, evidence). The lead view shows a
+*Minority Report*–style panel with two recharts gauges and a "one recommended action"
+CTA that jumps to that channel's step. (No RAG — structured rows beat embeddings here.)
 
-### 8. Keep-Warm Cadence + Survey Loop
-A per-lead cadence engine schedules touches by archetype + code + engagement signal
-(`E1` re-warm, `E2` escalate-to-close, `E3` alert-manager). When a code is uncertain,
-`send-survey.ts` issues a 1-tap micro-poll; the ingested response updates the diagnosis
-(`surveys` + `problem_codes`) and re-routes the strategy.
+### 8. The Orchestrator — Live Strategy-Execution State ⭐
+`data/user/orchestration.ts` + `lib/orchestration-core.ts`: a DB-backed per-lead state
+machine (`lead_orchestration`). Generating a strategy seeds the state; each send
+`bumpStep`s it forward; the lead view shows *"Step 2 of 4 · awaiting reply · next touch
+due today"* plus the next step's actual message and "why now" goal. Deterministic, no
+model call.
+
+### 9. Inbound Triage + Automatic Outreach Pivot ⭐
+`data/user/inbound.ts` + `components/strategy/inbound-panel.tsx`: paste a customer reply
+→ `categorizeInbound` tags intent (interested · objection · ghost_risk · ready_to_close)
+→ the Orchestrator reacts → **`adaptStrategy` rewrites every remaining unsent message**
+to address the concern in persona tone (no invented numbers). The reply interleaves into
+the timeline. The strongest demo beat.
+
+### 10. Archetype Classifier
+`data/user/classify-archetype.ts` + `classifyArchetype` in `lib/ai/provider.ts`: a
+stateless first-pass agent returning a single archetype + confidence + signals +
+reasoning, so persona is locked before a full strategy is generated.
+
+> **Roadmap (specced, not built):** keep-warm cadence engine, the survey loop (FR-6),
+> WhatsApp channel, and DE/EN A/B strategy variants — see [`PRD.md`](./PRD.md) §6 and
+> [`ACTION_PLAN.md`](./ACTION_PLAN.md) Phase 5.
 
 ---
 
@@ -390,16 +452,16 @@ Production execution order — but **demo wow-path first** if time tightens (see
 
 | Step | What |
 |---|---|
-| **1 — SQL schema** | Generate the full Supabase migration (10 tables/objects + pgvector) + **RLS policies** |
+| **1 — SQL schema** | Supabase migrations (10 tables) + **RLS policies** |
 | **2 — Project + middleware** | Next.js structure; `utils/supabase/{client,server,middleware}.ts` for cookie/session |
 | **3 — Auth** | Login/Signup (shadcn forms or `@supabase/auth-ui-react`); protected routes |
 | **4 — Lead/Quote forms** | New Lead flow → insert to `leads` + `quotes` |
 | **5 — Diagnosis** | `diagnose` Server Action → persona + `problem_codes` stack with evidence |
 | **6 — AI Strategy** | `generate-strategy` Server Action → `strategies` + draft `messages` |
 | **7 — Voice pipeline** | ElevenLabs → Blob → Supabase Storage → signed URL → `messages.audio_url` |
-| **8 — Timeline UI** | Preview + edit + send (WhatsApp / SMS / Resend / Twilio); log to `interactions` |
-| **9 — Oracle + RAG** | per-lead pgvector store → `score-lead` → `predictions` panel + dashboard column |
-| **10 — Keep-warm + surveys** | cadence engine + `send-survey` loop re-routing the diagnosis |
+| **8 — Timeline UI** | Preview + edit + send (Email / SMS / Voice); log to `interactions` + advance Orchestrator |
+| **9 — Oracle** | structured-row scoring → `score-lead` → `predictions` panel + gauges |
+| **10 — Orchestrator + Inbound** | per-lead step state + paste-a-reply triage that rewrites unsent messages |
 
 > Install: `@supabase/supabase-js`, `@supabase/ssr` early (step 2). Write
 > production-clean, commented code, but protect the **happy path** for the Sunday-14:00
@@ -412,10 +474,10 @@ Production execution order — but **demo wow-path first** if time tightens (see
 - [ ] Dashboard: leads with archetype badges, **Problem-Code chips**, and **Oracle risk** column — "these deals are stalling, here's why"
 - [ ] Open a going-cold lead; **Oracle** reads sign/ghost %, predicted blocker, recommended action
 - [ ] Click **Generate Strategy** → diagnosis + multi-channel plan stream in with per-step *why*
-- [ ] App shows the **visual timeline** (WhatsApp → SMS → Email → Call → Voice → Survey)
+- [ ] App shows the **outreach timeline** (Email → SMS → Call → Voice) + the **Orchestrator** state (*"Step 1 of 4"*)
 - [ ] Edit the **Voice Note** script → **Generate Voice** → ElevenLabs → **plays the audio** (the wow)
-- [ ] Fire the **WhatsApp** touch (real or mocked) → it logs back → engagement flips `E1→E2`, **Oracle updates live**
-- [ ] Installer clicks **Send Email** → Resend · **Send SMS** → Twilio (or mock toast)
+- [ ] Installer clicks **Send Email** → Resend · **Send SMS** → Twilio (or mock toast) → step auto-advances
+- [ ] **Paste a customer objection** → it's categorized → **the remaining messages rewrite to address it**, reply shows in the timeline, Oracle updates
 - [ ] Installer reads the **Call script**
 
 ### 🛟 Demo-day insurance
@@ -455,9 +517,9 @@ RESEND_API_KEY=
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 TWILIO_PHONE_NUMBER=
-# WhatsApp (if absent, WhatsApp is mocked)
-WHATSAPP_PHONE_NUMBER_ID=
-WHATSAPP_ACCESS_TOKEN=
+# WhatsApp (roadmap — not yet wired)
+# WHATSAPP_PHONE_NUMBER_ID=
+# WHATSAPP_ACCESS_TOKEN=
 ```
 
 Copy `.env.local` from the template. The app degrades gracefully when an integration
@@ -468,9 +530,91 @@ The `SUPABASE_SERVICE_ROLE_KEY` is server-only — never expose it to the client
 
 ## 🏷️ Product Name
 
-Working title: **SolarWarm** — the diagnose-and-keep-warm framing. Alternates from the
-team brainstorm: *Momentum, Cadence, Cloze, Chorus, Tailwind, Wingman, Warmline,
-Closeline*. Drop your vote in `#team` or open a PR editing this line.
+**RayCiprocity** — solar reciprocity: every ray you give the customer comes back as a
+signed deal. Earlier brainstorm alternates: *SolarWarm, Momentum, Cadence, Cloze,
+Chorus, Wingman, Warmline, Closeline*.
+
+---
+
+## 💸 Outcomes & ROI — What This Is Worth to an Installer
+
+> **Read this as a transparent model, not a measured result.** The figures below are
+> conservative, clearly-stated estimates built on public solar-sales benchmarks and a
+> worked example — the kind of business case an installer (or Reonic) would sanity-check,
+> not scraped live data. Every assumption is shown so you can swap in your own numbers.
+
+### The money that's actually on the table
+
+The expensive moment in solar sales isn't the pitch — it's the **silence after the
+quote**, where a meaningful share of already-quoted, already-interested deals quietly
+die. RayCiprocity attacks exactly that gap. Two levers drive the value:
+
+**Lever 1 — Recover lost deals (revenue generated).**
+Worked example for a small installer:
+
+| Assumption (conservative) | Value |
+|---|---|
+| Quotes sent per month | 40 |
+| Baseline quote→contract close rate | 20% → **8 deals/mo** |
+| Average installed system value (German residential PV, 8–12 kWp) | **~€15,000** |
+| Uplift from disciplined, persona-tailored, reasoning-backed follow-up | **+3 percentage points** (20% → 23%) |
+| Extra deals recovered | ~**1.2 deals/month** |
+| **Added revenue** | **~€18,000/month ≈ €215,000/year** |
+
+A +3-point close-rate lift is deliberately modest — structured follow-up and faster,
+more relevant touches are widely credited with **double-digit %** improvements in
+quote-stage conversion; we model a fraction of that. At a +5-point lift the same
+installer recovers ~2 deals/month (**~€30,000/month**).
+
+**Lever 2 — Give the sales rep their week back (time + cost saved).**
+Personalising follow-up for 40 live leads — diagnosing each, drafting four on-tone
+messages, sequencing and timing them — is the task reps *don't* have time for, so it
+doesn't happen. RayCiprocity collapses it to one click + a quick edit.
+
+| Assumption (conservative) | Value |
+|---|---|
+| Manual personalised follow-up, per lead | ~20 min |
+| With RayCiprocity (review + edit a generated strategy) | ~3 min |
+| Time saved per lead | ~17 min |
+| Across 40 leads/month | **~11 hours/month per rep** |
+| Loaded sales-rep cost | ~€40/hour |
+| **Labour value freed** | **~€450/month per rep (~€5,400/year)** — redirected to closing, not typing |
+
+### Headline outcomes
+
+- **~€215k/year** in recovered deal revenue for a single small installer (40 quotes/mo,
+  +3-point close-rate lift, €15k average system) — and it scales linearly with quote volume.
+- **~11 hours/month per rep** of personalised-follow-up time removed (**~85% faster**
+  per lead: ~20 min → ~3 min).
+- **Faster, relevant follow-up** on the leads most likely to ghost — the Oracle flags
+  ghost-risk *before* the customer goes cold, so reps spend their hours where they convert.
+- **Higher per-deal value** as a bonus: the same diagnose-and-address engine surfaces
+  battery / heat-pump / EV-charger upsells the brief calls out, lifting average system
+  value beyond the €15k baseline used above.
+
+### Why these are credible, not hype
+
+- The **average system value (~€15k)** is grounded in real German residential PV pricing
+  for 8–12 kWp systems — the exact segment Reonic's installers serve.
+- The **close-rate uplift (+3 pts)** is the cautious end of what disciplined,
+  personalised, well-timed follow-up is known to deliver; we model well below the
+  headline figures often quoted for solar lead nurture.
+- The **time saving** is a direct task-replacement measurement (manual personalisation
+  vs. review-and-edit), not a productivity hand-wave.
+
+> **Swap in your own numbers.** The model is linear: `added revenue ≈ quotes/mo ×
+> close-rate-uplift × average-system-value`. Double the quote volume and the annual
+> figure doubles. These are illustrative planning numbers for the pitch, to be validated
+> against a real installer's pipeline.
+
+### What it means for Reonic
+
+RayCiprocity is the **recurring-revenue closing module** that bolts onto Reonic's
+existing funnel — picking up precisely where their address→3D→quote→offer-PDF flow stops.
+It deepens Reonic's "one software, not 24 tools" value: more of every installer's quotes
+turn into signed contracts, on the platform installers already live in, with the
+persuasion reasoning visible and editable. A measurable lift in *partner close rates* is
+the kind of outcome that makes a module sticky and expandable.
 
 ---
 
@@ -482,17 +626,19 @@ Closeline*. Drop your vote in `#team` or open a PR editing this line.
   enum the AI must classify into (so the output speaks the judges' exact language)
 - **40 Problem Codes across 7 families** — the diagnosis taxonomy (`P*·T*·C*·F*·L*·S*·E*`)
   that names *why* each deal is stuck, grounded in 5-language customer-voice research
-- **6 channels per strategy** — WhatsApp → SMS → Email → Call → Voice → Survey, each
-  with its own timing, rationale, and driving Problem Code
-- **10 data objects** — `profiles`, `leads`, `quotes`, `strategies`, `messages`,
-  `interactions`, `problem_codes`, `surveys`, `predictions` + a private `voice-notes`
-  bucket, all **Row-Level-Security scoped per installer**, with a `pgvector` RAG store
-- **1 predictive Oracle** — per-lead sign/ghost scoring + next-best-action with evidence,
-  re-scored live on every logged interaction
-- **2 chained JSON-schema prompts** — diagnosis (persona + code stack) then strategy
-  (multi-channel plan), validated with `zod` before they ever touch the DB
-- **4 live integrations** — WhatsApp (Business Cloud API), Resend (email), Twilio (SMS),
-  ElevenLabs (voice) — all with graceful mock fallbacks, every touch logged
+- **4 channels per strategy** — Email · SMS · Call · Voice note, each with its own
+  timing, rationale, and driving Problem Code
+- **5 AI agents** — archetype classifier · diagnosis · strategy generator · Oracle ·
+  inbound triage, each a tagged, greppable, schema-validated step
+- **10 data tables** — `profiles`, `leads`, `quotes`, `strategies`, `messages`,
+  `interactions`, `problem_codes`, `predictions`, `lead_orchestration`, `inbound_messages`
+  + a private `voice-notes` bucket, all **Row-Level-Security scoped per installer**
+- **1 predictive Oracle** + **1 live Orchestrator** — sign/ghost scoring with evidence,
+  and a per-lead step state that auto-advances on every send
+- **1 self-rewriting outreach** — an inbound objection regenerates every unsent message
+  to address it
+- **3 live integrations** — Resend (email), Twilio (SMS), ElevenLabs (voice) — all with
+  graceful mock fallbacks, every touch logged
 - **8 seeded demo leads** across all four archetypes and varied code stacks
 - **1 side-challenge entry** — the ElevenLabs voice note also competes for **Best Use
   of Eleven Labs** (6 months Scale tier, ~$1,980/member)
@@ -506,14 +652,14 @@ Closeline*. Drop your vote in `#team` or open a PR editing this line.
 - **Strategically sound** — persona-grounded follow-up, with the *why* visible at every
   step, exactly what the judges said they'd reward.
 - **Visually compelling & iterative** — an editable timeline an installer would show
-  their sales manager; the installer tweaks tone, timing, and copy on the fly, and
-  surveys re-route the diagnosis on the fly.
-- **Multi-channel by default** — WhatsApp, SMS, email, call, voice, and survey in one
-  strategy (hitting the brief's bonus criteria, not just the baseline).
+  their sales manager; the installer tweaks tone, timing, and copy on the fly, and an
+  inbound objection **re-aims the whole sequence automatically**.
+- **Multi-channel** — email, SMS, call, and voice in one strategy, each tied to a
+  diagnosed reason (hitting the brief's bonus criteria, not just the baseline).
 - **Predictive insights** — the Oracle warns "this customer might ghost" / "ready to
   close now," exactly the bonus the brief names.
-- **Something unexpected** — the 40-code diagnosis system + the Oracle answer the
-  brief's "an idea we didn't think of that works."
+- **Something unexpected** — the 40-code diagnosis system, the Oracle, and the
+  self-rewriting outreach answer the brief's "an idea we didn't think of that works."
 - **Believably a company** — multi-tenant, RLS-secured, production-shaped — the answer
   to "could this be a real product?" with Point Nine in the room.
 - **Partner fit** — it bolts directly onto Reonic's existing funnel, picking up exactly
@@ -542,9 +688,9 @@ hackathon pitch.
 ## 📂 Repo Map
 
 ```
-README.md            ← you are here (product overview + build plan)
+README.md            ← you are here (product overview + features + ROI)
 PRD.md               ← full product requirements: features, 40-code taxonomy, schema, demo script
-ACTION_PLAN.md       ← team execution plan
+ACTION_PLAN.md       ← live build plan + shipped-status checklist (source of truth for what's built)
 AGENTS.md            ← agent/automation notes
 apps/                ← Next.js app + Supabase database (monorepo)
 packages/            ← shared config
