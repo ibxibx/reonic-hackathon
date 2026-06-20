@@ -137,6 +137,72 @@ A lead holds a **code stack** (e.g. `P2 + T2 + C1` = "financing-unclear, unprove
 
 **40 codes across 7 families**, each mapped to a counter-strategy, channel, and message angle.
 
+## 4a. Customer Profile Taxonomy (supplementary layer)
+
+In addition to the four archetypes used in strategy generation (Section 3), the following finer-grained customer profile taxonomy has been drafted to inform persona detection and the lead classifier:
+
+| # | Customer Profile |
+|---|---|
+| 1 | Cost-Conscious Family |
+| 2 | ROI Investor |
+| 3 | Environmentalist |
+| 4 | Technical Skeptic |
+| 5 | Busy Professional |
+| 6 | Competitor Shopper |
+| 7 | Financing-Sensitive Buyer |
+| 8 | Energy Independence Customer |
+| 9 | Neighborhood Champion |
+| 10 | Older Homeowner |
+
+## 4b. Lead Classifier — Input Feature Table
+
+Structured input fields proposed for persona/profile classification and engagement scoring:
+
+**Property & System Fit**
+| # | Input Field | Type | Example Values | Signal For |
+|---|---|---|---|---|
+| 1 | monthly_bill_eur | numeric | 60 – 400 | Deal size, urgency (high bill → price-pressured) |
+| 2 | system_size_kw | numeric | 3 – 20 | Deal size, ambition level |
+| 3 | has_battery_interest | bool | true / false | ROI Investor, Energy Independence |
+| 4 | has_ev_charger_interest | bool | true / false | Environmentalist, Energy Independence |
+| 5 | has_heat_pump_interest | bool | true / false | Environmentalist, cross-sell readiness |
+| 6 | roof_type | categorical | tile / flat / shingle / other | Technical fit, minor signal |
+| 7 | property_ownership | bool | owns / rents | Eligibility, Older Homeowner |
+
+**Financial Profile**
+| # | Input Field | Type | Example Values | Signal For |
+|---|---|---|---|---|
+| 8 | financing_type | categorical | cash / loan / undecided | ROI Investor (cash), Financing-Sensitive (loan) |
+| 9 | budget_quote_fit | categorical | covers_full / covers_base_only / unclear | Budget alignment (mirrors Reonic's own scoring) |
+
+**Household & Demographic**
+| # | Input Field | Type | Example Values | Signal For |
+|---|---|---|---|---|
+| 10 | household_size | numeric | 1 – 6 | Cost-Conscious Family |
+| 11 | age_bracket | categorical | 25–35 / 36–50 / 51–65 / 65+ | Older Homeowner, Busy Professional |
+| 12 | occupation_signal | categorical | employed_ft / self_employed / retired / unknown | Busy Professional, Older Homeowner |
+
+**Lead Source & Behavioral Flags**
+| # | Input Field | Type | Example Values | Signal For |
+|---|---|---|---|---|
+| 13 | lead_source | categorical | contact_form / partner / referral / cold_outreach | Neighborhood Champion (referral), lead quality |
+| 14 | num_competing_quotes | numeric | 0 – 4 | Competitor Shopper |
+| 15 | mentioned_roi_or_payback | bool | true / false | ROI Investor |
+| 16 | mentioned_co2_or_sustainability | bool | true / false | Environmentalist |
+| 17 | mentioned_technical_specs | bool | true / false | Technical Skeptic |
+| 18 | mentioned_objections | bool | true / false | Technical Skeptic, Competitor Shopper |
+| 19 | mentioned_time_constraints | bool | true / false | Busy Professional |
+| 20 | mentioned_neighbors_or_community | bool | true / false | Neighborhood Champion |
+
+**Engagement & Readiness Signals**
+| # | Input Field | Type | Example Values | Signal For |
+|---|---|---|---|---|
+| 21 | response_latency_hours | numeric | 1 – 168 | Engagement / readiness, ghost-risk |
+| 22 | num_followups_sent | numeric | 0 – 5 | Engagement / readiness |
+| 23 | time_since_quote_days | numeric | 0 – 30 | Readiness / urgency |
+
+*Note: fields 21–23 overlap directly with the engagement signal codes (E1/E2/E3) already defined in Section 4's Engagement Signal family, and could serve as their concrete computational basis.*
+
 ---
 
 ## 5. ⭐ The "Oracle" — Predictive Next-Best-Action (the unexpected feature)
