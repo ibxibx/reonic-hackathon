@@ -1,10 +1,12 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import {
+  adaptStrategySchema,
   archetypeSchema,
   inboundSchema,
   oracleSchema,
   strategySchema,
+  type AdaptedStrategy,
   type ClassifiedArchetype,
   type ClassifiedInbound,
   type GeneratedOracle,
@@ -151,6 +153,38 @@ export async function categorizeInbound(
     throw new AppError(
       'Failed to categorize inbound reply',
       'AI_CLASSIFICATION_ERROR',
+      500
+    );
+  }
+}
+
+
+export async function adaptStrategy(
+  systemPrompt: string
+): Promise<AdaptedStrategy> {
+  try {
+    const model = process.env.OPENAI_MODEL || 'gpt-4o';
+    const timer = startTimer();
+    logStep('inbound', 'adapt AI call → generateObject', { model });
+    const result = await generateObject({
+      model: openai(model),
+      schema: adaptStrategySchema,
+      system: systemPrompt,
+      prompt: 'Rewrite the remaining messages to tackle the concern.',
+      maxRetries: 1,
+      abortSignal: AbortSignal.timeout(25000),
+    });
+    logStep('inbound', 'adapt AI call ✓', {
+      ms: timer(),
+      rewritten: result.object.messages.length,
+    });
+    return result.object;
+  } catch (error) {
+    logError('inbound', 'adapt AI call failed', error);
+    console.error('Strategy adaptation error:', error);
+    throw new AppError(
+      'Failed to adapt strategy',
+      'AI_GENERATION_ERROR',
       500
     );
   }

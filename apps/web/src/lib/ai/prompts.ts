@@ -143,3 +143,57 @@ ${replyBody}
 - If the reply is genuinely ambiguous, pick the closest fit with lower confidence — never refuse.
 - Return only valid JSON matching the schema.`;
 }
+
+
+type DraftMessage = {
+  channel: string;
+  subject: string | null;
+  goal: string | null;
+};
+
+export function buildAdaptStrategyPrompt(
+  lead: Lead,
+  strategy: Strategy | null,
+  replyBody: string,
+  category: string,
+  drafts: DraftMessage[],
+): string {
+  const persona = strategy?.persona_detected || 'unknown';
+  const draftList = drafts
+    .map(
+      (d, i) =>
+        `${i + 1}. ${d.channel.toUpperCase()} — current goal: ${d.goal || 'n/a'}`,
+    )
+    .join('\n');
+
+  return `You are a solar sales strategist. A customer just REPLIED and raised a concern. Your job: rewrite the remaining unsent outreach messages so the WHOLE sequence pivots to address what they actually said — convincingly, specifically, and without being pushy. This is the moment that wins or loses the deal.
+
+## The customer
+- Name: ${lead.name}
+- Detected persona: ${persona}
+- Monthly bill: $${lead.monthly_bill}
+
+## What they just said (their exact words)
+"""
+${replyBody}
+"""
+
+## How we categorized it
+${category}
+
+## The remaining unsent messages to rewrite (keep each channel's role)
+${draftList}
+
+## How to rewrite — make it genuinely convincing
+- Address their SPECIFIC concern head-on, using their own words/framing. If they fear winter production, talk about winter production with concrete reasoning (panels work on diffuse light, annual production accounts for seasonal variation, system was sized for their yearly usage). If they think the price is high, reframe around payback, financing, and cost of doing nothing (rising grid bills).
+- Acknowledge the concern as legitimate BEFORE answering it — never dismiss it. Skeptics and worried families need to feel heard.
+- Match the persona tone: family = reassurance + reliability; investor = numbers + payback; environmentalist = impact; skeptic = evidence + transparency, no hype.
+- Each channel keeps its job: email = the detailed, evidence-rich response; SMS = a short warm nudge pointing to the email's promise; call script = scannable talking points to handle the objection live; voice = a personal, human reassurance.
+- For email, write a fresh subject that signals you're answering their concern.
+- The 'goal' for each must state why this message, in this tone, now — referencing the concern.
+
+## Hard rules
+- Use ONLY real, defensible reasoning. Do NOT invent specific numbers, incentives, guarantees, rates, warranties, or legislation that weren't provided.
+- No false promises ("guaranteed savings", "100% offset"). Convincing ≠ dishonest.
+- Return ONE rewritten message per channel listed above, in the same set of channels. Return only valid JSON matching the schema.`;
+}

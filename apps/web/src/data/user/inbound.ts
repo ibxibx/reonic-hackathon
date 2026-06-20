@@ -1,8 +1,8 @@
 'use server';
 
 import { authActionClient } from '@/lib/safe-action';
-import { categorizeInbound } from '@/lib/ai/provider';
-import { buildInboundPrompt } from '@/lib/ai/prompts';
+import { categorizeInbound, adaptStrategy } from '@/lib/ai/provider';
+import { buildInboundPrompt, buildAdaptStrategyPrompt } from '@/lib/ai/prompts';
 import { logStep } from '@/lib/ai/agent-log';
 import { createSupabaseClient } from '@/supabase-clients/server';
 import { revalidatePath } from 'next/cache';
@@ -103,6 +103,68 @@ export const processInboundAction = authActionClient
       logStep('inbound', 'action → no orchestration to react on', { leadId });
     }
 
+    // Pivot the sequence: rewrite all remaining UNSENT messages to tackle the
+    // customer's concern. This is what makes the outreach actually adapt, not
+    // just get re-labeled. Sent messages are immutable (already delivered).
+    const { data: drafts } = await supabase
+      .from('messages')
+      .select('id, channel_type, subject, goal')
+      .eq('lead_id', leadId)
+      .neq('status', 'sent')
+      .order('sequence_order', { ascending: true });
+
+    let rewrittenCount = 0;
+    if (drafts && drafts.length > 0) {
+      logStep('inbound', 'action → adapting unsent messages', {
+        leadId,
+        count: drafts.length,
+      });
+      const adaptPrompt = buildAdaptStrategyPrompt(
+        lead,
+        strategy ?? null,
+        body,
+        result.category,
+        drafts.map((d) => ({
+          channel: d.channel_type,
+          subject: d.subject,
+          goal: d.goal,
+        })),
+      );
+
+      const adapted = await adaptStrategy(adaptPrompt);
+
+      // Update each draft in place, matched by channel.
+      for (const draft of drafts) {
+        const rewrite = adapted.messages.find(
+          (m) => m.channel === draft.channel_type,
+        );
+        if (!rewrite) continue;
+
+        const updatePayload: {
+          content: string;
+          goal: string;
+          subject?: string | null;
+        } = {
+          content: rewrite.body,
+          goal: rewrite.goal,
+        };
+        if (draft.channel_type === 'email') {
+          updatePayload.subject = rewrite.subject ?? draft.subject;
+        }
+
+        const { error: rewriteError } = await supabase
+          .from('messages')
+          .update(updatePayload)
+          .eq('id', draft.id);
+
+        if (!rewriteError) rewrittenCount += 1;
+      }
+      logStep('inbound', 'action → messages adapted', {
+        leadId,
+        rewritten: rewrittenCount,
+      });
+    }
+
     revalidatePath(`/leads/${leadId}`);
     revalidatePath(`/leads/${leadId}/strategy`);
 
@@ -110,6 +172,7 @@ export const processInboundAction = authActionClient
       leadId,
       category: result.category,
       newStatus,
+      rewritten: rewrittenCount,
     });
 
     return {
@@ -118,5 +181,6 @@ export const processInboundAction = authActionClient
       reasoning: result.reasoning,
       suggestedNextStep: result.suggestedNextStep,
       newStatus,
+      rewritten: rewrittenCount,
     };
   });

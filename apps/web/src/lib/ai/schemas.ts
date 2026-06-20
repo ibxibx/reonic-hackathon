@@ -73,3 +73,25 @@ export const inboundSchema = z.object({
 
 export type InboundCategory = z.infer<typeof inboundCategoryEnum>;
 export type ClassifiedInbound = z.infer<typeof inboundSchema>;
+
+// Strategy adaptation: after a customer reply, rewrite the remaining unsent
+// outreach messages to directly tackle the customer's concern, keeping each
+// channel's role and the persona's tone. Returns one adapted message per
+// channel that was passed in (the unsent ones).
+export const channelEnum = z.enum(['email', 'sms', 'call', 'voice']);
+
+export const adaptedMessageSchema = z.object({
+  channel: channelEnum,
+  // subject only meaningful for email; null for other channels.
+  // Must be nullable (not optional) — OpenAI strict mode requires every key.
+  subject: z.string().max(120).nullable(),
+  body: z.string().min(10).max(2500),
+  goal: z.string().min(10).max(300),
+});
+
+export const adaptStrategySchema = z.object({
+  messages: z.array(adaptedMessageSchema).min(1).max(4),
+});
+
+export type AdaptedMessage = z.infer<typeof adaptedMessageSchema>;
+export type AdaptedStrategy = z.infer<typeof adaptStrategySchema>;

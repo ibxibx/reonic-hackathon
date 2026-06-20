@@ -50,6 +50,7 @@ export function InboundPanel({
   const router = useRouter();
   const [body, setBody] = useState('');
   const [result, setResult] = useState<LatestInbound>(latestInbound);
+  const [rewritten, setRewritten] = useState<number | null>(null);
 
   const { execute, status } = useAction(processInboundAction, {
     onSuccess: ({ data }) => {
@@ -61,7 +62,12 @@ export function InboundPanel({
           reasoning: data.reasoning,
           suggested_next_step: data.suggestedNextStep,
         });
-        toast.success(`Reply categorized: ${data.category}`);
+        setRewritten(data.rewritten ?? 0);
+        toast.success(
+          data.rewritten
+            ? `Categorized: ${data.category} — ${data.rewritten} messages rewritten`
+            : `Reply categorized: ${data.category}`,
+        );
         setBody('');
         router.refresh();
       }
@@ -81,8 +87,8 @@ export function InboundPanel({
         <div>
           <h2 className="font-semibold">Inbound reply</h2>
           <p className="text-xs text-muted-foreground">
-            Paste a customer reply — the dashboard categorizes it and adjusts the
-            next step.
+            Paste a customer reply — the dashboard categorizes it and rewrites
+            the upcoming outreach to address their concern.
           </p>
         </div>
       </div>
@@ -131,6 +137,13 @@ export function InboundPanel({
             <p className="text-sm">
               <span className="text-muted-foreground">Suggested next step: </span>
               {result.suggested_next_step}
+            </p>
+          ) : null}
+          {rewritten && rewritten > 0 ? (
+            <p className="text-sm font-medium text-primary">
+              ✓ Outreach timeline updated — {rewritten} upcoming{' '}
+              {rewritten === 1 ? 'message' : 'messages'} rewritten to address
+              this concern.
             </p>
           ) : null}
         </div>
