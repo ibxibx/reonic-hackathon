@@ -3,6 +3,7 @@
 import { authActionClient } from '@/lib/safe-action';
 import { generateStrategy } from '@/lib/ai/provider';
 import { buildStrategyPrompt } from '@/lib/ai/prompts';
+import { logStep } from '@/lib/ai/agent-log';
 import { createSupabaseClient } from '@/supabase-clients/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -16,6 +17,7 @@ export const generateStrategyAction = authActionClient
   .action(async ({ parsedInput, ctx }) => {
     const { leadId } = parsedInput;
     const supabase = await createSupabaseClient();
+    logStep('strategy', 'action → start', { leadId });
 
     // Obtener lead con verificación de ownership
     const { data: lead, error: leadError } = await supabase
@@ -44,8 +46,13 @@ export const generateStrategyAction = authActionClient
     await supabase.from('strategies').delete().eq('lead_id', leadId);
 
     // Generar estrategia con IA
+    logStep('strategy', 'action → calling AI', { leadId });
     const systemPrompt = buildStrategyPrompt(lead, quote);
     const strategy = await generateStrategy(lead, quote, systemPrompt);
+    logStep('strategy', 'action → persisting', {
+      leadId,
+      persona: strategy.persona,
+    });
 
     // Crear strategy record
     const { data: strategyRecord, error: strategyError } = await supabase
@@ -113,5 +120,9 @@ export const generateStrategyAction = authActionClient
     revalidatePath(`/leads/${leadId}`);
     revalidatePath(`/leads/${leadId}/strategy`);
 
+    logStep('strategy', 'action ✓', {
+      leadId,
+      strategyId: strategyRecord.id,
+    });
     return { strategyId: strategyRecord.id };
   });

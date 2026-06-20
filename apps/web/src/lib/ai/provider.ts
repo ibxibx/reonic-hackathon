@@ -11,6 +11,7 @@ import {
 import type { Database } from '@/lib/database.types';
 import { AppError } from '@/lib/errors';
 import { buildArchetypePrompt } from './prompts';
+import { logStep, logError, startTimer } from './agent-log';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 type Quote = Database['public']['Tables']['quotes']['Row'];
@@ -26,6 +27,8 @@ export async function generateStrategy(
 ): Promise<GeneratedStrategy> {
   try {
     const model = process.env.OPENAI_MODEL || 'gpt-4o';
+    const timer = startTimer();
+    logStep('strategy', 'AI call → generateObject', { model });
     const result = await generateObject({
       model: openai(model),
       schema: strategySchema,
@@ -34,8 +37,15 @@ export async function generateStrategy(
       maxRetries: 1,
       abortSignal: AbortSignal.timeout(20000),
     });
+    logStep('strategy', 'AI call ✓', {
+      ms: timer(),
+      persona: result.object.persona,
+      confidence: result.object.confidence,
+      signals: result.object.signals.length,
+    });
     return result.object;
   } catch (error) {
+    logError('strategy', 'AI call failed', error);
     console.error('AI generation error:', error);
     throw new AppError('Failed to generate strategy', 'AI_GENERATION_ERROR', 500);
   }
@@ -47,6 +57,11 @@ export async function classifyArchetype(
 ): Promise<ClassifiedArchetype> {
   try {
     const model = process.env.OPENAI_MODEL || 'gpt-4o';
+    const timer = startTimer();
+    logStep('archetype', 'AI call → generateObject', {
+      model,
+      lead: lead.id,
+    });
     const result = await generateObject({
       model: openai(model),
       schema: archetypeSchema,
@@ -55,8 +70,15 @@ export async function classifyArchetype(
       maxRetries: 1,
       abortSignal: AbortSignal.timeout(15000),
     });
+    logStep('archetype', 'AI call ✓', {
+      ms: timer(),
+      archetype: result.object.archetype,
+      confidence: result.object.confidence,
+      signals: result.object.signals.length,
+    });
     return result.object;
   } catch (error) {
+    logError('archetype', 'AI call failed', error);
     console.error('AI archetype classification error:', error);
     throw new AppError(
       'Failed to classify archetype',
@@ -71,6 +93,8 @@ export async function generateOracle(
 ): Promise<GeneratedOracle> {
   try {
     const model = process.env.OPENAI_MODEL || 'gpt-4o';
+    const timer = startTimer();
+    logStep('strategy', 'Oracle AI call → generateObject', { model });
     const result = await generateObject({
       model: openai(model),
       schema: oracleSchema,
@@ -79,8 +103,15 @@ export async function generateOracle(
       maxRetries: 1,
       abortSignal: AbortSignal.timeout(20000),
     });
+    logStep('strategy', 'Oracle AI call ✓', {
+      ms: timer(),
+      signProbability: result.object.signProbability,
+      ghostRisk: result.object.ghostRisk,
+      predictedCode: result.object.predictedCode,
+    });
     return result.object;
   } catch (error) {
+    logError('strategy', 'Oracle AI call failed', error);
     console.error('Oracle generation error:', error);
     throw new AppError(
       'Failed to generate Oracle prediction',

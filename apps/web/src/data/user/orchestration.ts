@@ -2,6 +2,7 @@
 
 import { authActionClient } from '@/lib/safe-action';
 import { createSupabaseClient } from '@/supabase-clients/server';
+import { logStep } from '@/lib/ai/agent-log';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -47,6 +48,7 @@ export const initOrchestrationAction = authActionClient
     const { leadId } = parsedInput;
     const supabase = await createSupabaseClient();
     await assertLeadOwnership(supabase, leadId, ctx.userId);
+    logStep('orchestrator', 'init → start', { leadId });
 
     // Latest strategy for this lead
     const { data: strategy, error: strategyError } = await supabase
@@ -72,6 +74,11 @@ export const initOrchestrationAction = authActionClient
     }
 
     const totalSteps = count ?? 0;
+    logStep('orchestrator', 'init → seeding state', {
+      leadId,
+      strategyId: strategy.id,
+      totalSteps,
+    });
 
     const { error: upsertError } = await supabase
       .from('lead_orchestration')
@@ -95,6 +102,7 @@ export const initOrchestrationAction = authActionClient
     revalidatePath(`/leads/${leadId}`);
     revalidatePath(`/leads/${leadId}/strategy`);
 
+    logStep('orchestrator', 'init ✓', { leadId, totalSteps, currentStep: 0 });
     return { totalSteps, currentStep: 0 };
   });
 
@@ -119,6 +127,11 @@ export const advanceStepAction = authActionClient
     if (stateError || !state) {
       throw new Error('Orchestration not initialized for this lead');
     }
+    logStep('orchestrator', 'advance → loaded state', {
+      leadId,
+      currentStep: state.current_step,
+      totalSteps: state.total_steps,
+    });
 
     if (state.current_step >= state.total_steps) {
       // Already at the end — mark completed, nothing to advance.
@@ -134,6 +147,12 @@ export const advanceStepAction = authActionClient
     const nextStep = state.current_step + 1;
     const isLast = nextStep >= state.total_steps;
     const nextStatus = isLast ? 'completed' : 'awaiting_reply';
+    logStep('orchestrator', 'advance → transition', {
+      leadId,
+      from: state.current_step,
+      to: nextStep,
+      status: nextStatus,
+    });
 
     const { error: updateError } = await supabase
       .from('lead_orchestration')
@@ -152,6 +171,11 @@ export const advanceStepAction = authActionClient
     revalidatePath(`/leads/${leadId}`);
     revalidatePath(`/leads/${leadId}/strategy`);
 
+    logStep('orchestrator', 'advance ✓', {
+      leadId,
+      currentStep: nextStep,
+      status: nextStatus,
+    });
     return { currentStep: nextStep, status: nextStatus };
   });
 
@@ -172,5 +196,11 @@ export const getOrchestrationStateAction = authActionClient
       .eq('lead_id', leadId)
       .maybeSingle();
 
+    logStep('orchestrator', 'get state', {
+      leadId,
+      found: Boolean(state),
+      currentStep: state?.current_step ?? null,
+      status: state?.status ?? null,
+    });
     return state ?? null;
   });
