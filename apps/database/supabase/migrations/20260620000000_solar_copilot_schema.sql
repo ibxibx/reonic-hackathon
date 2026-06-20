@@ -67,6 +67,7 @@ create table public.strategies (
     persona_confidence is null
     or persona_confidence between 0 and 1
   ),
+  signals text[] not null default '{}',
   strategy_summary text not null,
   rationale text not null,
   created_at timestamptz not null default now()

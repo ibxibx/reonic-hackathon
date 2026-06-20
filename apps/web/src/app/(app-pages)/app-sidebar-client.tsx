@@ -12,7 +12,7 @@ import {
 import { SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from "@/components/ui/sidebar";
 import { signOutAction } from "@/data/auth/sign-out";
 import { User } from "@supabase/supabase-js";
-import { ChevronUp, Home, Lock, LogOut, Settings } from "lucide-react";
+import { ChevronUp, Home, LogOut, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTransition } from "react";
@@ -23,9 +23,14 @@ const navigationItems: { title: string; url: string; icon: React.ElementType }[]
     icon: Home,
   },
   {
-    title: 'Private Items',
-    url: '/private-items',
-    icon: Lock,
+    title: 'Leads',
+    url: '/leads',
+    icon: Users,
+  },
+  {
+    title: 'Settings',
+    url: '/settings',
+    icon: Settings,
   },
 ];
 
@@ -55,7 +60,8 @@ export function AppSidebarContent({ user }: { user: User }) {
       <SidebarGroupContent>
         <SidebarMenu>
           {navigationItems.map((item) => {
-            const isActive = pathname === item.url;
+            const isActive =
+              pathname === item.url || pathname.startsWith(`${item.url}/`);
             const Icon = item.icon;
             return (
               <SidebarMenuItem key={item.title}>
@@ -117,9 +123,11 @@ export function AppSidebarContent({ user }: { user: User }) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
+              <DropdownMenuItem asChild>
+                <Link href="/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} disabled={isPending}>

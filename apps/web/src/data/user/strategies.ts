@@ -54,6 +54,7 @@ export const generateStrategyAction = authActionClient
         lead_id: leadId,
         persona_detected: strategy.persona,
         persona_confidence: strategy.confidence,
+        signals: strategy.signals,
         strategy_summary: strategy.strategySummary,
         rationale: strategy.rationale,
       })
