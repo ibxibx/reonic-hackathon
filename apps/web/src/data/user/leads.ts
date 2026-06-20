@@ -65,3 +65,53 @@ export const createLeadAction = authActionClient
 
     return { leadId: lead.id };
   });
+
+const deleteLeadSchema = z.object({
+  leadId: z.uuid(),
+});
+
+export const deleteLeadAction = authActionClient
+  .schema(deleteLeadSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const supabase = await createSupabaseClient();
+
+    const { error } = await supabase
+      .from('leads')
+      .delete()
+      .eq('id', parsedInput.leadId)
+      .eq('installer_id', ctx.userId);
+
+    if (error) {
+      throw new Error('Failed to delete lead');
+    }
+
+    revalidatePath('/leads');
+    revalidatePath('/dashboard');
+    return { success: true };
+  });
+
+const updateLeadStatusSchema = z.object({
+  leadId: z.uuid(),
+  status: z.enum(['new', 'contacted', 'negotiating', 'closed', 'ghosted']),
+});
+
+export const updateLeadStatusAction = authActionClient
+  .schema(updateLeadStatusSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const supabase = await createSupabaseClient();
+
+    const { error } = await supabase
+      .from('leads')
+      .update({ status: parsedInput.status })
+      .eq('id', parsedInput.leadId)
+      .eq('installer_id', ctx.userId);
+
+    if (error) {
+      throw new Error('Failed to update status');
+    }
+
+    revalidatePath('/leads');
+    revalidatePath(`/leads/${parsedInput.leadId}`);
+    revalidatePath('/dashboard');
+    return { success: true };
+  });
