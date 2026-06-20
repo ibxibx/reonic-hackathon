@@ -1,14 +1,20 @@
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { generateObject } from 'ai';
-import { strategySchema, type GeneratedStrategy } from './schemas';
 import type { Database } from '@/lib/database.types';
 import { AppError } from '@/lib/errors';
+import { createOpenAI } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
+import { buildArchetypePrompt } from './prompts';
+import {
+  archetypeSchema,
+  strategySchema,
+  type ClassifiedArchetype,
+  type GeneratedStrategy,
+} from './schemas';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 type Quote = Database['public']['Tables']['quotes']['Row'];
 
-const anthropic = createAnthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function generateStrategy(
@@ -17,10 +23,10 @@ export async function generateStrategy(
   systemPrompt: string
 ): Promise<GeneratedStrategy> {
   try {
-    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
+    const model = process.env.OPENAI_MODEL || 'gpt-4o';
 
     const result = await generateObject({
-      model: anthropic(model),
+      model: openai(model),
       schema: strategySchema,
       system: systemPrompt,
       prompt: `Generate a strategy for this lead.`,
@@ -34,6 +40,34 @@ export async function generateStrategy(
     throw new AppError(
       'Failed to generate strategy',
       'AI_GENERATION_ERROR',
+      500
+    );
+  }
+}
+
+
+export async function classifyArchetype(
+  lead: Lead,
+  quote: Quote
+): Promise<ClassifiedArchetype> {
+  try {
+    const model = process.env.OPENAI_MODEL || 'gpt-4o';
+
+    const result = await generateObject({
+      model: openai(model),
+      schema: archetypeSchema,
+      system: buildArchetypePrompt(lead, quote),
+      prompt: `Classify this lead into the single most relevant archetype.`,
+      maxRetries: 1,
+      abortSignal: AbortSignal.timeout(15000), // classification is lighter than full strategy
+    });
+
+    return result.object;
+  } catch (error) {
+    console.error('AI archetype classification error:', error);
+    throw new AppError(
+      'Failed to classify archetype',
+      'AI_CLASSIFICATION_ERROR',
       500
     );
   }

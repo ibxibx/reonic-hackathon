@@ -7,9 +7,9 @@ declare global {
       SUPABASE_PROJECT_REF: string;
       SUPABASE_SERVICE_ROLE_KEY?: string;
 
-      // AI (Anthropic)
-      ANTHROPIC_API_KEY?: string;
-      ANTHROPIC_MODEL?: string;
+      // AI (OpenAI)
+      OPENAI_API_KEY?: string;
+      OPENAI_MODEL?: string;
 
       // ElevenLabs (Text-to-Speech)
       ELEVENLABS_API_KEY?: string;

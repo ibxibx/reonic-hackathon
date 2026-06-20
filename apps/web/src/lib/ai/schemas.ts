@@ -7,6 +7,17 @@ export const personaEnum = z.enum([
   'skeptic',
 ]);
 
+// Standalone archetype classifier (first-pass agent). Returns only the
+// matched archetype + why — does NOT generate a full strategy.
+export const archetypeSchema = z.object({
+  archetype: personaEnum,
+  confidence: z.number().min(0).max(1),
+  signals: z.array(z.string()).min(1).max(5),
+  reasoning: z.string().min(40).max(600),
+});
+
+export type ClassifiedArchetype = z.infer<typeof archetypeSchema>;
+
 export const strategySchema = z.object({
   persona: personaEnum,
   confidence: z.number().min(0).max(1),

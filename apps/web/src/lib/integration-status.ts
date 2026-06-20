@@ -1,8 +1,8 @@
 import 'server-only';
 
 export interface IntegrationStatus {
-  /** Claude / Anthropic API configured */
-  anthropic: boolean;
+  /** OpenAI API configured */
+  openai: boolean;
   /** ElevenLabs TTS configured */
   elevenlabs: boolean;
   /** Email will be simulated (no Resend key or MOCK_EMAIL=true) */
@@ -12,7 +12,7 @@ export interface IntegrationStatus {
 }
 
 export function getIntegrationStatus(): IntegrationStatus {
-  const anthropic = Boolean(process.env.ANTHROPIC_API_KEY);
+  const openai = Boolean(process.env.OPENAI_API_KEY);
   const elevenlabs = Boolean(
     process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID
   );
@@ -26,5 +26,5 @@ export function getIntegrationStatus(): IntegrationStatus {
       process.env.TWILIO_PHONE_NUMBER
     );
 
-  return { anthropic, elevenlabs, emailMock, smsMock };
+  return { openai, elevenlabs, emailMock, smsMock };
 }

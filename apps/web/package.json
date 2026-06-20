@@ -19,7 +19,7 @@
     "postbuild": "next-sitemap --config next-sitemap.config.cjs"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.85",
+    "@ai-sdk/openai": "^3.0.72",
     "@effect/platform": "^0.96.1",
     "@effect/platform-node": "^0.106.0",
     "@fontsource/inter": "^5.2.8",

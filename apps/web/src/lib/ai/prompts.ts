@@ -49,3 +49,44 @@ export function buildStrategyPrompt(lead: Lead, quote: Quote): string {
 - Do NOT use discriminatory language.
 - Return ONLY valid JSON matching the schema.`;
 }
+
+
+export function buildArchetypePrompt(lead: Lead, quote: Quote): string {
+  return `You are a marketing-strategy classifier for a solar installer. Your only job is to read one homeowner's data and assign the single most relevant buyer archetype. You do NOT write any marketing messages — you only classify and explain.
+
+## The 4 archetypes
+
+### family
+Driven by stability, household savings and protecting the people under their roof. Decisions are emotional and risk-averse: they want lower bills, reliability, and peace of mind, not technical depth. Often a moderate bill, a single-family home, financing chosen to keep monthly cost predictable. Cues: residential/suburban address, mid-range bill, financing (not cash), roof types typical of family homes.
+
+### investor
+Treats solar as a financial asset. Optimizes for ROI, payback period, IRR and resale value; wants the numbers and little else. Tends toward larger systems, higher bills, cash or structured financing, and notes that mention yield, returns, or property value. Cues: high monthly bill, large system size (kW), high total cost, cash financing, ROI-flavored notes.
+
+### environmentalist
+Motivated by sustainability and carbon impact more than money. Will accept a longer payback for a cleaner footprint; responds to CO2 saved and energy independence. Cues: notes mentioning climate, green, emissions, independence; willingness to size up for impact rather than pure economics; bill size is secondary to mission language.
+
+### skeptic
+Needs proof, transparency and risk reassurance before committing. Distrusts hype, asks for evidence, references, and guarantees; slow to decide. Cues: notes expressing doubt, questions, prior bad experience, "not sure", request for references/warranty; cautious financing; hesitation signals over enthusiasm.
+
+## Homeowner data
+- Name: ${lead.name}
+- Address: ${lead.address}
+- Roof type: ${lead.roof_type || 'Unknown'}
+- Monthly electricity bill: $${lead.monthly_bill}
+- System size: ${quote.system_size_kw} kW
+- Total cost: $${quote.total_cost}
+- Financing type: ${quote.financing_type}
+- Notes: ${quote.notes || 'None'}
+
+## Your task
+1. Pick the SINGLE best-matching archetype from the 4 above.
+2. Give a confidence (0-1). Lower it when signals are thin or conflicting.
+3. List 1-5 signals — each must cite a SPECIFIC data point above (e.g. "$${lead.monthly_bill}/mo bill + ${quote.system_size_kw}kW system points to investor scale", not "seems financial").
+4. Write a short reasoning (40-600 chars): why this archetype over the closest runner-up.
+
+## Rules
+- Use ONLY the data provided. Do NOT invent details.
+- If the data is ambiguous, pick the closest fit and reflect that in a lower confidence — never refuse.
+- Do NOT write marketing copy, strategies, or messages. Classification only.
+- Return ONLY valid JSON matching the schema.`;
+}

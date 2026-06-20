@@ -26,9 +26,9 @@ export default async function SettingsPage() {
 
   const integrationRows: { name: string; connected: boolean; note: string }[] = [
     {
-      name: 'Anthropic (Claude)',
-      connected: integrations.anthropic,
-      note: integrations.anthropic ? 'Connected' : 'Not configured',
+      name: 'OpenAI',
+      connected: integrations.openai,
+      note: integrations.openai ? 'Connected' : 'Not configured',
     },
     {
       name: 'ElevenLabs',
