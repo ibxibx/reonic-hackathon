@@ -17,7 +17,7 @@ export function StrategyTimeline({
   voiceSignedUrl: string | null;
 }) {
   return (
-    <Card>
+    <Card id="outreach-timeline">
       <CardHeader>
         <div className="flex items-center gap-2">
           <Workflow className="h-5 w-5 text-primary" />
@@ -35,14 +35,15 @@ export function StrategyTimeline({
         ) : (
           <div>
             {messages.map((message, i) => (
-              <TimelineStep
-                key={message.id}
-                message={message}
-                isLast={i === messages.length - 1}
-                voiceSignedUrl={
-                  message.channel_type === 'voice' ? voiceSignedUrl : null
-                }
-              />
+              <div id={`timeline-step-${message.channel_type}`} key={message.id}>
+                <TimelineStep
+                  message={message}
+                  isLast={i === messages.length - 1}
+                  voiceSignedUrl={
+                    message.channel_type === 'voice' ? voiceSignedUrl : null
+                  }
+                />
+              </div>
             ))}
           </div>
         )}

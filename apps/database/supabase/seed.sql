@@ -411,3 +411,69 @@ ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status,
   sent_at = EXCLUDED.sent_at,
   provider_message_id = EXCLUDED.provider_message_id;
+
+-- Seed a separate login tester with sample data
+INSERT INTO auth.users (
+  id, aud, role, email, raw_app_meta_data, raw_user_meta_data,
+  encrypted_password, email_confirmed_at, created_at, updated_at
+)
+VALUES (
+  '6c1d5b1d-e0f3-4d08-9893-2d4f5e784011',
+  'authenticated',
+  'authenticated',
+  'tester@solar.test',
+  '{"provider":"email","providers":["email"]}',
+  '{"sub":"6c1d5b1d-e0f3-4d08-9893-2d4f5e784011","email":"tester@solar.test","full_name":"Taylor Tester","company_name":"Test Solar Co","email_verified":true}',
+  crypt('Password123!', gen_salt('bf', 10)),
+  NOW(), NOW(), NOW()
+)
+ON CONFLICT (id) DO UPDATE SET
+  email = EXCLUDED.email,
+  raw_user_meta_data = EXCLUDED.raw_user_meta_data,
+  encrypted_password = EXCLUDED.encrypted_password,
+  email_confirmed_at = EXCLUDED.email_confirmed_at,
+  updated_at = NOW();
+
+INSERT INTO auth.identities (
+  id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+)
+VALUES (
+  '6c1d5b1d-e0f3-4d08-9893-2d4f5e784012',
+  '6c1d5b1d-e0f3-4d08-9893-2d4f5e784011',
+  '6c1d5b1d-e0f3-4d08-9893-2d4f5e784011',
+  '{"sub":"6c1d5b1d-e0f3-4d08-9893-2d4f5e784011","email":"tester@solar.test","full_name":"Taylor Tester","company_name":"Test Solar Co","email_verified":true}',
+  'email', NOW(), NOW(), NOW()
+)
+ON CONFLICT (provider, provider_id) DO UPDATE SET
+  identity_data = EXCLUDED.identity_data,
+  updated_at = NOW();
+
+INSERT INTO public.profiles (id, company_name, created_at)
+VALUES ('6c1d5b1d-e0f3-4d08-9893-2d4f5e784011', 'Test Solar Co', NOW())
+ON CONFLICT (id) DO UPDATE SET company_name = EXCLUDED.company_name;
+
+INSERT INTO public.leads (id, installer_id, name, email, phone, address, roof_type, monthly_bill, status, created_at)
+VALUES (
+  '6c1d5b1d-e0f3-4d08-9893-2d4f5e784013',
+  '6c1d5b1d-e0f3-4d08-9893-2d4f5e784011',
+  'Jamie Sample', 'jamie.sample@example.com', '+15551009999',
+  '420 Test Drive, Austin, TX', 'shingle', 275.00, 'new', NOW()
+)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  monthly_bill = EXCLUDED.monthly_bill,
+  status = EXCLUDED.status;
+-- Supabase Auth v2 expects these local seed values to be non-null.
+UPDATE auth.users
+SET
+  instance_id = '00000000-0000-0000-0000-000000000000',
+  confirmation_token = '',
+  recovery_token = '',
+  email_change_token_new = '',
+  email_change = '',
+  phone = '',
+  phone_change = '',
+  phone_change_token = '',
+  email_change_token_current = '',
+  reauthentication_token = ''
+WHERE email = 'tester@solar.test';

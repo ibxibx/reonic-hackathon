@@ -68,6 +68,22 @@ export async function getStrategyForLead(
   return data;
 }
 
+export async function getLatestPredictionForLead(
+  leadId: string
+): Promise<Table<'predictions'> | null> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from('predictions')
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function getMessagesForLead(
   leadId: string
 ): Promise<Array<Table<'messages'>>> {

@@ -44,3 +44,13 @@ export const strategySchema = z.object({
 });
 
 export type GeneratedStrategy = z.infer<typeof strategySchema>;
+
+export const oracleSchema = z.object({
+  signProbability: z.number().int().min(0).max(100),
+  ghostRisk: z.number().int().min(0).max(100),
+  predictedCode: z.string().min(2).max(50),
+  recommendedAction: z.string().min(20).max(500),
+  evidence: z.string().min(40).max(1200),
+});
+
+export type GeneratedOracle = z.infer<typeof oracleSchema>;

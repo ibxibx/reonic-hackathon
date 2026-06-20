@@ -2,6 +2,7 @@ import { DeleteLeadButton } from '@/components/leads/delete-lead-button';
 import { StatusBadge } from '@/components/leads/status-badge';
 import { GenerateStrategyButton } from '@/components/strategy/generate-strategy-button';
 import { PersonaBadge } from '@/components/strategy/persona-badge';
+import { OraclePanel } from '@/components/strategy/oracle-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +15,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import {
   getLeadWithQuote,
+  getLatestPredictionForLead,
   getStrategyForLead,
 } from '@/data/user/leads-read';
 import {
@@ -52,6 +54,7 @@ export default async function LeadDetailPage(props: {
   }
 
   const strategy = await getStrategyForLead(leadId);
+  const prediction = await getLatestPredictionForLead(leadId);
   const confidence = strategy?.persona_confidence ?? null;
 
   return (
@@ -111,6 +114,8 @@ export default async function LeadDetailPage(props: {
           />
         </div>
       </div>
+
+      <OraclePanel leadId={leadId} prediction={prediction} />
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Property + bill */}
