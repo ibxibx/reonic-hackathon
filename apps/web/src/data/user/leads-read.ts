@@ -128,6 +128,20 @@ export async function getLatestInboundForLead(
   return data;
 }
 
+export async function getInboundForLead(
+  leadId: string
+): Promise<Array<Table<'inbound_messages'>>> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from('inbound_messages')
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
 export interface LeadStats {
   total: number;
   byStatus: Record<LeadStatus, number>;
