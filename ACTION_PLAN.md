@@ -87,11 +87,11 @@ The brief's core ask is *believable, tailored, visual, iterable, 2+ profiles*. T
 **Run by risk, not by label order:** 1c first (missing CORE feature, highest risk) → 1a seed drafts in parallel (unblocks 1b) → 1b (Ian+Ismael loop) → 1d last (cosmetic, first to cut).
 **Collision rule:** only Ian touches `timeline-step.tsx`; only Sebastian touches `seed.sql`. 1c and 1d are the *same file* — do them sequentially, never in parallel.
 
-**1c · Iterability is real** *(do FIRST — it's the missing CORE feature)* — there is **no edit path today**: cards render read-only and `data/user/messages.ts` has no `updateMessage` action (verified). Add `updateMessageAction` (edit body + subject, save to DB) and make the timeline cards editable. The installer adjusting a message live is a core demo beat the brief explicitly rewards.
+**1c · Iterability is real** ✅ **DONE** *(do FIRST — it's the missing CORE feature)* — there is **no edit path today**: cards render read-only and `data/user/messages.ts` has no `updateMessage` action (verified). Add `updateMessageAction` (edit body + subject, save to DB) and make the timeline cards editable. The installer adjusting a message live is a core demo beat the brief explicitly rewards. *Shipped: `updateMessageAction` (ownership-checked, blocks edits on sent), pencil-to-edit UI in `timeline-step.tsx`.*
 
 **1a · Two contrasting demo profiles** — pick 2 seed leads that show maximum variety (e.g. a numbers-driven *investor* vs. a reassurance-seeking *family*). Confirm each generates a visibly different strategy, tone, and channel mix. This is a literal deliverable ("example output for at least 2 profiles").
 
-**1b · "Why this" is visible** — the rationale + per-step reasoning must read as customer-specific, not generic. Tighten the prompt in `lib/ai/prompts.ts` so each step states *why this channel, why this tone, why now*. No code beyond prompt edits. Ismael judges output and flags where it still reads templated.
+**1b · "Why this" is visible** ✅ **DONE** — the rationale + per-step reasoning must read as customer-specific, not generic. Tighten the prompt in `lib/ai/prompts.ts` so each step states *why this channel, why this tone, why now*. No code beyond prompt edits. Ismael judges output and flags where it still reads templated.
 
 **1d · Visual credibility** *(do LAST — cuttable)* — the timeline should look like something shown to a sales manager: persona badge, channel icons, clear sequence. Polish spacing/hierarchy only; don't redesign.
 
@@ -99,40 +99,62 @@ The brief's core ask is *believable, tailored, visual, iterable, 2+ profiles*. T
 
 ---
 
-### Phase 2 — The Oracle (highest-value bonus) · hours 5–10
+### Phase 2 — The Oracle (highest-value bonus) · hours 5–10 ✅ **DONE**
 
-**2a · Schema** — `predictions(lead_id, sign_prob, ghost_risk, predicted_code, recommended_action, evidence, created_at)`, same RLS pattern.
+**2a · Schema** ✅ — `predictions(lead_id, sign_prob, ghost_risk, predicted_code, recommended_action, evidence, created_at)`, same RLS pattern. *Shipped as migration `20260620110000_create_predictions.sql`.*
 
-**2b · AI action** — `generateOracle(leadId)`: lead + quote + interaction signals → sign_prob, ghost_risk (0–100), single predicted blocking objection, one recommended action (channel + timing + angle) + evidence. Strict JSON via existing `lib/ai/provider.ts`.
+**2b · AI action** ✅ — `generateOracle(leadId)`: lead + quote + interaction signals → sign_prob, ghost_risk (0–100), single predicted blocking objection, one recommended action (channel + timing + angle) + evidence. Strict JSON via existing `lib/ai/provider.ts`.
 **⚠️ Skip pgvector/RAG** — feed structured rows straight into the prompt. RAG over-engineering is an explicit risk.
 **Note:** Oracle now ships *before* Problem Codes. Predict the blocker from persona + quote + (later) interactions. Once codes exist (Phase 3), feed the code stack in to sharpen the prediction — but don't block the Oracle on them.
 
-**2c · UI** — `components/strategy/oracle-panel.tsx`: two gauges (recharts, already a dep), predicted-objection chip, "one recommended action" card with a CTA that jumps to that channel's step. Top of the lead detail page.
+**2c · UI** ✅ — `components/strategy/oracle-panel.tsx`: two gauges (recharts, already a dep), predicted-objection chip, "one recommended action" card with a CTA that jumps to that channel's step. Top of the lead detail page.
 
-**Done when:** open a lead → *"68% sign / 41% ghost, blocker P2, recommended: WhatsApp voice note today"* with evidence. **Demo beat #2.**
+**Done when:** open a lead → *"68% sign / 41% ghost, blocker P2, recommended: WhatsApp voice note today"* with evidence. **Demo beat #2.** ✅
 
 ---
 
-### Phase 2.5 — Orchestrator (per-lead strategy-execution state) · **Ian + Ivan**
+### Phase 2.5 — Orchestrator (per-lead strategy-execution state) · **Ian + Ivan** ✅ **DONE**
 A hybrid state manager that tracks where each lead sits in its strategy sequence and drives what happens next. **DB holds the state; AI defines the strategy and the detail of each step.** Built before Ian's 2b Oracle action. The Oracle still ships as planned (Phase 2) — the orchestrator consumes the Oracle's output, it does not replace it.
 
 **Concept:** each lead is assigned a strategy-execution **state** = which step of its multi-channel sequence it's currently on (e.g. `step 0 / not started` → `step 2 / call sent, awaiting reply` → `done`). The orchestrator reads lead data + the generated strategy, advances the state, and exposes "what's the next step for this lead and why."
 
-**2.5a · Schema (DB = source of truth for state)** — NEW migration, never edit existing:
-`apps/database/supabase/migrations/<ts>_lead_orchestration.sql`
+**2.5a · Schema (DB = source of truth for state)** ✅ — NEW migration, never edit existing:
+`apps/database/supabase/migrations/20260620130000_lead_orchestration.sql`
 - `lead_orchestration(lead_id, strategy_id, current_step, total_steps, status, next_action_at, updated_at)` — one row per active lead. `status ∈ (not_started, in_progress, awaiting_reply, completed, paused)`.
 - RLS: copy the `strategies` policy pattern verbatim (`exists(... leads.installer_id = auth.uid())`).
 - index on `(lead_id)`. Apply → `pnpm gen-types-local`.
 
-**2.5b · State logic (DB-driven, no AI)** — `data/user/orchestration.ts`: server actions to `initOrchestration(leadId)` (seed state from the strategy's step count), `advanceStep(leadId)` (move current_step forward, flip status, set next_action_at), `getOrchestrationState(leadId)`. Plain TS + SQL — deterministic, no model call. Match the existing `authActionClient` + ownership pattern from `data/user/messages.ts`.
+**2.5b · State logic (DB-driven, no AI)** ✅ — `data/user/orchestration.ts`: server actions to `initOrchestration(leadId)` (seed state from the strategy's step count), `advanceStep(leadId)` (move current_step forward, flip status, set next_action_at), `getOrchestrationState(leadId)`. Plain TS + SQL — deterministic, no model call. Match the existing `authActionClient` + ownership pattern from `data/user/messages.ts`.
 
-**2.5c · AI defines the per-step detail** — reuse the existing strategy generation (`lib/ai`) as the source of *what each step is*; the orchestrator does not re-prompt per step. When a step advances, surface that step's already-generated message + its "why this / why now" goal. Only call AI here if a step needs regeneration (out of scope for v1 — flag, don't build).
+**2.5c · AI defines the per-step detail** ✅ — reuse the existing strategy generation (`lib/ai`) as the source of *what each step is*; the orchestrator does not re-prompt per step. When a step advances, surface that step's already-generated message + its "why this / why now" goal. *Shipped: the lead detail page surfaces the NEXT step's actual message + goal (`current_step + 1` → matching `sequence_order`).*
 
-**2.5d · UI hook** — minimal: show each lead's current state on the lead detail page (e.g. "Step 2 of 4 · awaiting reply · next touch due today"). Full dashboard wiring is Phase 4's engagement column — don't duplicate it here; just expose the state.
+**2.5d · UI hook** ✅ — minimal: show each lead's current state on the lead detail page (e.g. "Step 2 of 4 · awaiting reply · next touch due today"). Full dashboard wiring is Phase 4's engagement column — don't duplicate it here; just expose the state.
 
-**Done when:** opening a lead shows its current strategy-execution step + status from the DB, and advancing a step (e.g. after a send) visibly moves the state forward and persists.
+**Done when:** opening a lead shows its current strategy-execution step + status from the DB, and advancing a step (e.g. after a send) visibly moves the state forward and persists. ✅
+
+> **Live wiring shipped (beyond original spec):** strategy generation auto-seeds the orchestration row; every successful email/SMS send auto-advances the step (`bumpStep` in `lib/orchestration-core.ts`). The orchestrator is no longer inert — it drives and reflects the real send flow.
 
 > **Boundary vs. Phase 4:** orchestration = *execution position* (which step, deterministic). Phase 4 engagement signals (E1/E2/E3) = *temperature* (cold/re-engaged/hot, recency-derived). Related but distinct — don't merge them; the orchestrator's `status` can later feed the engagement view.
+
+---
+
+### ✨ Phase 2.7 — Built but not originally in the plan (all ✅ DONE)
+Work that emerged during the build and shipped. Listed here so the plan reflects reality.
+
+**Inbound reply triage + outreach pivot** ✅ *(the strongest unplanned demo beat)* — `data/user/inbound.ts`, `components/strategy/inbound-panel.tsx`, migration `20260620140000_inbound_messages.sql`.
+- A customer reply "lands on the dashboard" via a paste-a-reply panel on the lead detail page.
+- AI categorizes intent: **interested / objection / ghost_risk / ready_to_close** (`categorizeInbound`), persisted to `inbound_messages` with reasoning + suggested next step.
+- The orchestrator **reacts**: objection → hold (in_progress), ghost_risk → paused, ready_to_close → awaiting_reply.
+- **The outreach actually pivots:** `adaptStrategy` rewrites ALL remaining unsent messages to convincingly tackle the customer's concern (acknowledge-then-address, persona tone, no invented numbers). Verified live against `gpt-4o` — e.g. an objection about winter production rewrites the SMS/call/voice to address diffused-light performance + financing.
+- **Done when:** paste an objection → it's categorized, the timeline messages visibly change to address it, and the reply appears in the timeline. ✅
+
+**Customer replies interleaved into the Outreach Timeline** ✅ — `components/strategy/inbound-timeline-entry.tsx`, `strategy-timeline.tsx`. Inbound replies render as customer-side entries, chronologically ordered (by `sent_at` / `created_at`) so the back-and-forth reads in sequence.
+
+**Archetype classifier agent** ✅ — `data/user/classify-archetype.ts`, `classifyArchetype` in `lib/ai/provider.ts`. Standalone first-pass agent: lead → single archetype + confidence + signals + reasoning. Stateless; the orchestrator can call it before defining a strategy.
+
+**Anthropic → OpenAI provider swap** ✅ — full migration to `@ai-sdk/openai` (`gpt-4o` default via `OPENAI_MODEL`). Provider, integration-status, settings UI, env types all updated. *(Note: OpenAI strict JSON-schema mode requires every key in `required` — use `.nullable()`, never `.optional()`, on AI schemas.)*
+
+**Dev-only agent step logging** ✅ — `lib/ai/agent-log.ts`. Tagged, timestamped `[agent:<name>]` step logs across all agents (archetype / strategy / oracle / inbound / orchestrator). Greppable, secret-safe, silenced in prod or via `DEBUG_AGENTS=false`.
 
 ---
 
