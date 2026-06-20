@@ -107,6 +107,216 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          id: string
+          company_name: string
+          created_at: string
+        }
+        Insert: {
+          id: string
+          company_name?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          company_name?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          id: string
+          installer_id: string
+          name: string
+          email: string
+          phone: string
+          address: string
+          roof_type: string | null
+          monthly_bill: number
+          status: Database["public"]["Enums"]["lead_status"]
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          installer_id: string
+          name: string
+          email: string
+          phone: string
+          address: string
+          roof_type?: string | null
+          monthly_bill: number
+          status?: Database["public"]["Enums"]["lead_status"]
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          installer_id?: string
+          name?: string
+          email?: string
+          phone?: string
+          address?: string
+          roof_type?: string | null
+          monthly_bill?: number
+          status?: Database["public"]["Enums"]["lead_status"]
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_installer_id_fkey"
+            columns: ["installer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          id: string
+          lead_id: string
+          system_size_kw: number
+          total_cost: number
+          financing_type: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          system_size_kw: number
+          total_cost: number
+          financing_type: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          system_size_kw?: number
+          total_cost?: number
+          financing_type?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategies: {
+        Row: {
+          id: string
+          lead_id: string
+          persona_detected: "family" | "investor" | "environmentalist" | "skeptic"
+          persona_confidence: number | null
+          signals: string[]
+          strategy_summary: string
+          rationale: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          persona_detected: "family" | "investor" | "environmentalist" | "skeptic"
+          persona_confidence?: number | null
+          signals?: string[]
+          strategy_summary: string
+          rationale: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          persona_detected?: "family" | "investor" | "environmentalist" | "skeptic"
+          persona_confidence?: number | null
+          signals?: string[]
+          strategy_summary?: string
+          rationale?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategies_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          id: string
+          lead_id: string
+          strategy_id: string
+          channel_type: Database["public"]["Enums"]["message_channel"]
+          subject: string | null
+          content: string
+          goal: string | null
+          sequence_order: number
+          audio_path: string | null
+          status: Database["public"]["Enums"]["message_status"]
+          sent_at: string | null
+          error_message: string | null
+          provider_message_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          strategy_id: string
+          channel_type: Database["public"]["Enums"]["message_channel"]
+          subject?: string | null
+          content: string
+          goal?: string | null
+          sequence_order: number
+          audio_path?: string | null
+          status?: Database["public"]["Enums"]["message_status"]
+          sent_at?: string | null
+          error_message?: string | null
+          provider_message_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          strategy_id?: string
+          channel_type?: Database["public"]["Enums"]["message_channel"]
+          subject?: string | null
+          content?: string
+          goal?: string | null
+          sequence_order?: number
+          audio_path?: string | null
+          status?: Database["public"]["Enums"]["message_status"]
+          sent_at?: string | null
+          error_message?: string | null
+          provider_message_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "strategies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -115,7 +325,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      lead_status: "new" | "contacted" | "negotiating" | "closed" | "ghosted"
+      message_channel: "email" | "sms" | "call" | "voice"
+      message_status: "draft" | "sent" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -242,7 +454,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      lead_status: ["new", "contacted", "negotiating", "closed", "ghosted"],
+      message_channel: ["email", "sms", "call", "voice"],
+      message_status: ["draft", "sent", "failed"],
+    },
   },
 } as const
 

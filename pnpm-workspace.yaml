@@ -3,6 +3,11 @@ packages:
   - packages/*
 autoInstallPeers: true
 minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - '@ai-sdk/anthropic'
+  - ai
+  - resend
+  - twilio
 allowBuilds:
   '@parcel/watcher': true
   core-js: true
