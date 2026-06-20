@@ -24,8 +24,9 @@ const robotoMono = localFont({
 });
 
 export const metadata = {
-  title: 'Nextbase Open source starter',
-  description: 'Built with Next.js, Supabase, and Tailwind CSS',
+  title: 'RayCiprocity — Solar AI Copilot',
+  description:
+    'AI follow-up engine for solar installers — turn quotes into signed contracts.',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

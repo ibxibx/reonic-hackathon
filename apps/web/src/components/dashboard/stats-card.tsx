@@ -29,7 +29,9 @@ export function StatsCard({
         <Icon className={cn('h-4 w-4 text-muted-foreground', iconClassName)} />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold tabular-nums">{value}</div>
+        <div className="text-4xl font-bold tabular-nums tracking-tight">
+          {value}
+        </div>
         {hint ? (
           <p className="text-xs text-muted-foreground mt-1">{hint}</p>
         ) : null}

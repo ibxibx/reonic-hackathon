@@ -40,12 +40,13 @@ export const generateStrategyAction = authActionClient
       throw new Error('Quote not found');
     }
 
-    // Eliminar estrategia anterior si existe
-    await supabase.from('strategies').delete().eq('lead_id', leadId);
-
-    // Generar estrategia con IA
+    // Generar estrategia con IA PRIMERO. Si la IA falla (p. ej. sin API key),
+    // lanzamos antes de borrar nada, conservando la estrategia/fallback actual.
     const systemPrompt = buildStrategyPrompt(lead, quote);
     const strategy = await generateStrategy(lead, quote, systemPrompt);
+
+    // Eliminar la estrategia anterior SOLO tras una generación exitosa.
+    await supabase.from('strategies').delete().eq('lead_id', leadId);
 
     // Crear strategy record
     const { data: strategyRecord, error: strategyError } = await supabase
