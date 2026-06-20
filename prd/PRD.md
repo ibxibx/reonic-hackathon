@@ -3,10 +3,28 @@
 ## RayCiprocity — AI Multi-Channel Customer Engagement & Closing Copilot for Solar Installers
 
 **Track:** Reonic — AI-Powered Marketing to Enable Renewable Installers
-**Team:** 5 (3 engineers, 2 product) · **Build window:** ~24 hours · **Submit:** Sunday 14:00
-**Tech framework:** per Leonardo's latest production spec (Next.js 14 + Supabase + Vercel AI SDK)
+**Team:** 5 (3 engineers, 2 product) · **Build window:** ~20 hours remaining · **Submit:** Sunday 14:00
+**Tech framework:** Next.js 16 (App Router, RSC, Turbopack) + Supabase + Vercel AI SDK *(repo is on 16; earlier "Next 14" references are stale)*
 
 > *"We don't just generate emails. We turn a solar quote into a diagnosed, persona-matched, multi-channel closing strategy — and we tell the installer exactly why each customer is stalling and what to do next."*
+
+---
+
+## 0. Alignment with the official Reonic track brief
+
+> Added after receiving Reonic's official challenge brief. Where this PRD and the brief differ, **the brief wins** — it defines scoring.
+
+**The brief's CORE ask (the scored floor):** take homeowner profile + quote → output a communication strategy that is *strategically sound, visually compelling, actionable/iterable, and multi-channel aware*, demoed live for **2+ customer profiles**. The deliverables are a working prototype, example output for 2+ profiles, and a brief explanation. Reonic states plainly: **"No massive documentation needed. Impress us with what you build, not what you write about building it."**
+
+**What this means for our scope:**
+- The base persona → multi-channel strategy flow (already shipped) **satisfies the core**. Lock and polish it first.
+- Our **Problem Codes (40)** and **Oracle** are **bonus-point** features ("something unexpected" / "predictive insights"), not the core. Sequence them *after* the core is demo-ready. See `ACTION_PLAN.md` for the phase order (Core → Oracle → Codes).
+- **Auth / RLS / multi-tenancy** (already built) is **not scored** by the brief. Spend zero remaining hours hardening it.
+- Keep the README minimal. The competition submission rules (§14) still require a README + 2-min Loom, but don't over-invest in docs.
+
+**Brief bonus points and where we hit them:** multi-channel (shipped) · iteration built-in (editable steps) · predictive insights (Oracle) · A/B testing (stretch) · beautiful UX (Phase polish) · localization (DE/EN) · something unexpected (the code system).
+
+**Engineering discipline:** all build work follows `docs/ENGINEERING_PRINCIPLES.md` — simplicity first, surgical changes, goal-driven execution. This is *why* Codes can ship as a ~12-code subset and the Oracle skips RAG.
 
 ---
 
