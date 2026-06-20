@@ -22,6 +22,7 @@
 The brief's **CORE** ask is simpler than our PRD. Build the CORE first; everything else is bonus.
 
 **Core success criteria (must nail these):**
+- **"Would an installer actually use this? Does it help close deals?"** — the brief's #1 lens. Every feature is judged against real installer usefulness, not novelty. When choosing what to polish, optimize for *credible and usable* over *clever*.
 - **Believable, tailored strategy** — feels customer-specific, not templated. Shows *why this, this tone, this timing*.
 - **Visual & usable** — "something an installer would show their sales manager." Not a text dump.
 - **Iterable** — installer can tweak messaging / timing / approach.
@@ -29,9 +30,13 @@ The brief's **CORE** ask is simpler than our PRD. Build the CORE first; everythi
 
 **Bonus points (our differentiators map directly):**
 - Predictive insights ("might ghost" / "ready to close") → **the Oracle**
-- Something unexpected → **the 40-code diagnosis**
+- Something unexpected → **the 40-code diagnosis** (and/or a richer *input* — see below)
 - Multi-channel smarts (SMS, call, voice) → **already shipped**
-- Localization (DE/EN) · Beautiful UX · A/B testing
+- Localization (DE/EN) · Beautiful UX · **A/B testing** (currently unbuilt — deliberate cut unless we reach Phase 5 with time)
+
+> **Two brief-blessed angles we're currently NOT using — decide consciously, don't skip by accident:**
+> - **Input is open-ended.** The brief invites "JSON / CSV upload / *conversational chatbot interview*" as input. We default to the lead form. A conversational intake could itself be the "something unexpected" — flag as an option, not a commitment.
+> - **Customer-facing output.** The brief twice mentions an artifact the installer can *send to the customer directly* (proposal deck). We're 100% installer-facing (sales-manager view). A one-click customer-shareable summary is a distinct, low-cost wow if Phase 5 has room.
 
 > **Reonic's explicit note: "No massive documentation needed. Impress us with what you build, not what you write about building it."** Keep the README minimal — just enough to satisfy the submission rules.
 
@@ -172,12 +177,20 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 - `pnpm typecheck && pnpm lint && pnpm test` green · run `pnpm test-db` for new RLS
 
 > **Surveys (FR-6) + full cadence engine are the cut candidates** — below the Oracle in judging value. Build only if you reach here with time to spare.
+> **A/B testing (named brief bonus) is consciously cut** unless Phase 5 runs ahead of schedule — cheapest version is a second strategy variant per lead with a "which would you send?" toggle, no new schema. Flagged so it's a *decision*, not an oversight.
 
 ---
 
 ### Phase 6 — Submit · hours 19–20
-- README (setup + APIs + tools — **required by rules**; keep it minimal per Reonic's "no massive docs" note)
-- 2-min Loom (solution + live walkthrough)
+
+**The brief's 3 required deliverables (this IS the submission — nail all three):**
+1. **Working prototype** — demoable live. Have the happy path rehearsed + a fallback screen capture.
+2. **Example output for ≥2 different customer profiles** — show the variety (investor vs family is the cleanest contrast). This is literal and scored — don't demo just one.
+3. **Brief explanation** of the strategy + why this approach. Keep it short (Reonic: "no massive docs").
+
+**Mechanics:**
+- README (setup + APIs + tools — **required by rules**; minimal per Reonic's "no massive docs" note)
+- 2-min Loom (solution + live walkthrough hitting all 3 deliverables above)
 - Record a **fallback screen capture** of the happy path
 - Freeze features · public repo · opt-in **before 14:00**
 
