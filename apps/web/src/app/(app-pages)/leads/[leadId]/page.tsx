@@ -18,12 +18,15 @@ import {
   getLatestPredictionForLead,
   getStrategyForLead,
   getOrchestrationForLead,
+  getMessagesForLead,
 } from '@/data/user/leads-read';
 import {
+  CHANNEL_CONFIG,
   FINANCING_TYPE_LABELS,
   ROOF_TYPE_LABELS,
   formatCurrency,
   type FinancingType,
+  type MessageChannel,
   type RoofType,
 } from '@/lib/solar';
 import {
@@ -33,6 +36,8 @@ import {
   Home,
   Mail,
   MapPin,
+  MessageSquare,
+  Mic,
   Phone,
   Zap,
 } from 'lucide-react';
@@ -58,6 +63,21 @@ export default async function LeadDetailPage(props: {
   const prediction = await getLatestPredictionForLead(leadId);
   const confidence = strategy?.persona_confidence ?? null;
   const orchestration = await getOrchestrationForLead(leadId);
+
+  // 2.5c — surface the NEXT step's actual message + its "why now" goal.
+  // current_step is 0-based (0 = nothing sent yet); the next touch to take is
+  // the message at sequence_order = current_step + 1. Null when completed.
+  const messages =
+    orchestration &&
+    orchestration.status !== 'completed' &&
+    orchestration.current_step < orchestration.total_steps
+      ? await getMessagesForLead(leadId)
+      : [];
+  const nextStepMessage = orchestration
+    ? (messages.find(
+        (m) => m.sequence_order === orchestration.current_step + 1
+      ) ?? null)
+    : null;
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 max-w-5xl w-full">
@@ -232,6 +252,18 @@ export default async function LeadDetailPage(props: {
                 <OrchestrationStatus orchestration={orchestration} />
               ) : null}
 
+              {nextStepMessage ? (
+                <NextStepCard
+                  message={nextStepMessage}
+                  stepNumber={nextStepMessage.sequence_order}
+                  totalSteps={orchestration?.total_steps ?? 0}
+                />
+              ) : orchestration?.status === 'completed' ? (
+                <p className="text-sm text-muted-foreground">
+                  ✓ All steps sent — sequence complete.
+                </p>
+              ) : null}
+
               <Button asChild variant="outline" size="sm">
                 <Link href={`/leads/${leadId}/strategy`}>
                   View full strategy & timeline
@@ -250,6 +282,69 @@ export default async function LeadDetailPage(props: {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function NextStepCard({
+  message,
+  stepNumber,
+  totalSteps,
+}: {
+  message: {
+    channel_type: string;
+    subject: string | null;
+    content: string;
+    goal: string | null;
+  };
+  stepNumber: number;
+  totalSteps: number;
+}) {
+  const CHANNEL_ICONS: Record<MessageChannel, typeof Mail> = {
+    email: Mail,
+    sms: MessageSquare,
+    call: Phone,
+    voice: Mic,
+  };
+  const channel = message.channel_type as MessageChannel;
+  const Icon = CHANNEL_ICONS[channel] ?? Mail;
+  const channelLabel = CHANNEL_CONFIG[channel]?.label ?? message.channel_type;
+  const preview =
+    message.content.length > 160
+      ? `${message.content.slice(0, 160).trimEnd()}…`
+      : message.content;
+
+  return (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <div className="flex size-7 items-center justify-center rounded-full border bg-background">
+          <Icon className="size-3.5" />
+        </div>
+        <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+          Next step · {channelLabel}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {stepNumber} of {totalSteps}
+        </span>
+      </div>
+
+      {message.goal ? (
+        <p className="text-sm">
+          <span className="text-muted-foreground">Why now: </span>
+          {message.goal}
+        </p>
+      ) : null}
+
+      {message.subject ? (
+        <p className="text-sm">
+          <span className="text-muted-foreground">Subject: </span>
+          <span className="font-medium">{message.subject}</span>
+        </p>
+      ) : null}
+
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+        {preview}
+      </p>
     </div>
   );
 }
