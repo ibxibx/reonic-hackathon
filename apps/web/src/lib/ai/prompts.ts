@@ -107,3 +107,39 @@ export function buildOraclePrompt(
 - Use middle-range probabilities when evidence is limited.
 - Return only valid JSON matching the schema.`;
 }
+
+
+export function buildInboundPrompt(
+  lead: Lead,
+  strategy: Strategy | null,
+  replyBody: string
+): string {
+  return `You are the inbound triage agent for a solar installer's sales dashboard. A customer has REPLIED to one of our outreach messages. Read their reply and classify their intent so the dashboard can adjust the next marketing step. You do NOT write a reply — you only categorize and recommend.
+
+## The 4 categories
+- interested: engaged and asking questions, wants more info, positive but not yet committing. Keep nurturing.
+- objection: raised a specific concern or blocker (price, timing, doubt, comparing competitors, "panels in winter?"). Needs objection handling before advancing.
+- ghost_risk: cold, dismissive, non-committal, "not now", "we'll think about it", or signs they're disengaging. Needs a re-engagement touch.
+- ready_to_close: strong buying signals — asking about contracts, timelines, next steps, payment, "let's do it". Escalate toward closing.
+
+## Customer context
+- Name: ${lead.name}
+- Current lead status: ${lead.status}
+- Detected persona: ${strategy?.persona_detected || 'Unknown'}
+
+## The customer's reply
+"""
+${replyBody}
+"""
+
+## Task
+1. Pick the SINGLE best category from the 4 above.
+2. Give confidence 0-1 (lower it when the reply is short or ambiguous).
+3. reasoning: cite the specific words/phrases in their reply that drove the category.
+4. suggestedNextStep: one concrete next marketing move for the installer, matched to the category and this persona (channel + angle). E.g. "Send a reassurance voice note addressing winter-performance doubt."
+
+## Rules
+- Base the category ONLY on the reply text and the context above. Do not invent details.
+- If the reply is genuinely ambiguous, pick the closest fit with lower confidence — never refuse.
+- Return only valid JSON matching the schema.`;
+}

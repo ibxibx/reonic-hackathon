@@ -112,6 +112,22 @@ export async function getOrchestrationForLead(
   return data;
 }
 
+export async function getLatestInboundForLead(
+  leadId: string
+): Promise<Table<'inbound_messages'> | null> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from('inbound_messages')
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export interface LeadStats {
   total: number;
   byStatus: Record<LeadStatus, number>;

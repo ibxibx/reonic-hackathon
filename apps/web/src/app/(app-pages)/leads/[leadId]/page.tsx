@@ -3,6 +3,7 @@ import { StatusBadge } from '@/components/leads/status-badge';
 import { GenerateStrategyButton } from '@/components/strategy/generate-strategy-button';
 import { PersonaBadge } from '@/components/strategy/persona-badge';
 import { OraclePanel } from '@/components/strategy/oracle-panel';
+import { InboundPanel } from '@/components/strategy/inbound-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +20,7 @@ import {
   getStrategyForLead,
   getOrchestrationForLead,
   getMessagesForLead,
+  getLatestInboundForLead,
 } from '@/data/user/leads-read';
 import {
   CHANNEL_CONFIG,
@@ -63,6 +65,7 @@ export default async function LeadDetailPage(props: {
   const prediction = await getLatestPredictionForLead(leadId);
   const confidence = strategy?.persona_confidence ?? null;
   const orchestration = await getOrchestrationForLead(leadId);
+  const latestInbound = await getLatestInboundForLead(leadId);
 
   // 2.5c — surface the NEXT step's actual message + its "why now" goal.
   // current_step is 0-based (0 = nothing sent yet); the next touch to take is
@@ -138,6 +141,10 @@ export default async function LeadDetailPage(props: {
       </div>
 
       <OraclePanel leadId={leadId} prediction={prediction} />
+
+      {strategy ? (
+        <InboundPanel leadId={leadId} latestInbound={latestInbound} />
+      ) : null}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Property + bill */}

@@ -54,3 +54,22 @@ export const oracleSchema = z.object({
 });
 
 export type GeneratedOracle = z.infer<typeof oracleSchema>;
+
+// Inbound customer reply categorizer. Reads a customer's email reply and
+// classifies intent so the orchestrator can react (advance / hold / escalate).
+export const inboundCategoryEnum = z.enum([
+  'interested',
+  'objection',
+  'ghost_risk',
+  'ready_to_close',
+]);
+
+export const inboundSchema = z.object({
+  category: inboundCategoryEnum,
+  confidence: z.number().min(0).max(1),
+  reasoning: z.string().min(20).max(600),
+  suggestedNextStep: z.string().min(10).max(300),
+});
+
+export type InboundCategory = z.infer<typeof inboundCategoryEnum>;
+export type ClassifiedInbound = z.infer<typeof inboundSchema>;

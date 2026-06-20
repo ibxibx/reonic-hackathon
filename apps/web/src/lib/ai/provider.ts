@@ -2,9 +2,11 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import {
   archetypeSchema,
+  inboundSchema,
   oracleSchema,
   strategySchema,
   type ClassifiedArchetype,
+  type ClassifiedInbound,
   type GeneratedOracle,
   type GeneratedStrategy,
 } from './schemas';
@@ -116,6 +118,39 @@ export async function generateOracle(
     throw new AppError(
       'Failed to generate Oracle prediction',
       'AI_GENERATION_ERROR',
+      500
+    );
+  }
+}
+
+
+export async function categorizeInbound(
+  systemPrompt: string
+): Promise<ClassifiedInbound> {
+  try {
+    const model = process.env.OPENAI_MODEL || 'gpt-4o';
+    const timer = startTimer();
+    logStep('inbound', 'AI call → generateObject', { model });
+    const result = await generateObject({
+      model: openai(model),
+      schema: inboundSchema,
+      system: systemPrompt,
+      prompt: 'Categorize this customer reply.',
+      maxRetries: 1,
+      abortSignal: AbortSignal.timeout(15000),
+    });
+    logStep('inbound', 'AI call ✓', {
+      ms: timer(),
+      category: result.object.category,
+      confidence: result.object.confidence,
+    });
+    return result.object;
+  } catch (error) {
+    logError('inbound', 'AI call failed', error);
+    console.error('Inbound categorization error:', error);
+    throw new AppError(
+      'Failed to categorize inbound reply',
+      'AI_CLASSIFICATION_ERROR',
       500
     );
   }

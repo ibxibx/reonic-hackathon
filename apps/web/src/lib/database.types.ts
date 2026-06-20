@@ -108,6 +108,47 @@ export type Database = {
         }
         Relationships: []
       }
+      inbound_messages: {
+        Row: {
+          body: string
+          category: string
+          confidence: number | null
+          created_at: string
+          id: string
+          lead_id: string
+          reasoning: string | null
+          suggested_next_step: string | null
+        }
+        Insert: {
+          body: string
+          category: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          reasoning?: string | null
+          suggested_next_step?: string | null
+        }
+        Update: {
+          body?: string
+          category?: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          reasoning?: string | null
+          suggested_next_step?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_orchestration: {
         Row: {
           current_step: number
