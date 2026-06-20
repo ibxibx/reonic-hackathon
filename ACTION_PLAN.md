@@ -70,15 +70,27 @@ pnpm dev
 ### Phase 1 — CORE polish (the scored floor) · hours 1–5
 The brief's core ask is *believable, tailored, visual, iterable, 2+ profiles*. The base flow exists — make it demo-grade. **No new schema, no new tables.** Surgical only.
 
+**Phase 1 team: Ian, Sebastian, Ismael** (Eng 1 + Eng 2 are on other work). Three people, three different files, zero collisions:
+
+| Sub-task | Owner | File(s) — exclusive |
+|---|---|---|
+| **1c** Editable cards → **1d** polish | **Ian** | `data/user/messages.ts`, `components/strategy/timeline-step.tsx` |
+| **1b** "Why this" prompt | **Ian** (+ Ismael feedback loop) | `lib/ai/prompts.ts` |
+| **1a** Seed: 2 contrasting leads | **Sebastian** | `apps/database/supabase/seed.sql` |
+| **1a** Output QA / "still templated?" judging | **Ismael** | *(no files — runs the app, feeds notes to Ian's 1b)* |
+
+**Run by risk, not by label order:** 1c first (missing CORE feature, highest risk) → 1a seed drafts in parallel (unblocks 1b) → 1b (Ian+Ismael loop) → 1d last (cosmetic, first to cut).
+**Collision rule:** only Ian touches `timeline-step.tsx`; only Sebastian touches `seed.sql`. 1c and 1d are the *same file* — do them sequentially, never in parallel.
+
+**1c · Iterability is real** *(do FIRST — it's the missing CORE feature)* — there is **no edit path today**: cards render read-only and `data/user/messages.ts` has no `updateMessage` action (verified). Add `updateMessageAction` (edit body + subject, save to DB) and make the timeline cards editable. The installer adjusting a message live is a core demo beat the brief explicitly rewards.
+
 **1a · Two contrasting demo profiles** — pick 2 seed leads that show maximum variety (e.g. a numbers-driven *investor* vs. a reassurance-seeking *family*). Confirm each generates a visibly different strategy, tone, and channel mix. This is a literal deliverable ("example output for at least 2 profiles").
 
-**1b · "Why this" is visible** — the rationale + per-step reasoning must read as customer-specific, not generic. Tighten the prompt in `lib/ai/prompts.ts` so each step states *why this channel, why this tone, why now*. No code beyond prompt edits.
+**1b · "Why this" is visible** — the rationale + per-step reasoning must read as customer-specific, not generic. Tighten the prompt in `lib/ai/prompts.ts` so each step states *why this channel, why this tone, why now*. No code beyond prompt edits. Ismael judges output and flags where it still reads templated.
 
-**1c · Iterability is real** — confirm the editable step cards actually persist edits and re-render. If editing is stubbed, wire it to `data/user/messages.ts`. The installer adjusting a message live is a core demo beat.
+**1d · Visual credibility** *(do LAST — cuttable)* — the timeline should look like something shown to a sales manager: persona badge, channel icons, clear sequence. Polish spacing/hierarchy only; don't redesign.
 
-**1d · Visual credibility** — the timeline should look like something shown to a sales manager: persona badge, channel icons, clear sequence. Polish spacing/hierarchy only; don't redesign.
-
-**Done when:** two different leads each produce a distinct, believable, editable strategy that looks presentable — demoed live end-to-end.
+**Done when:** two different leads each produce a distinct, believable, **editable** strategy that looks presentable — demoed live end-to-end.
 
 ---
 
@@ -150,13 +162,15 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 
 ## 👥 Team split
 
-| Who | Owns |
-|---|---|
-| **Eng 1 (AI)** | 1b "why this" prompt + 2b Oracle action + 3c code-diagnosis prompts/schemas |
-| **Eng 2 (data/integrations)** | 2a/3a migrations + Phase 4 interactions/signals |
-| **Eng 3 (frontend)** | 1c/1d core polish + 2c Oracle panel + 3d chips + 4c dashboard |
-| **PM 1** | code content library (start with the ~12 demo codes) + DE/EN message copy |
-| **PM 2** | 1a 2 demo profiles + seed realism + demo script + Loom + README |
+**Phase 1 (now):** Ian, Sebastian, Ismael. Eng 1 + Eng 2 are on other work and rejoin from Phase 2.
+
+| Who | Phase 1 (now) | Phase 2+ |
+|---|---|---|
+| **Ian** | 1c editable cards → 1d polish, 1b prompt | 2b Oracle action + 3c code-diagnosis prompts/schemas |
+| **Sebastian** | 1a seed: 2 contrasting leads (`seed.sql`) | seed realism + code content library (~12 demo codes) |
+| **Ismael** | 1a output QA / templated-check + DE/EN copy | demo script + Loom + README |
+| **Eng 1 (rejoins P2)** | — | 2a/3a migrations |
+| **Eng 2 (rejoins P2)** | — | Phase 4 interactions/signals + 2c/3d/4c frontend |
 
 ---
 
