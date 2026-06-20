@@ -1,397 +1,404 @@
-# NextBase Starter — Open Source Next.js + Supabase Boilerplate
+<p align="center">
+  <img src="./pics/poster.png" alt="AI × Energy Hackathon poster" width="240">
+</p>
 
-> A production-grade Next.js 16 + Supabase foundation. Free, MIT-licensed, and ready to clone.
+# ☀️ AI Sales Copilot for Solar Installers
 
-NextBase Starter is the open-source baseline of the [NextBase](https://usenextbase.com) family — an opinionated, tested starting point for SaaS teams building on Next.js 16 and Supabase. It bundles the auth, RLS, monorepo, and caching patterns that you would otherwise spend weeks deriving from scratch.
+> **Track:** Reonic — *AI-Powered Marketing to Enable Renewable Installers*
+> **Event:** {Tech:Europe} AI × Energy Hackathon, Berlin · 20–21 June 2026
+>
+> We are **not** just generating emails. We turn a single solar **quote** into a
+> personalized, **multi-channel closing strategy** — email → SMS → call → voice note —
+> with the reasoning, timing, and editable controls an installer can trust and adapt.
 
-- **Demo:** _[live demo URL]_
-- **Documentation:** _[docs URL]_
-- **Changelog:** see [`CHANGELOG.md`](./CHANGELOG.md)
-- **License:** MIT — see [`LICENSE`](./LICENSE)
-
-> **Need more than the starter?** Stripe billing, teams & orgs, RBAC admin, transactional emails, multi-tenancy, AI starter kits — all built on the same patterns — ship as **premium NextBase kits**. **[→ See the premium kits at usenextbase.com](https://usenextbase.com)**
-
----
-
-## Why this exists
-
-Every SaaS team writes the same code in the first sprint and the same code in the first incident:
-
-- A "simple" Supabase auth integration that quietly breaks SSR cookies after a refresh, then again after a deploy.
-- An RLS policy that looked right in review and silently leaked a row in production.
-- A server-action layer that was supposed to be type-safe but ended up being three subtly different patterns across the codebase.
-- A monorepo that started clean and devolved into a tangle of relative imports and untyped envs.
-- A "we'll add caching later" that turns into a `revalidatePath` archaeology dig six months in.
-
-NextBase compresses all of that prior art into a maintained, opinionated starter. You inherit decisions that have already failed in production somewhere else, so they don't have to fail in yours.
+> 🗄️ Pre-event research, the full idea exploration, and the war-room doc are archived
+> at [`archive/README-warroom-archive.md`](./archive/README-warroom-archive.md).
+> Track brief lives in [`TRACKS.md`](./TRACKS.md); full build spec in
+> [`BUILD_SPEC.md`](./BUILD_SPEC.md).
 
 ---
 
-## Features
+## 🎯 The Brief, In One Line
 
-### Authentication
-- **Supabase Auth, SSR-correct.** `@supabase/ssr` clients for browser, server components, server actions, and middleware — wired so cookies survive every render boundary in Next.js 16.
-- **Multiple sign-in methods out of the box:** email + password, passwordless magic link, and OAuth (Google, GitHub, Twitter — add more in minutes).
-- **Hardened middleware.** A single source of truth for protected routes (`/dashboard`, `/private-item`, `/private-items`, …) using `path-to-regexp` matching and `supabase.auth.getUser()` re-verification on every request.
-- **Battle-tested flows.** Sign-up, sign-in, sign-out, email confirmation, forgot-password, update-password, and OAuth callback / code-error pages — all implemented as Server Actions and tested.
+Solar installers lose deals in the gap between **"quote sent"** and **"contract
+signed."** Homeowners hesitate, get distracted, get competing offers. Installers have
+no time to personalize follow-up at scale, and generic templates don't move the
+needle. **Our product reads the customer + quote, detects the persona, and produces a
+coherent follow-up strategy** — *why this message, in this tone, on this channel, at
+this time* — that the installer can preview, edit, and fire off.
 
-### Database, Permissions & Multi-Tenancy
-- **Supabase Postgres with Row Level Security from day one.** Every user-owned table ships with `SELECT`/`INSERT`/`UPDATE`/`DELETE` policies keyed off `auth.uid()`.
-- **Versioned migrations.** Real timestamped SQL migrations under `apps/database/supabase/migrations` — not a hand-edited single file.
-- **Generated database types.** `pnpm gen-types` (remote) and `pnpm gen-types-local` (local) regenerate `database.types.ts` so every query is end-to-end typed.
-- **pgTAP-ready test harness.** A test scaffold under `apps/database/supabase/tests` for asserting RLS policies, triggers, and constraints.
-- **`updated_at` triggers** standardized via a single `public.set_updated_at()` function — applied per-table, not duplicated.
+The four personas the brief calls out, which our persona engine maps onto directly:
 
-### Server Actions, Validation & Data Layer
-- **`next-safe-action` everywhere.** All mutating endpoints are Zod-validated, typed end-to-end, and ship with two pre-built clients:
-  - `actionClient` — base client with development-time perf + payload logging middleware.
-  - `authActionClient` — extends the base client and injects `ctx.userId` for the current user, refusing unauthenticated calls.
-- **Clean data-access separation.** Queries are partitioned by trust boundary:
-  - `src/data/anon/*` — anonymous, public reads
-  - `src/data/auth/*` — authentication flows (sign-in, sign-up, sign-out)
-  - `src/data/user/*` — authenticated user data (RLS-enforced)
-  - `src/rsc-data/*` — React Server Component data fetchers
-- **Optional `effect-ts` integration.** Composable `Effect`-based query helpers and typed Supabase error mapping under `src/utils/effect-*` for teams that want railway-oriented data flow without leaking it into every file.
-
-### Caching, Performance & UX
-- **Next.js 16 Cache Components (`cacheComponents: true`).** Static-by-default rendering with surgical `"use cache"` boundaries, plus a written guide ([`docs/NEXTJS_CACHE_COMPONENTS.md`](./docs/NEXTJS_CACHE_COMPONENTS.md)) explaining exactly when and how to use each primitive.
-- **Suspense-first data fetching** via `createSuspenseResource` and TanStack Query — clean loading boundaries, no waterfall fetches.
-- **Turbopack dev server** for sub-second HMR on real-world component trees.
-- **Optimized `next/image` remote patterns** preconfigured for Supabase Storage and Unsplash.
-
-### UI & Developer Experience
-- **shadcn/ui pre-installed** with the full Radix primitive set (40+ components: dialogs, command palettes, sidebars, sheets, toasts, hover cards, OTP input, …) — ready to copy, paste, and customize.
-- **Tailwind CSS v4** via `@tailwindcss/postcss`, including `@tailwindcss/forms` and `@tailwindcss/typography`.
-- **Framer Motion**, **Embla Carousel**, **cmdk**, **input-otp**, **Lucide icons**, **date-fns**, **React Hot Toast** — the entire baseline UI toolkit you would have installed in week one.
-- **Strict TypeScript** with shared `packages/typescript-config`, `oxlint` + `oxfmt` (Oxc-based, ~50× faster than ESLint+Prettier), and centralized Zod schemas in `src/utils/zod-schemas`.
-- **Tested.** Vitest + Testing Library for unit, Playwright for E2E — both already wired into Turbo pipelines.
-
-### Infrastructure, Observability & Releases
-- **Turborepo monorepo** (`apps/*`, `packages/*`) with `pnpm` workspaces and pipelined `build`, `lint`, `test`, `typecheck`, `gen-types`, `test:e2e` tasks.
-- **Local Supabase stack** lifecycle scripts: `pnpm database#start | stop | status`.
-- **Changesets-based release automation.** Every shippable change ships with a changeset; an automated "Version Packages" PR rolls them into a single bumped release, syncs `apps/web` versions, and cuts a GitHub release.
-- **GitHub Actions starter workflows** (Playwright + coverage) included.
-- **SEO baked in:** `next-seo`, `next-sitemap` postbuild, JSON-LD and Open Graph helpers.
+| Persona | What they need | How the strategy adapts |
+|---|---|---|
+| **Family** | Reassurance, peace of mind | "Predictable bills, no surprises," warm tone, references to other families nearby |
+| **Investor** | Hard ROI, comparisons | "13% annual return vs. the stock market," payback tables, numbers-first |
+| **Environmentalist** | Impact narrative | "Offset 150 t CO₂ over 25 years," mission framing |
+| **Skeptic** | Objection handling | "Yes, panels work in winter too," proof points, low-pressure |
 
 ---
 
-## Screenshots
+## 🌅 The Vision
 
-> _Replace these placeholders with your branded captures once you customize the marketing surfaces._
+Reonic gives installers a beautiful funnel — address → 3D house → PV/battery/heat-pump
+sizing → a polished offer PDF. **Then the offer is sent, and the funnel goes quiet.**
+The single most expensive moment in a solar sale is the silence *after* the quote: the
+homeowner is comparing three offers, half-forgetting yours, and the installer — a
+small team already booked solid on rooftops — has no time to chase each lead with a
+personal, persuasive, well-timed follow-up.
 
-| | |
-|---|---|
-| **Landing & marketing** — the `(external-pages)` route group, including the home page and `/about`, ready to be replaced with your positioning. | _[screenshot]_ |
-| **Authentication** — login / sign-up / magic-link / forgot-password screens with provider buttons (Google, GitHub, Twitter). | _[screenshot]_ |
-| **Dashboard** — the authenticated `(app-pages)` shell with sidebar, breadcrumbs, and a CRUD reference page. | _[screenshot]_ |
-| **Private items CRUD** — RLS-protected list, detail (`/private-item/[id]`), and create-new flows demonstrating the full data path. | _[screenshot]_ |
+Our product is the **closing layer** that sits on top of that quote. It reads the
+homeowner and their numbers, recognizes *who they are* and *what would actually move
+them*, and hands the installer a complete, multi-channel persuasion strategy — email,
+SMS, a call script, and a personalized voice note — each step annotated with **why it
+exists, in what tone, and when to send it.** The installer stays in control: every
+message is editable, every rationale is visible. The AI proposes; the human disposes.
+
+**The insight:** generic follow-up templates don't lose deals because they're badly
+written — they lose deals because a family and an investor need to hear *completely
+different things*, and no installer has time to write four bespoke sequences per lead.
+We make persona-tailored, reasoning-backed follow-up a one-click action.
 
 ---
 
-## Tech stack
+## 🧠 How It Works
+
+1. **Installer enters the lead.** A "New Lead" form captures the homeowner (name,
+   address, roof type, current monthly bill) and the solar quote (system size in kW,
+   total cost, financing type, notes). Saved to Supabase under that installer only.
+2. **The AI reads the whole picture.** A Server Action pulls the lead + quote and
+   sends them to the LLM with a strict JSON-schema prompt.
+3. **Persona detection.** The model classifies the homeowner into exactly one of the
+   brief's four archetypes — **family · investor · environmentalist · skeptic** — and
+   states *why*, grounded in the actual data (e.g. a high bill + investor language →
+   payback-first framing).
+4. **Strategy generation.** It emits a coherent **4-step, multi-channel** plan —
+   Email → SMS → Call script → Voice-note script — and for **each** step a
+   `timingHint`, a `rationale` (why this channel, this tone, now, for *this* persona),
+   and the message body itself.
+5. **Visual timeline.** The plan renders as an interactive vertical timeline. Each
+   step is a preview card showing its content, its reasoning, and its status — and is
+   **click-to-edit** before anything is sent.
+6. **One-click execution.** Email fires via Resend, SMS via Twilio, and the voice note
+   is synthesized by **ElevenLabs**, stored in Supabase Storage, and played back inline
+   from a signed URL. Every send updates the message status, fully audited in the DB.
+
+The output isn't "here are four emails." It's *"here is the approach, here is why it
+fits this customer, and here is how you can adjust it"* — a persuasion strategy an
+installer can understand, trust, and iterate on.
+
+---
+
+## 🏛️ Architecture
+
+```mermaid
+flowchart TD
+    classDef installer fill:#dbeafe,stroke:#1e6fe0,stroke-width:2px,color:#0f172a
+    classDef app fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#0f172a
+    classDef brain fill:#fef3c7,stroke:#d97757,stroke-width:2px,color:#0f172a
+    classDef data fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#0f172a
+    classDef channel fill:#f1f5f9,stroke:#475569,color:#0f172a
+
+    I["👷 Installer<br/>enters lead + quote"]:::installer
+    UI["🖥️ Next.js Dashboard<br/>leads board · new-lead form · timeline"]:::app
+    SB[("🗄️ Supabase Postgres<br/>RLS-scoped per installer<br/>profiles · leads · quotes<br/>strategies · messages")]:::data
+    GEN["🧠 generate-strategy<br/>Server Action → LLM<br/>persona + 4-step plan (JSON)"]:::brain
+    TL["🗂️ Communication Timeline<br/>Email → SMS → Call → Voice<br/>editable · per-step rationale"]:::app
+    EM["📧 Resend<br/>email send"]:::channel
+    SMS["💬 Twilio<br/>SMS (mock fallback)"]:::channel
+    EL["🎙️ ElevenLabs TTS<br/>voice note"]:::channel
+    ST[("🔊 Supabase Storage<br/>voice-notes · signed URLs")]:::data
+
+    I -->|"web form"| UI
+    UI -->|"insert"| SB
+    UI ==>|"Generate Strategy"| GEN
+    GEN <-->|"read lead + quote"| SB
+    GEN ==>|"persona + plan + draft msgs"| SB
+    SB ==>|"RLS read"| TL
+    TL --> EM
+    TL --> SMS
+    TL --> EL
+    EL --> ST
+    ST -->|"signed URL"| TL
+    EM -->|"status"| SB
+    SMS -->|"status"| SB
+```
+
+Every table is scoped by `installer_id = auth.uid()` through Row Level Security, so an
+installer only ever sees their own leads — the multi-tenant B2B-SaaS shape that answers
+the "could this be a company?" question directly. Full schema and execution order live
+in [`BUILD_SPEC.md`](./BUILD_SPEC.md).
+
+---
+
+## 🧱 Tech Stack
+
+> 🏗️ **Production architecture** — this is built as a real, multi-tenant B2B SaaS
+> (secure, scalable), not a localStorage demo. Full spec in
+> [`BUILD_SPEC.md`](./BUILD_SPEC.md).
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js 16 (App Router, Cache Components, Turbopack) |
-| UI runtime | React 19 |
-| Language | TypeScript (strict) |
-| Database & Auth | Supabase (Postgres, RLS, Auth, Storage) |
-| Auth SSR | `@supabase/ssr` |
-| Server Actions | `next-safe-action` + Zod |
-| Effects (optional) | `effect` + `@effect/platform` |
-| Data fetching | TanStack Query + React Suspense |
-| UI primitives | shadcn/ui on Radix UI |
-| Styling | Tailwind CSS v4 (PostCSS) + Tailwind Forms / Typography |
-| Forms | React Hook Form + Zod resolvers |
-| Animation | Framer Motion |
-| Lint / Format | oxlint + oxfmt |
-| Unit / Integration tests | Vitest + Testing Library + jsdom |
-| E2E tests | Playwright |
-| Monorepo | Turborepo + pnpm workspaces |
-| Releases | Changesets |
-| SEO | `next-seo`, `next-sitemap` |
+| **Framework** | Next.js 14+ (App Router), TypeScript, React Server Components |
+| **UI** | Tailwind CSS + shadcn/ui + Lucide icons (premium SaaS look) |
+| **Database & Auth** | **Supabase** — PostgreSQL, Auth, Storage, **Row Level Security** |
+| **AI** | Vercel AI SDK → OpenAI / Gemini |
+| **Data fetching** | TanStack Query (React Query) or Server Actions |
+| **Email** | Resend |
+| **SMS** | Twilio (with mock fallback) |
+| **Voice note** | ElevenLabs TTS → stored in Supabase Storage (signed URLs) |
+| **Toasts** | `sonner` |
+| **Deploy** | Vercel |
+
+> 💡 The ElevenLabs voice note also enters us into the **Best Use of Eleven Labs**
+> side challenge (6 months Scale tier, ~$1,980/member).
+> 🔐 **RLS means installers only ever see their own leads** — the multi-tenant story
+> that answers Point Nine's "could this be a company?"
 
 ---
 
-## Architecture overview
+## 🧩 Database Schema (Supabase, Phase 1)
 
-NextBase is a Turborepo with two apps and shared config packages.
+Six objects, with **Row Level Security** so each installer only sees their own data.
+Full SQL migration is generated first (see `BUILD_SPEC.md` execution order); shape:
 
-```
-nextbase-nextjs-supabase-starter/
-├── apps/
-│   ├── web/                            # Next.js 16 application
-│   │   ├── src/
-│   │   │   ├── app/
-│   │   │   │   ├── (external-pages)/   # Public marketing routes
-│   │   │   │   ├── (auth-pages)/       # login, sign-up, forgot-password,
-│   │   │   │   │                       # update-password, auth/callback,
-│   │   │   │   │                       # auth/confirm, auth/auth-code-error
-│   │   │   │   ├── (app-pages)/        # Authenticated app shell:
-│   │   │   │   │                       # dashboard, private-items,
-│   │   │   │   │                       # private-item/[privateItemId]
-│   │   │   │   └── layout.tsx
-│   │   │   ├── components/             # shadcn/ui + auth components
-│   │   │   ├── data/
-│   │   │   │   ├── anon/               # Public, anonymous data access
-│   │   │   │   ├── auth/               # Auth flows (server actions)
-│   │   │   │   └── user/               # Authenticated, RLS-scoped queries
-│   │   │   ├── rsc-data/               # RSC-only fetchers
-│   │   │   ├── supabase-clients/       # browser / server / middleware
-│   │   │   ├── lib/                    # safe-action clients, utils
-│   │   │   ├── utils/                  # zod schemas, helpers, effect bridge
-│   │   │   ├── hooks/
-│   │   │   ├── contexts/
-│   │   │   └── styles/
-│   │   ├── e2e/                        # Playwright specs
-│   │   ├── playwright.config.ts
-│   │   ├── vitest.config.ts
-│   │   └── next.config.ts              # cacheComponents enabled
-│   └── database/
-│       └── supabase/
-│           ├── migrations/             # Timestamped SQL migrations
-│           ├── tests/                  # pgTAP-style RLS / schema tests
-│           ├── seed.sql
-│           └── config.toml
-├── packages/
-│   └── typescript-config/              # Shared tsconfig presets
-├── docs/                               # Architecture & caching guides
-├── scripts/                            # Release & env sync scripts
-├── turbo.json
-├── pnpm-workspace.yaml
-└── package.json
-```
+| Table | Key columns |
+|---|---|
+| `profiles` | `id uuid → auth.users`, `company_name`, `created_at` |
+| `leads` | `id`, `installer_id → profiles`, `name`, `email`, `phone`, `address`, `roof_type`, `monthly_bill`, `status` (default `new`), `created_at` |
+| `quotes` | `id`, `lead_id → leads`, `system_size_kw`, `total_cost`, `financing_type`, `notes` |
+| `strategies` | `id`, `lead_id → leads`, `persona_detected`, `strategy_summary`, `created_at` |
+| `messages` | `id`, `lead_id`, `strategy_id`, `channel_type` ∈ {email,sms,call,voice}, `content`, `audio_url`, `status` ∈ {draft,sent,failed}, `sent_at`, `error_message` |
+| **Storage** | bucket `voice-notes` — **private**, owner-only via signed URLs |
 
-### Auth flow
-1. **Middleware** (`src/supabase-clients/middleware.ts`) instantiates a server Supabase client, calls `auth.getUser()` to re-verify the session, and redirects unauthenticated visitors away from protected route prefixes.
-2. **Server components** call `createSupabaseClient()` to read data under the user's RLS context.
-3. **Server actions** use `authActionClient` from `lib/safe-action.ts`, which short-circuits unauthenticated callers and injects `ctx.userId`.
-4. **OAuth & email confirmation** complete at `/auth/callback` and `/auth/confirm`, with `/auth/auth-code-error` for failures.
-
-### Permissions model
-Authorization is enforced **at the database layer** via Postgres RLS — not in handler code. Every user-owned table has explicit `SELECT`/`INSERT`/`UPDATE`/`DELETE` policies that compare `auth.uid()` to ownership columns. Service-role access is gated separately. This means a forgotten check in a route handler cannot exfiltrate data; the database refuses the read.
-
-### Caching strategy
-With `cacheComponents` enabled, route segments are static by default. Static UI (sidebars, breadcrumbs, headings, marketing) is marked `"use cache"`. Personalized data leaves caching off and uses Suspense. Cache invalidation happens via `revalidatePath()` from server actions. The full mental model is documented in [`docs/NEXTJS_CACHE_COMPONENTS.md`](./docs/NEXTJS_CACHE_COMPONENTS.md).
-
-### Server / client boundary
-- `lib/safe-action.ts` and all `data/*` modules are `'use server'` or `import 'server-only'`. They never leak into a client bundle.
-- Client interactivity is co-located: `ClientPage.tsx`, `*-client.tsx`, and explicit `'use client'` directives.
-- Browser Supabase access uses `supabase-clients/client.ts`; server uses `supabase-clients/server.ts` (cookies wired via `next/headers`).
+RLS policy pattern: every table scoped through `installer_id = auth.uid()` (directly on
+`leads`, transitively via `lead_id` on `quotes`/`strategies`/`messages`). The persona
+enum on `strategies.persona_detected` maps to the brief's four archetypes.
 
 ---
 
-## Quick start
+## 🚀 Features → Implementation
 
-### 1. Install
+Five features in the brief, each mapped to what we actually build on the Supabase stack.
+
+### 1. Dashboard
+Sidebar nav (Dashboard · Leads · Settings) + main area = **Kanban board or data table
+of `leads`** (Linear/Vercel dark aesthetic), each card showing name, system size, €,
+persona badge, and `status`. Server Components read from Supabase (RLS-scoped).
+- `app/(app)/dashboard/page.tsx` · `components/sidebar.tsx` · `components/lead-card.tsx`
+
+### 2. Data Entry Forms
+A **"New Lead"** modal/page with two sections, saving to `leads` + `quotes`:
+- **Homeowner Info** — name, address, email, phone, roof type, monthly bill
+- **Solar Quote Info** — system size (kW), total cost, financing type, notes
+- shadcn `Form` + `Input` + `Select`; submit via a Server Action that inserts to DB.
+- `app/(app)/leads/new/page.tsx` · `components/new-lead-form.tsx`
+
+### 3. AI Strategy Generator (the core)
+A **Server Action** `app/actions/generate-strategy.ts` fetches the lead + quote from
+Supabase, calls Gemini/OpenAI via the Vercel AI SDK with a **strict JSON-schema
+prompt**, then persists the result into `strategies` (+ draft rows in `messages`).
+
+The prompt is the heart of the product — it must (a) **detect the persona from the
+brief's four archetypes** (not freelance ones), (b) explain *why*, and (c) emit a
+4-step plan with per-step rationale and timing:
+
+```
+SYSTEM: You are an expert solar sales closer. You receive a homeowner profile and a
+solar quote. Do two things:
+1. Classify the homeowner into exactly ONE persona: family | investor |
+   environmentalist | skeptic. Briefly justify the classification from the data.
+2. Produce a coherent 4-step, multi-channel follow-up strategy to move them from
+   "quote received" to "contract signed" — WITHOUT being pushy.
+   Steps, in order: 1) Email  2) SMS  3) Call script  4) Voice-note script.
+   For EACH step give: timingHint, rationale (why this channel/tone/now for THIS
+   persona), and the message body (email also has a subject; call/voice are scripts).
+Tone, ROI framing, and objection-handling MUST match the detected persona.
+Output STRICTLY as JSON matching the strategy schema. No prose outside JSON.
+```
+
+- Validate with `zod` before the DB insert. UI shows a **skeleton loader** while it runs.
+- Constraining persona to the enum is what makes the output map onto the judges'
+  exact language and keeps the "why" legible.
+
+### 4. Communication Timeline & Previews
+A vertical **timeline** of the 4 steps (Email → SMS → Call → Voice), read from
+`messages`. Each step is a preview card showing its content + status, and is
+**click-to-expand and editable** before sending:
+- **Email** — subject + body, `Send via Resend` button
+- **SMS** — text, `Send via Twilio` button
+- **Call** — structured script (Opening · Value Prop · Objection Handling · Close)
+- **Voice Note** — `Generate Voice` button → custom audio player streaming from Storage
+- `components/timeline.tsx` · `components/step-card.tsx` (edits saved back to `messages`)
+
+### 5. Sending & Voice Pipeline (Server Actions)
+- **ElevenLabs** — `app/actions/generate-voice-note.ts`: fetch the voice script from
+  `messages` → call TTS (`https://api.elevenlabs.io/v1/text-to-speech/{voice_id}`) →
+  convert the audio stream to a **Blob** → upload to Supabase Storage `voice-notes` as
+  `{message_id}.mp3` → get a **signed URL** → update `messages.audio_url` + `status='draft'`.
+  Player streams the MP3 via the signed URL.
+- **Resend** — `send-email` Server Action sends the (possibly edited) body; updates
+  `messages.status` to `sent`/`failed` from the API response.
+- **Twilio** — `send-sms` Server Action; updates DB status; **mock fallback** if
+  `TWILIO_AUTH_TOKEN` is missing, so the demo never hard-fails without a paid number.
+- Every Server Action wraps in try/catch and returns `{ error: string }`; buttons show
+  spinners while pending; `sonner` toasts on success/failure.
+
+---
+
+## 🗺️ Build Order (the 27-hour path)
+
+Production execution order — but **demo wow-path first** if time tightens (see below).
+
+| Step | What |
+|---|---|
+| **1 — SQL schema** | Generate the full Supabase migration (6 tables/objects) + **RLS policies** |
+| **2 — Project + middleware** | Next.js structure; `utils/supabase/{client,server,middleware}.ts` for cookie/session |
+| **3 — Auth** | Login/Signup (shadcn forms or `@supabase/auth-ui-react`); protected routes |
+| **4 — Lead/Quote forms** | New Lead flow → insert to `leads` + `quotes` |
+| **5 — AI Strategy** | `generate-strategy` Server Action → `strategies` + draft `messages` |
+| **6 — Voice pipeline** | ElevenLabs → Blob → Supabase Storage → signed URL → `messages.audio_url` |
+| **7 — Timeline UI** | Preview + edit + send the messages (Resend / Twilio) |
+
+> Install: `@supabase/supabase-js`, `@supabase/ssr` early (step 2). Write
+> production-clean, commented code, but protect the **happy path** for the Sunday-14:00
+> demo. Freeze features Sunday ~11:00 and spend the rest on polish + the pitch.
+
+---
+
+## 🎬 Demo Flow Checklist (this is the script)
+
+- [ ] Installer enters homeowner + quote data
+- [ ] Clicks **Generate Strategy**
+- [ ] AI **detects the persona** and generates the 4-channel plan (streamed in live)
+- [ ] App shows the **visual timeline** with per-step *why*
+- [ ] Installer clicks **Send Email** → Resend
+- [ ] Installer clicks **Send SMS** → Twilio (or mock toast)
+- [ ] Installer reads the **Call script**
+- [ ] Installer clicks **Generate Voice Note** → ElevenLabs → **plays the audio**
+
+### 🛟 Demo-day insurance
+- **Pre-generate & cache one voice note** for the demo lead; run the live ElevenLabs
+  call as the show, but have the cached file ready if venue wifi flakes.
+- Keep a **recorded fallback video** of the full flow.
+- Ensure **loading skeletons** during strategy generation and audio render — the wait
+  is part of the UX, not a dead screen.
+
+---
+
+## 🧪 UX/UI Rules
+
+- Modern, **dark-mode-friendly SaaS** aesthetic (Linear / Vercel dashboard).
+- `lucide-react` icons · `sonner` toasts ("Email sent", "Voice note generated").
+- **Skeletons** while the AI or ElevenLabs is working.
+- Timeline steps are **interactive** — click to expand and **edit the AI's text**
+  before sending. The installer stays in control; the AI proposes, they dispose.
+
+---
+
+## 🔑 Environment Variables
+
 ```bash
-pnpm install
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+# AI
+OPENAI_API_KEY=
+# Voice
+ELEVENLABS_API_KEY=
+ELEVENLABS_VOICE_ID=
+# Email
+RESEND_API_KEY=
+# SMS (if absent, SMS is mocked)
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
 ```
 
-### 2. Configure environment
-Copy the examples and fill in your Supabase project details:
-```bash
-cp .env.local.example apps/web/.env.local
-cp .env.development.local.example apps/web/.env.development.local
+Copy `.env.local` from the template. The app degrades gracefully when an integration
+key is missing (SMS mocks; voice/email show a clear toast) so the demo never hard-fails.
+The `SUPABASE_SERVICE_ROLE_KEY` is server-only — never expose it to the client.
+
+---
+
+## 🏷️ Product Name
+
+Working title: **TBD** — shortlist candidates collected from team brainstorm
+(e.g. *Momentum, Cadence, Cloze, Chorus, Tailwind, Wingman, Closeline*). Drop your
+vote in `#team` or open a PR editing this line.
+
+---
+
+## 📊 By the Numbers — What We're Building
+
+> A ~27-hour build window. One production-shaped B2B SaaS, not a throwaway demo.
+
+- **4 personas** — `family` · `investor` · `environmentalist` · `skeptic`, a closed
+  enum the AI must classify into (so the output speaks the judges' exact language)
+- **4 channels per strategy** — Email → SMS → Call script → Voice note, each with its
+  own timing and rationale
+- **6 data objects** — `profiles`, `leads`, `quotes`, `strategies`, `messages` + a
+  private `voice-notes` storage bucket, all **Row-Level-Security scoped per installer**
+- **1 JSON-schema-constrained prompt** — persona detection + 4-step plan + per-step
+  `timingHint` and `rationale`, validated with `zod` before it ever touches the DB
+- **3 live integrations** — Resend (email), Twilio (SMS, with graceful mock fallback),
+  ElevenLabs (voice) — every send audited in `messages.status`
+- **2 example customer profiles** demoed end-to-end (a family and an investor) to show
+  the variety the brief asks for
+- **1 side-challenge entry** — the ElevenLabs voice note also competes for **Best Use
+  of Eleven Labs** (6 months Scale tier, ~$1,980/member)
+
+---
+
+## 🎯 How It Maps to the Brief
+
+- **Solves the brief's actual problem** — the gap between "quote sent" and "contract
+  signed," addressed with strategy and reasoning, not a template dump.
+- **Strategically sound** — persona-grounded follow-up, with the *why* visible at every
+  step, exactly what the judges said they'd reward.
+- **Visually compelling & iterative** — an editable timeline an installer would show
+  their sales manager; the installer tweaks tone, timing, and copy on the fly.
+- **Multi-channel by default** — email, SMS, call, and voice in one strategy (hitting
+  the brief's bonus criteria, not just the baseline).
+- **Believably a company** — multi-tenant, RLS-secured, production-shaped — the answer
+  to "could this be a real product?" with Point Nine in the room.
+- **Partner fit** — it bolts directly onto Reonic's existing funnel, picking up exactly
+  where their offer PDF leaves off and turning more of those offers into signed deals.
+
+---
+
+## 👥 Team
+
+Built at the {Tech:Europe} AI × Energy Hackathon in Berlin, 20–21 June 2026.
+
+### Ian Baumeister — Product, Strategy & Full-Stack Build
+
+[GitHub `@ibxibx`](https://github.com/ibxibx) · [ianworks.dev](https://ianworks.dev) · Berlin, DE
+
+Solo developer and founder with a background spanning real estate, travel-tech, and
+marketing operations — a track record of building startups at the intersection of
+physical space and digital product. For this project: product vision, system
+architecture, the Supabase + Next.js build, the persona/strategy prompt design, and the
+hackathon pitch.
+
+> _Teammates: open a PR adding your name, role, and links here._
+
+---
+
+## 📂 Repo Map
+
+```
+README.md            ← you are here (live build plan)
+BUILD_SPEC.md        ← Leonardo's production spec (Supabase, RLS, Server Actions)
+TRACKS.md            ← all hackathon tracks, side challenges, prizes
+archive/             ← pre-event war room + research trail
+reonic-research/     ← deep research on Reonic (background)
+team-formation/      ← teammate outreach playbook
+prep/                ← credits, pitch template, demo data sources
+pics/                ← assets
 ```
 
-Required variables:
-```
-SUPABASE_PROJECT_REF=<your-project-ref>
-NEXT_PUBLIC_SUPABASE_URL=<https://<ref>.supabase.co | http://localhost:54321>
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable / anon key>
-```
-
-### 3. Provision the database
-
-**Option A — Local stack (recommended for development):**
-```bash
-pnpm database#start
-pnpm gen-types-local
-```
-
-**Option B — Hosted Supabase project:**
-```bash
-pnpm supabase link --project-ref $SUPABASE_PROJECT_REF
-pnpm supabase db push
-pnpm gen-types
-```
-
-### 4. Run the app
-```bash
-pnpm dev
-# → http://localhost:3000
-```
-
-### 5. Test
-```bash
-pnpm test          # Vitest unit / integration
-pnpm test:e2e      # Playwright end-to-end
-pnpm typecheck     # tsc --noEmit across the monorepo
-pnpm lint          # oxlint
-```
-
-### 6. Deploy
-NextBase deploys to any Node 22+ host. Vercel is the path of least resistance:
-- Set the same env vars as production secrets.
-- Point your custom domain at the deployment.
-- Configure the Supabase project's allowed redirect URLs (`<your-domain>/auth/callback`).
-
 ---
 
-## Production features
-
-NextBase Starter is engineered with the assumption that someone is paying you on the other side of the request.
-
-- **Defense in depth.** RLS at the DB, middleware at the edge, `authActionClient` at the action boundary — three independent checks before any mutation reaches user data.
-- **No client-side service role.** The publishable/anon key is the only Supabase credential the client ever sees. Privileged operations belong in server actions.
-- **Type-safe boundaries.** Every server action is Zod-validated. Every query is typed against the generated `database.types.ts`. Drift between schema and code surfaces at build time, not in production.
-- **Idempotent auth callbacks.** `/auth/callback` and `/auth/confirm` tolerate replays, expired codes, and double-submits — with explicit `/auth/auth-code-error` redirection on failure.
-- **Webhook-ready posture.** Server actions, route handlers, and the safe-action middleware stack are structured for adding webhook validation and idempotency keys without re-plumbing the data layer.
-- **Logging hooks.** A development-time logging middleware is wired into `actionClient`; swap it for your observability vendor (Datadog, Sentry, Axiom, Highlight) without touching individual actions.
-- **Reproducible builds.** Pinned `pnpm` version via `packageManager`, pinned Node via `.nvmrc` / `.node-version`, Turbo task caching, and Changesets-driven release PRs.
-- **SEO production-ready.** Sitemap generated on build (`next-sitemap`), Open Graph + JSON-LD helpers via `next-seo`.
-
----
-
-## Target audience
-
-**NextBase Starter is for you if:**
-- You're a founder, indie hacker, or small team shipping a SaaS on Next.js + Supabase and you want to compress weeks of plumbing into a weekend of customization.
-- You're a senior engineer who wants a credible starting point you can audit line-by-line, not a black-box CLI generator.
-- You've already shipped on Supabase and want a reference architecture for RLS, SSR cookies, and Cache Components that you can trust.
-- You're prototyping or building an MVP and want the auth + DB layer working in an hour.
-
-**NextBase Starter is _not_ for you if:**
-- You need a no-code or visual builder.
-- You're learning React or TypeScript for the first time — this codebase assumes professional fluency.
-- You want a non-Supabase stack (Firebase, Clerk + Postgres, etc.). Use a starter built for that combination.
-
-> Looking for Stripe billing, teams/orgs, RBAC admin, transactional email, multi-tenancy, or AI starter kits? Those are first-class in the [premium NextBase kits](https://usenextbase.com) — see [Need more out of the box?](#need-more-out-of-the-box) below.
-
----
-
-## Comparison
-
-| | Build from scratch | **NextBase Starter (this repo)** | [Premium NextBase kits](https://usenextbase.com) |
-|---|---|---|---|
-| License | — | MIT, free | Commercial |
-| Days to first authenticated route | 5–10 | **< 1 hour** | < 1 hour |
-| SSR-correct Supabase auth | Often broken on first try | **Yes** | Yes |
-| RLS-by-default migrations | Rare | **Yes** | Yes |
-| Typed server actions + Zod | Manual | **Yes** | Yes |
-| Cache Components strategy | DIY | **Yes, documented** | Yes, documented |
-| Monorepo with Turbo + Changesets | Weeks of setup | **Yes** | Yes |
-| Stripe billing (subscriptions + webhooks) | DIY | No | **Yes** |
-| Teams & organizations | DIY | No | **Yes** |
-| RBAC + admin panel | DIY | No | **Yes** |
-| Transactional emails (React Email) | DIY | No | **Yes** |
-| Multi-tenancy patterns | DIY | No | **Yes** |
-| AI starter kits (chatbot, RAG, agents) | DIY | No | **Yes (select kits)** |
-
----
-
-## License
-
-NextBase Starter is released under the **MIT License**. You may use, modify, and distribute it freely — commercial use included — subject to the terms in [`LICENSE`](./LICENSE).
-
-The code is provided **as is**, without warranty of any kind. See the [`LICENSE`](./LICENSE) file for the full text.
-
----
-
-## Contributing
-
-Contributions are welcome — bug reports, fixes, docs, and pattern improvements.
-
-- Open an issue or PR on GitHub.
-- If your change is user-visible, add a changeset with `pnpm changeset`. Merged changesets are rolled into an automated "Version Packages" PR and cut a GitHub release when that PR lands on `main`.
-- Run `pnpm lint`, `pnpm typecheck`, and `pnpm test` before submitting.
-
-See [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md) for common setup issues.
-
----
-
-## Roadmap
-
-NextBase Starter is actively maintained. Recent direction and what's next:
-
-- ✅ Migrate to Next.js 16 + Cache Components.
-- ✅ Switch to `oxlint` / `oxfmt` for sub-second lint feedback on large repos.
-- ✅ Changesets-driven release automation with automated "Version Packages" PRs.
-- ✅ Playwright + Vitest scaffolding wired into Turbo pipelines.
-- 🔜 Expanded RLS examples and pgTAP test patterns.
-- 🔜 Documentation refresh covering the full Cache Components mental model end-to-end.
-
-Maintenance promise: the starter tracks Next.js minor releases, Supabase SDK breaking changes, and Node LTS upgrades. The richer feature kits (billing, teams, admin, email, AI) are maintained on the same cadence inside the [premium NextBase kits](https://usenextbase.com).
-
----
-
-## Need more out of the box?
-
-This starter is the open-source foundation. The [premium NextBase kits](https://usenextbase.com) ship everything a real SaaS needs on top of it — same architectural DNA, same patterns, dramatically more shipped.
-
-### SaaS essentials
-- **Stripe billing.** Subscriptions, one-time payments, customer portal, usage-based metering, and webhook handling — implemented, idempotent, and tested.
-- **Teams & organizations.** Org creation, invitations, role assignment, team-scoped data, and team-aware RLS policies.
-- **RBAC & admin panel.** Role-based permissions and an admin dashboard for managing users, orgs, and subscriptions.
-- **Transactional emails.** React Email templates for auth, billing, and invitation flows, wired to providers like Resend or Postmark.
-- **Multi-tenancy patterns.** Schema- and row-level tenant isolation documented and enforced via RLS.
-- **Audit logs.** Append-only audit trails for sensitive actions, ready to wire into your admin views.
-- **Profiles, onboarding & settings UI.** Production-grade user/profile management screens you'd otherwise build twice.
-- **Internationalization (i18n) variants.** App Router-native localization with translated routes and content.
-- **Enterprise-grade features.** SSO-friendly auth patterns, role hierarchies, and tooling for teams operating at scale.
-
-
-### Database & stack variants
-- **Drizzle, Prisma, and PlanetScale variants** — for teams that prefer code-first schemas or MySQL/Vitess infrastructure alongside (or instead of) Supabase.
-
-### AI & specialized kits
-- **AI chatbot kit** — conversation UI, streaming responses, message history.
-- **Vision / image kit** — image understanding and generation flows.
-- **Speech-to-text kit** — transcription pipelines wired to Whisper-class models.
-- **Video generator kit** — pipelines for generative video.
-- **Headshot generator kit** — fine-tune and generate user-personalized images.
-- **Browser agent kit** — agentic web browsing and automation.
-- **Note-taker kit** — capture, structure, and search long-form notes.
-- **Workflow orchestrator kit** — multi-step agent and workflow runner.
-- **Shopify / e-commerce variant** — storefront and product flows on the same architecture.
-
-These are not separate codebases you have to context-switch into — they share this starter's conventions for server actions, RLS, Cache Components, and the monorepo layout. The mental model transfers directly.
-
-**[→ Explore the premium NextBase kits at usenextbase.com](https://usenextbase.com)**
-
----
-
-## FAQ
-
-**Q: Is this really free?**
-A: Yes. The starter is MIT-licensed. Use it for personal projects, client work, internal tools, or commercial products. No purchase required.
-
-**Q: What's the difference between this and the premium kits?**
-A: This starter covers the foundation — Supabase auth, RLS, server actions, Cache Components, monorepo, tests. The [premium kits](https://usenextbase.com) add the features SaaS products actually need on top: Stripe billing, teams, RBAC + admin, transactional emails, multi-tenancy, and AI starters.
-
-**Q: Can I use the starter for client work?**
-A: Yes — MIT permits commercial and client use. Attribution is appreciated but not required.
-
-**Q: Why Supabase instead of Clerk + Postgres / Auth.js / Firebase?**
-A: Supabase gives you Auth, Postgres, RLS, and Storage from one vendor with a real SQL surface, real migrations, and real RLS — without the ergonomics tax of stitching three SDKs together. NextBase is opinionated about that choice.
-
-**Q: Does it support edge runtime?**
-A: The middleware is edge-compatible. Server actions and RSCs run on the Node runtime by default, which is the right choice for Supabase SSR cookies and most app logic.
-
-**Q: Can I rip out shadcn / Tailwind / TanStack Query?**
-A: Yes, it's your codebase. Replace what you don't want — the architecture doesn't depend on any one of them.
-
-**Q: Will it scale?**
-A: The architecture — Postgres + RLS + Next.js + Vercel/Node — runs production SaaS at well into seven-figure ARR. The bottleneck is rarely the boilerplate; it's the schema and query patterns you build on top, which is exactly what NextBase makes explicit.
-
-**Q: How do I report a bug or ask a question?**
-A: Open a GitHub issue with a reproducible scenario. PRs welcome.
-
----
-
-## Final CTA
-
-Clone the starter, ship your MVP, and come back for the premium kits when you need real billing, teams, or admin tooling.
-
-**[→ Clone the starter](#quick-start)** &nbsp;·&nbsp; **[Explore premium NextBase kits](https://usenextbase.com)** &nbsp;·&nbsp; **[Read the docs](./docs)**
+*Let's turn quotes into contracts. ☀️*
