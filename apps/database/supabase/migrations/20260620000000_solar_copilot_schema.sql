@@ -1,4 +1,4 @@
--- Migration: Solar Copilot schema (profiles, leads, quotes, strategies, messages)
+-- Migration: RayCiprocity schema (profiles, leads, quotes, strategies, messages)
 -- Created: 2026-06-20 00:00:00 UTC
 
 begin;

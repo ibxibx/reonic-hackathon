@@ -28,3 +28,12 @@ playwright/.auth/
 
 # Legacy ascii/one CLI ignore file
 .oneignore
+
+
+# turbo
+.turbo
+
+# editor / local agent config
+.claude
+.cursor/*.local
+.vscode/*.local

@@ -27,7 +27,7 @@ async function SidebarHeaderContent() {
               <Sun className="size-4" />
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">SunSync</span>
+              <span className="truncate font-semibold">RayCiprocity</span>
               <span className="truncate text-xs text-muted-foreground">
                 Solar AI Copilot
               </span>

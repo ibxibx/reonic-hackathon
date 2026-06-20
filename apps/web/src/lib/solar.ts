@@ -1,5 +1,5 @@
 /**
- * Shared domain constants for the Solar AI Sales Copilot (SunSync).
+ * Shared domain constants for the Solar AI Sales Copilot (RayCiprocity).
  * Kept as plain string-literal unions so they don't depend on the generated
  * database enum types (which are regenerated via `pnpm gen-types-local`).
  */

@@ -25,7 +25,7 @@ export async function sendEmail(
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const from =
-      process.env.RESEND_FROM_EMAIL || 'Solar Copilot <sales@example.com>';
+      process.env.RESEND_FROM_EMAIL || 'RayCiprocity <sales@example.com>';
 
     const { data, error } = await resend.emails.send({
       from,

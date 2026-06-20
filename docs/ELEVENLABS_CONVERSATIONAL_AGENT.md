@@ -1,6 +1,6 @@
 # ElevenLabs Conversational AI Agent — Integration Guide
 
-> Deployed two-way voice agent for the Solar Copilot. This is **distinct from** the
+> Deployed two-way voice agent for RayCiprocity. This is **distinct from** the
 > one-way TTS voice note in `apps/web/src/lib/integrations/elevenlabs.ts`
 > (`generateVoiceNote()`), which turns a script into an MP3. The Conversational Agent
 > is a **live, interruptible, two-way voice conversation** the homeowner (or installer)

@@ -75,7 +75,7 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Integrations</CardTitle>
           <CardDescription>
-            Status of the services that power SunSync.
+            Status of the services that power RayCiprocity.
           </CardDescription>
         </CardHeader>
         <CardContent className="divide-y divide-border">

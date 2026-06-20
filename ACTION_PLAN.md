@@ -1,4 +1,4 @@
-# 🚀 SolarWarm — 20-Hour Build Plan
+# 🚀 RayCiprocity — 20-Hour Build Plan
 
 **Track:** Reonic · AI-Powered Marketing for Renewable Installers
 **Build window:** ~20h left · **Submit:** Sunday 14:00

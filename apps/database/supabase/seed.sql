@@ -169,7 +169,7 @@ VALUES
   )
 ON CONFLICT (id) DO NOTHING;
 
--- Seed Solar Copilot demo user and pipeline
+-- Seed RayCiprocity demo user and pipeline
 INSERT INTO auth.users (
   id,
   aud,
@@ -188,7 +188,7 @@ VALUES (
   'authenticated',
   'demo-api@solar.test',
   '{"provider":"email","providers":["email"]}',
-  '{"sub":"f0899c31-3b92-4f49-9147-3d6b0fef3c98","email":"demo-api@solar.test","full_name":"Demo Installer","company_name":"SunSync Demo Co","email_verified":true,"phone_verified":false}',
+  '{"sub":"f0899c31-3b92-4f49-9147-3d6b0fef3c98","email":"demo-api@solar.test","full_name":"Demo Installer","company_name":"RayCiprocity Demo Co","email_verified":true,"phone_verified":false}',
   crypt('Password123!', gen_salt('bf', 10)),
   NOW(),
   NOW(),
@@ -215,7 +215,7 @@ VALUES (
   '7325a8cc-79b5-44ee-a3e8-a763eb2a0200',
   'f0899c31-3b92-4f49-9147-3d6b0fef3c98',
   'f0899c31-3b92-4f49-9147-3d6b0fef3c98',
-  '{"sub":"f0899c31-3b92-4f49-9147-3d6b0fef3c98","email":"demo-api@solar.test","full_name":"Demo Installer","company_name":"SunSync Demo Co","email_verified":false,"phone_verified":false}',
+  '{"sub":"f0899c31-3b92-4f49-9147-3d6b0fef3c98","email":"demo-api@solar.test","full_name":"Demo Installer","company_name":"RayCiprocity Demo Co","email_verified":false,"phone_verified":false}',
   'email',
   NOW(),
   NOW(),
@@ -228,7 +228,7 @@ ON CONFLICT (provider, provider_id) DO UPDATE SET
 INSERT INTO public.profiles (id, company_name, created_at)
 VALUES (
   'f0899c31-3b92-4f49-9147-3d6b0fef3c98',
-  'SunSync Demo Co',
+  'RayCiprocity Demo Co',
   NOW() - INTERVAL '14 days'
 )
 ON CONFLICT (id) DO UPDATE SET company_name = EXCLUDED.company_name;
@@ -402,7 +402,7 @@ VALUES
   ('40000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'email', 'A practical solar plan before summer usage peaks', 'Hi Maya, I put together the solar plan around your current bill and the upcoming HVAC replacement timing. The goal is to make the monthly impact clear before summer usage climbs. Would a 15-minute review tomorrow work?', 'Book a short quote review focused on monthly budget impact.', 1, 'draft', null, null, NOW() - INTERVAL '12 hours'),
   ('40000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'sms', null, 'Hi Maya, I mapped the solar quote around your current bill and HVAC timing. Want me to send a quick monthly-cost breakdown?', 'Get permission to share the simplified cost breakdown.', 2, 'draft', null, null, NOW() - INTERVAL '12 hours'),
   ('40000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'call', null, 'Open with the HVAC timing, confirm their current bill pressure, walk through monthly payment versus utility bill, then ask what would make the decision feel comfortable.', 'Guide a practical decision call.', 3, 'draft', null, null, NOW() - INTERVAL '12 hours'),
-  ('40000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'voice', null, 'Hi Maya, quick note from SunSync. I reviewed your quote with your current electric bill in mind, and I think the cleanest next step is a short walkthrough of the monthly numbers before summer usage picks up.', 'Create a warmer follow-up touchpoint.', 4, 'draft', null, null, NOW() - INTERVAL '12 hours'),
+  ('40000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'voice', null, 'Hi Maya, quick note from RayCiprocity. I reviewed your quote with your current electric bill in mind, and I think the cleanest next step is a short walkthrough of the monthly numbers before summer usage picks up.', 'Create a warmer follow-up touchpoint.', 4, 'draft', null, null, NOW() - INTERVAL '12 hours'),
   ('40000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'email', 'Solar ROI snapshot for your quote', 'Hi Jordan, I pulled the quote into a simple investment view: system size, total cost, and the decision points that affect payback. If useful, I can walk you through the assumptions and where the return is most sensitive.', 'Move Jordan into an ROI review conversation.', 1, 'sent', NOW() - INTERVAL '1 day', 'mock_2001', NOW() - INTERVAL '2 days'),
   ('40000000-0000-4000-8000-000000000006', '10000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'sms', null, 'Jordan, I have the ROI view ready for the cash option. Want the quick version or a detailed assumption breakdown?', 'Prompt a preference for review format.', 2, 'draft', null, null, NOW() - INTERVAL '2 days'),
   ('40000000-0000-4000-8000-000000000007', '10000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000003', 'email', 'Simple lease walkthrough for your solar quote', 'Hi Ava, I can make the lease option easier to compare by showing what changes upfront, monthly, and over time. No pressure to decide on the call; the goal is just to make the tradeoffs clear.', 'Reduce uncertainty and book a lease explanation call.', 1, 'draft', null, null, NOW() - INTERVAL '3 days')

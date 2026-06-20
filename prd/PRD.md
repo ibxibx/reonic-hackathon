@@ -1,6 +1,6 @@
 # Product Requirements Document
 
-## SolarWarm — AI Multi-Channel Customer Engagement & Closing Copilot for Solar Installers
+## RayCiprocity — AI Multi-Channel Customer Engagement & Closing Copilot for Solar Installers
 
 **Track:** Reonic — AI-Powered Marketing to Enable Renewable Installers
 **Team:** 5 (3 engineers, 2 product) · **Build window:** ~24 hours · **Submit:** Sunday 14:00
