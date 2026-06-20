@@ -1,0 +1,37 @@
+{
+  "name": "nextbase-nextjs-supabase-starter",
+  "private": true,
+  "version": "2.2.0",
+  "packageManager": "pnpm@11.1.2+sha512.415a1cc25974731e75455c1468371be74c5aa5fb7621b50d4056d222451609f11412f23fd602e6169f1e060466641f798597e1be961a10688836a67b16569499",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "web#dev": "turbo run dev --filter=web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "changeset": "changeset",
+    "changeset:status": "changeset status --verbose",
+    "changeset:version": "pnpm run version-packages",
+    "version-packages": "changeset version && node scripts/sync-release-version.mjs",
+    "gen-types": "turbo run gen-types --filter=database",
+    "gen-types-local": "turbo run gen-types-local --filter=database",
+    "database#start": "turbo run database#start",
+    "database#stop": "turbo run database#stop",
+    "database#status": "turbo run database#status",
+    "test:e2e": "turbo run test:e2e --filter=web",
+    "supabase:sync-env": "tsx scripts/sync-supabase-env.ts"
+  },
+  "devDependencies": {
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.0",
+    "oxlint": "^1.65.0",
+    "oxfmt": "^0.50.0",
+    "turbo": "^2.9.14",
+    "tsx": "^4.22.1"
+  }
+}

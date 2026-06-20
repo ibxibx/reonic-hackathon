@@ -1,0 +1,11 @@
+{
+  "extends": "./packages/typescript-config/tsconfig.base.json",
+  "files": [],
+  "references": [
+    { "path": "./apps/web" },
+    { "path": "./apps/database" }
+  ],
+  "compilerOptions": {
+    "strictNullChecks": true
+  }
+}
