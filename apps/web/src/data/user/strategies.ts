@@ -4,6 +4,7 @@ import { authActionClient } from '@/lib/safe-action';
 import { generateStrategy } from '@/lib/ai/provider';
 import { buildStrategyPrompt } from '@/lib/ai/prompts';
 import { logStep } from '@/lib/ai/agent-log';
+import { seedOrchestration } from '@/lib/orchestration-core';
 import { createSupabaseClient } from '@/supabase-clients/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -119,6 +120,9 @@ export const generateStrategyAction = authActionClient
 
     revalidatePath(`/leads/${leadId}`);
     revalidatePath(`/leads/${leadId}/strategy`);
+
+    // Auto-seed orchestration state now that the strategy + its steps exist.
+    await seedOrchestration(supabase, leadId);
 
     logStep('strategy', 'action ✓', {
       leadId,
