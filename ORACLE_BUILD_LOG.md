@@ -59,4 +59,13 @@ Entry format:
 - Results: **golden directions BOTH PASS** (model on seed:7/600 leads, H=14): Noah sign 0.026 / ghost 0.933; Lukas sign 0.452 / ghost 0.322 → ghost(Noah)>ghost(Lukas) ✓, sign(Lukas)>sign(Noah) ✓. Held-out ECE (Platt): sign 0.098→0.089; ghost 0.264→0.104.
 - Decisions: both CIFs from one no-touch trajectory (recommendedAction = the clock-reset lever on ghost); AUC rank-based w/ tie handling; calibrateFromCorpus splits LEADS not periods; calibration recovery test deliberately distorts scores then shows Platt restores ECE (honest demonstration).
 - Debt/Deferred: none. No contract changes. Continuable agentId a2bd62544404d989d.
+- Commit: 49cabcf
+
+---
+
+## [Phase B3] [A5] — Engine, action, panel (wires A1+A3+A4)
+- Did: NEW `engine-core.ts` (PURE, DI'd LLM, relative imports) — decideMode, confidenceBand, computeModelNumbersAndFactors, assembleRichPrediction (21 unit tests). `engine.ts` (server-only) — scoreOracle: RLS-scoped substrate load, memoized synthetic-trained model singleton (seed 7/600 leads), model-mode numbers+factors (A3) + LLM narration (A4) in try/catch→null fallback, pure assembly, clean persist (PGRST205/any insert error → predictionId=null), only throws on missing lead. `oracle-panel.tsx` — calibrated/uncalibrated badge, per-gauge confidence bands, blocker name+code (BLOCKER_TAXONOMY), tinted factor breakdown, recharts trend sparkline (≥2 snapshots), a11y; optional `predictions?` history prop (page untouched). `data/user/oracle.ts` already thin (Phase A.1).
+- Verified: engine-core 21 tests; project-wide `tsc --noEmit` GREEN; full suite **146 passed (14 files)**; `oxlint` 0 errors (37 stylistic no-new-array warnings → Phase D).
+- Decisions (semantics): mode='model' whenever a usable model exists; `calibrated` stays FALSE until ≥K real labels AND real calibration params (synthetic model honestly flagged uncalibrated, amber badge, wider ±15 band). Layer split: model owns numbers+factors, LLM only narrates blocker/action/evidence; degraded → LLM owns numbers; LLM failure → deterministic fallback. Persist stores band width in sign/ghost_confidence + factors jsonb + blocker_code + model_version + calibrated + mode (legacy predicted_code also populated).
+- Debt/Deferred: real-data training + real calibration params (intentional cold-start); page wiring of prediction-history → Phase C (Orchestrator). Continuable agentId a185f361d16a756a5.
 - Commit: (this commit)
