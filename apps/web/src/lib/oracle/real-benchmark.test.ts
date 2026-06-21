@@ -6,7 +6,11 @@
  * cross-domain proxy, NOT solar outcomes). Headline assertion: held-out AUC > 0.75.
  */
 import { describe, it, expect } from 'vitest';
-import { benchmarkRealChurn } from './real-benchmark';
+import {
+  benchmarkRealChurn,
+  realChurnDrivers,
+  realChurnBaseRateSkill,
+} from './real-benchmark';
 import fx from './fixtures/telco-churn-sample.json';
 
 describe('benchmarkRealChurn — REAL telco churn (cross-domain proxy)', () => {
@@ -85,5 +89,110 @@ describe('benchmarkRealChurn — REAL telco churn (cross-domain proxy)', () => {
     const b = benchmarkRealChurn({ splitSeed: 99 });
     // Different held-out customers → AUC should differ (guards against a constant).
     expect(a.auc).not.toBe(b.auc);
+  });
+});
+
+describe('realChurnDrivers — learned REAL telco-churn STRUCTURE (not just a score)', () => {
+  it('returns one standardized ghost driver per fixture feature, sorted by |weight|', () => {
+    const r = realChurnDrivers();
+    expect(r.drivers.length).toBe(fx.featureNames.length);
+    // Exactly the fixture features, no extras / dupes.
+    const got = r.drivers.map((d) => d.feature).sort();
+    expect(got).toEqual([...fx.featureNames].sort());
+    // Sorted by descending |weight|.
+    for (let i = 1; i < r.drivers.length; i++) {
+      expect(Math.abs(r.drivers[i - 1].weight)).toBeGreaterThanOrEqual(
+        Math.abs(r.drivers[i].weight)
+      );
+    }
+    // byFeature is a faithful index of drivers.
+    for (const d of r.drivers) {
+      expect(r.byFeature[d.feature]).toEqual(d);
+    }
+    // Fit on the full fixture (all rows), not a split.
+    expect(r.nRows).toBe(fx.rows.length);
+  });
+
+  it('direction label agrees with the sign of each weight', () => {
+    const r = realChurnDrivers();
+    for (const d of r.drivers) {
+      if (d.weight > 0) expect(d.direction).toBe('increases');
+      else if (d.weight < 0) expect(d.direction).toBe('decreases');
+      else expect(d.direction).toBe('flat');
+    }
+  });
+
+  it('recovers textbook Telco-churn DIRECTIONS (month-to-month↑, two-year↓, tenure↓, fiber↑, e-check↑)', () => {
+    const r = realChurnDrivers();
+    // Ghost(=churn) coefficient signs match the canonical, well-established Telco
+    // churn drivers. If any of these flips, that is a real finding to report — do
+    // NOT weaken the assertion to make it pass.
+    expect(r.byFeature['contractMonthToMonth'].weight).toBeGreaterThan(0);
+    expect(r.byFeature['contractTwoYear'].weight).toBeLessThan(0);
+    expect(r.byFeature['tenure'].weight).toBeLessThan(0);
+    expect(r.byFeature['fiber'].weight).toBeGreaterThan(0);
+    expect(r.byFeature['electronicCheck'].weight).toBeGreaterThan(0);
+  });
+
+  it('tenure is among the strongest learned drivers (textbook #1 churn signal)', () => {
+    const r = realChurnDrivers();
+    const top3 = r.drivers.slice(0, 3).map((d) => d.feature);
+    expect(top3).toContain('tenure');
+  });
+
+  it('is honest about provenance: telecom-churn proxy, calibrated=false', () => {
+    const r = realChurnDrivers();
+    expect(r.domain).toBe('telecom-churn');
+    expect(r.calibrated).toBe(false);
+    expect(r.source.toLowerCase()).toContain('telco');
+    expect(r.notes.join(' ')).toMatch(/NOT solar/i);
+    expect(r.churnRate).toBeCloseTo(0.257, 2);
+  });
+
+  it('is deterministic: identical drivers across calls', () => {
+    const a = realChurnDrivers();
+    const b = realChurnDrivers();
+    expect(b.drivers).toEqual(a.drivers);
+  });
+});
+
+describe('realChurnBaseRateSkill — beats the constant base-rate predictor', () => {
+  it('Brier Skill Score > 0 (model carries info beyond the base rate)', () => {
+    const r = realChurnBaseRateSkill();
+    expect(Number.isFinite(r.brierSkillScore)).toBe(true);
+    expect(r.brierSkillScore).toBeGreaterThan(0);
+    // Equivalent statement: model Brier strictly below the base-rate Brier.
+    expect(r.brierModel).toBeLessThan(r.brierBaseRate);
+  });
+
+  it('the reference forecaster is the train base rate (~0.257) and BSS = 1 − ratio', () => {
+    const r = realChurnBaseRateSkill();
+    expect(r.baseRate).toBeGreaterThan(0.2);
+    expect(r.baseRate).toBeLessThan(0.32);
+    expect(r.brierSkillScore).toBeCloseTo(1 - r.brierModel / r.brierBaseRate, 9);
+    expect(r.n).toBe(Math.floor(fx.rows.length * 0.3));
+  });
+
+  it('skill is robust across seeds (not seed-lucky)', () => {
+    for (const splitSeed of [1, 42, 2024]) {
+      const r = realChurnBaseRateSkill({ splitSeed });
+      expect(r.brierSkillScore).toBeGreaterThan(0);
+    }
+  });
+
+  it('is honest about provenance: telecom-churn proxy, calibrated=false', () => {
+    const r = realChurnBaseRateSkill();
+    expect(r.domain).toBe('telecom-churn');
+    expect(r.calibrated).toBe(false);
+    expect(r.source.toLowerCase()).toContain('telco');
+    expect(r.notes.join(' ')).toMatch(/NOT solar/i);
+  });
+
+  it('is deterministic: same seed → identical skill numbers', () => {
+    const a = realChurnBaseRateSkill({ splitSeed: 7 });
+    const b = realChurnBaseRateSkill({ splitSeed: 7 });
+    expect(b.brierModel).toBe(a.brierModel);
+    expect(b.brierBaseRate).toBe(a.brierBaseRate);
+    expect(b.brierSkillScore).toBe(a.brierSkillScore);
   });
 });

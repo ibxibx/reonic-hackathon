@@ -109,5 +109,14 @@ Entry format:
 - Verified (authoritative): `tsc` GREEN; full suite **374 passed (17 files)**; `oxlint` 0/0.
 - HEADLINE real-data result: held-out **AUC 0.836 / ECE 0.027 / Brier 0.139** (n=900 real telco customers) — the machinery learns real churn signal (cross-domain, NOT solar, calibrated stays false). Honest calibration: ghost before-AUC 0.821 (optimistic) → 0.803 (honest out-of-sample), confirming the pass-1 caveat. Honest ranking: prior helps neither calibration nor ranking vs a fitted model (prior-alone AUC ≈0.557) → cold-start-only value. Engine L2 CV→0.1 (deterministic, memoized).
 - Skeptics: both could NOT refute (real-benchmark honesty/leakage 0.93; engine-CV determinism/no-regression 0.93). Disclosed caveat: real-benchmark calibratedAfter Platt is in-sample (separate field, not headline).
-- Commit: (this commit)
+- Commit: 28be9d7
 - Next: continue the loop (pass 3) or report.
+
+---
+
+## [Improve Pass 3] [ORCH] — Real-structure validation, reproducible eval, README, model-core depth, critic
+- Did: 5-agent pass. (REAL-FACTORS) realChurnDrivers + realChurnBaseRateSkill prove the fitter learned CORRECT real telco churn structure — all 5 textbook directions confirmed (tenure -0.62 strongest, monthlyCharges +0.50, fiber +0.45, month-to-month +0.34, two-year -0.18, electronic-check +0.14), Brier Skill Score 0.289 (>0, beats base rate). (REPORT) report.ts buildOracleEvalReport — one deterministic call aggregating synthetic + real + prior-ranking sections, each provenance-labeled. (README) apps/web/src/lib/oracle/README.md architecture doc (code-accurate). (MODEL-DEPTH) +42 property/edge tests on linalg + competing-risks (CIF partition invariant to 12 dp; no bug found). + completeness critic.
+- Verified (authoritative): `tsc` GREEN; full suite **433 passed (18 files)**; `oxlint` 0/0.
+- Critic gap list (honest, recorded): HIGH — (1) model_calibration table is dead (never written/read); (2) no real-data auto-switch (engine always synthetic, calibrated hardcoded false); (3) migration never applied to a live DB + app never run end-to-end (types hand-mirrored). MEDIUM — (4) signProbSlope/ghostRiskSlope hardcoded 0 in synthetic → trend features dead weight in model mode; (5) no integration tests for engine/action/panel wiring (column mapping, band reconstruction); (6) computeModelNumbersAndFactors calibration param never exercised with real params.
+- Commit: (this commit)
+- Next: pass 4 tackles the code-addressable HIGH/MEDIUM gaps (real-data promotion path 1/2/6, trend-feature fix 4, wiring tests 5). Gap 3 (live DB + app run) needs the Docker/Supabase stack — offered to the user as the capstone verification.
