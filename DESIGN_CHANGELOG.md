@@ -90,6 +90,14 @@ before vs. after (see `screenshots/before` vs `screenshots/after`).
 - **Landing/marketing page desktop full-page capture** timed out (infinite marquee
   animation blocks Playwright `fullPage`); other breakpoints captured fine.
 
+## Typography
+- **Inter is now the app-wide default.** It was loaded by `next/font` (the
+  `--font-inter` variable on `<html>`) but never mapped to a font utility, so the
+  app rendered in the system UI font. Added `--font-sans`/`--font-mono` (+
+  `--default-font-family`) to `@theme` and set `font-family: var(--font-sans)` on
+  `html`/`body`. Verified: `getComputedStyle(body).fontFamily` → `inter, …` with
+  the 400/500/600/700 faces loaded. (Roboto Mono stays for `font-mono` usages.)
+
 ## Tokens added
 `--brand-50 … --brand-900` (canonical forest-green ramp, anchor `#1b4332`) +
 matching `--color-brand-*` Tailwind utilities.
