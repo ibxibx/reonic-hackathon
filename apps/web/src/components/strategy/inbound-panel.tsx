@@ -2,9 +2,14 @@
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { processInboundAction } from '@/data/user/inbound';
-import { Inbox } from 'lucide-react';
+import { Inbox, Mail } from 'lucide-react';
 import { useAction } from 'next-safe-action/hooks';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -102,13 +107,40 @@ export function InboundPanel({
         className="resize-y text-sm"
       />
 
-      <Button
-        size="sm"
-        disabled={isProcessing || body.trim().length === 0}
-        onClick={() => execute({ leadId, body: body.trim() })}
-      >
-        {isProcessing ? 'Processing…' : 'Process reply'}
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          disabled={isProcessing || body.trim().length === 0}
+          onClick={() => execute({ leadId, body: body.trim() })}
+        >
+          {isProcessing ? 'Processing…' : 'Process reply'}
+        </Button>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300"
+            >
+              <Mail className="size-4" />
+              Connect Email MCP
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent side="top" className="w-80 text-sm space-y-2">
+            <p className="font-semibold">Automate inbound with Email MCP</p>
+            <p className="text-muted-foreground">
+              Connect your mailbox via the Model Context Protocol so incoming
+              customer replies are processed automatically — no more
+              copy-pasting. Replies are categorized in real time and your
+              outreach timeline updates instantly.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Coming soon — MCP integration is in beta.
+            </p>
+          </PopoverContent>
+        </Popover>
+      </div>
 
       {result ? (
         <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
