@@ -70,7 +70,6 @@ export default async function LeadDetailPage(props: {
       getOrchestrationForLead(leadId),
     ]);
   const confidence = strategy?.persona_confidence ?? null;
-  const orchestration = await getOrchestrationForLead(leadId);
   const latestInbound = await getLatestInboundForLead(leadId);
 
   // 2.5c — surface the NEXT step's actual message + its "why now" goal.
