@@ -32,8 +32,54 @@ password: Password123!
 ```
 
 This is the seeded demo installer (company **"RayCiprocity Demo Co"**) with 5 demo
-leads. ⚠️ The seed creates this user but leaves its auth record incomplete, so **login
-fails until you run the one-time repair** in [Step 5](#5-seed--repair-the-demo-login).
+leads, and it works **out of the box** once the database is seeded (Step 4) — no manual
+fix-up required.
+
+---
+
+## 👩‍⚖️ For evaluators / judges (read this first)
+
+**There is no hosted demo — you run it locally.** Budget **~10 minutes** (most of it is a
+one-time Docker image pull). The smooth path:
+
+```bash
+corepack enable && corepack prepare pnpm@11.1.2 --activate   # one-time
+./setup.sh                       # copies env (incl. apps/web/.env.local), installs, starts + seeds Supabase
+corepack pnpm web#dev            # http://localhost:3000
+```
+
+Then sign in with the [demo login](#-demo-login) above. That's it.
+
+**What you can evaluate with NO API keys** (everything seeded works offline):
+- The dashboard, leads board, and lead detail.
+- **Several leads already have a generated strategy + multi-channel timeline** — open
+  one (e.g. *Lukas Becker*) to see persona, problem-codes, and the Email→SMS→Call→Voice plan.
+- The **Oracle** predictor: open *Noah Patel* → **Run Oracle** → sign/ghost scores,
+  predicted blocker, and the recommended next action (runs on the local statistical
+  model; with no AI key it uses a deterministic write-up).
+- Email/SMS sends are **simulated** by default (a clearly-labelled banner), so nothing
+  hard-fails.
+
+**To see the live AI features** (generate a *new* strategy, the inbound-reply rewrite,
+ElevenLabs voice notes), add the optional keys in [Step 2](#2-environment-variables):
+`OPENAI_API_KEY` (strategy/diagnosis/inbound) and `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID`
+(voice). Without `OPENAI_API_KEY`, the **"Generate Strategy"** button will error — so
+either add the key or stick to the pre-generated strategies above.
+
+**What maps to the brief** (where to look):
+
+| To judge… | Open / do |
+|---|---|
+| Persona detection (4 archetypes) | any lead's **Strategy** → persona badge + signals |
+| The Problem-Code diagnosis (differentiator) | lead **Strategy** → problem-code chips/rationale |
+| Multi-channel outreach | **Strategy → Outreach timeline** (Email · SMS · Call · Voice) |
+| Predictive **Oracle** (differentiator) | lead detail → **Run Oracle** |
+| Live **Orchestrator** state | lead detail → "Step X of N · status · next action" |
+| Inbound triage + self-rewriting outreach *(needs OpenAI key)* | Strategy → paste a customer reply |
+
+Deeper context: [`README.md`](./README.md) (product + ROI), [`prd/PRD.md`](./prd/PRD.md)
+(full spec + 40-code taxonomy), [`ORACLE_EVAL.md`](./ORACLE_EVAL.md) (model honesty
+disclosure).
 
 ---
 
@@ -53,19 +99,19 @@ fails until you run the one-time repair** in [Step 5](#5-seed--repair-the-demo-l
 
 ## 🚀 Quick start
 
-There's a helper script, [`setup.sh`](./setup.sh), that does the boilerplate (copies env
-templates, installs deps, starts Supabase). Run it, then do the **two manual steps it
-doesn't cover** (the `apps/web/.env.local` file and the DB reset + login repair):
+[`setup.sh`](./setup.sh) does the boilerplate: it copies the env templates (including the
+new [`apps/web/.env.local.example`](./apps/web/.env.local.example) → `apps/web/.env.local`,
+which is what Next actually reads), installs deps, and starts + seeds Supabase.
 
 ```bash
 corepack enable && corepack prepare pnpm@11.1.2 --activate
-./setup.sh                       # copies root env files, pnpm i, starts Supabase
-# --- the two steps setup.sh does NOT do (see gotchas) ---
-cp .env.development.local apps/web/.env.local          # Next reads env from apps/web, not root
-corepack pnpm --filter database exec supabase db reset # apply migrations + seed the 5 leads
-# repair the demo login (see Step 5), then:
-corepack pnpm web#dev            # http://localhost:3000
+./setup.sh                       # copies env, pnpm i, starts + seeds Supabase
+corepack pnpm web#dev            # http://localhost:3000 — log in with the demo creds
 ```
+
+> **Windows:** run `./setup.sh` in **Git Bash** (it's a bash script). Already had a local
+> DB from a previous run, so the seed didn't re-apply? Re-seed with
+> `corepack pnpm --filter database exec supabase db reset`.
 
 Prefer to understand each step? Follow the **manual walkthrough** below.
 
@@ -96,11 +142,11 @@ Only **two** variables are required to boot and render the app — the local Sup
 URL + publishable key. Everything else is optional and the app **degrades gracefully**
 when a key is missing.
 
-> **⚠️ Gotcha (the important one) — env file location.**
-> `setup.sh` and the `.example` files put env at the **repo root**, but `next dev` runs
-> inside `apps/web` and only loads `.env*` from **there**. A root-only `.env.local`
-> means the app 500s with *"Your project's URL and Key are required…"*.
-> **➡️ Create [`apps/web/.env.local`](./apps/web).**
+> **⚠️ Why `apps/web/.env.local`?** `next dev` runs inside `apps/web` and only loads
+> `.env*` from **there**, not the repo root. `setup.sh` now creates it for you (copying
+> [`apps/web/.env.local.example`](./apps/web/.env.local.example)). If you set things up
+> **manually**, create it yourself — a root-only `.env.local` makes the app 500 with
+> *"Your project's URL and Key are required…"*.
 
 Create `apps/web/.env.local` with at least:
 
@@ -186,20 +232,22 @@ This drops the local DB, re-runs every migration in
 [`apps/database/supabase/migrations`](./apps/database/supabase/migrations), and runs the
 seed. It is **local-only and destructive** — never point it at a remote project.
 
-### 5. Seed → repair the demo login
+### 5. Log in — no repair needed
 
-> **⚠️ Gotcha — the seeded login is broken as committed.** `seed.sql`'s raw
-> `INSERT INTO auth.users` leaves `instance_id` and the token columns `NULL`, so GoTrue
-> rejects the password with `invalid_credentials` even though the bcrypt hash is valid.
-> **After every `db reset`, run this one-time repair:**
+The seed now sets the GoTrue auth fields the demo user needs, so after Step 4 the login
+works immediately (this was previously broken and required a manual SQL fix-up — that's
+gone). Verify it if you like:
 
 ```bash
-docker exec -i supabase_db_nextbase-oss-starter psql -U postgres -d postgres -c \
-"UPDATE auth.users SET instance_id='00000000-0000-0000-0000-000000000000', confirmation_token='', recovery_token='', email_change='', email_change_token_new='', email_change_token_current='', reauthentication_token='', phone_change='', phone_change_token='' WHERE email='demo-api@solar.test';"
+curl -s -X POST "http://localhost:54321/auth/v1/token?grant_type=password" \
+  -H "apikey: sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"demo-api@solar.test","password":"Password123!"}'
 ```
 
-(The container name `supabase_db_nextbase-oss-starter` comes from `project_id` in
-`config.toml`; confirm with `docker ps` if it differs.)
+A JSON response containing `access_token` means you're set. (On an **older checkout** from
+before this fix you'd get `invalid_credentials` — see [Troubleshooting](#-troubleshooting)
+for the one-line repair.)
 
 ### 6. (Optional) Regenerate DB types
 
@@ -270,13 +318,24 @@ focused commands.
 | Symptom | Cause → Fix |
 |---|---|
 | App 500s: *"project's URL and Key are required"* | Env at repo root only. **Create `apps/web/.env.local`** (Step 2). |
-| Login fails: `invalid_credentials` | Seed auth record incomplete. **Run the repair** (Step 5). |
+| Login fails: `invalid_credentials` | Only on an **older checkout** (seed is fixed on latest). Pull latest + re-`db reset`, or apply the manual repair below. |
 | `pnpm i` fails: `ERR_PNPM_NO_MATURE_MATCHING_VERSION` | `minimumReleaseAge`. Re-run `pnpm i --config.minimumReleaseAge=0` (Step 1). |
 | `supabase start` errors on ports / "container already exists" | Stale stack. `pnpm database#stop` (or `supabase stop --no-backup` in `apps/database`), then start again. |
 | `supabase` command not found | Run via the workspace: `corepack pnpm --filter database exec supabase <cmd>`. |
-| Leads/predictions look empty or stale | Re-run **Step 4** (`db reset`) then **Step 5** (repair), then refresh. |
+| Leads/predictions look empty or stale | Re-run **Step 4** (`db reset`), then refresh. |
 | AI buttons error ("Generate strategy", etc.) | No `OPENAI_API_KEY`. Add one, or just rely on seeded strategies + the Oracle's deterministic fallback. |
 | Docker not running | Start **Docker Desktop**, then `pnpm database#start`. |
+
+<details>
+<summary><strong>Manual login repair</strong> (only for older checkouts predating the seed fix)</summary>
+
+```bash
+docker exec -i supabase_db_nextbase-oss-starter psql -U postgres -d postgres -c \
+"UPDATE auth.users SET instance_id='00000000-0000-0000-0000-000000000000', confirmation_token='', recovery_token='', email_change='', email_change_token_new='', email_change_token_current='', reauthentication_token='', phone_change='', phone_change_token='' WHERE email='demo-api@solar.test';"
+```
+
+(Container name `supabase_db_nextbase-oss-starter` = `project_id` in `config.toml`; confirm with `docker ps`.)
+</details>
 
 ---
 

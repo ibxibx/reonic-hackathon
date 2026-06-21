@@ -471,9 +471,8 @@ SET
   recovery_token = '',
   email_change_token_new = '',
   email_change = '',
-  phone = '',
   phone_change = '',
   phone_change_token = '',
   email_change_token_current = '',
   reauthentication_token = ''
-WHERE email = 'tester@solar.test';
+WHERE email IN ('demo-api@solar.test', 'tester@solar.test');
