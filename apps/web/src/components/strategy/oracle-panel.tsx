@@ -27,6 +27,7 @@ import {
   BrainCircuit,
   ChevronRight,
   Info,
+  Loader2,
   RefreshCw,
   ShieldAlert,
   Sparkles,
@@ -34,7 +35,7 @@ import {
 import { useAction } from 'next-safe-action/hooks';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -333,6 +334,27 @@ export function OraclePanel({
 
   const isGenerating = status === 'executing';
 
+  const LOADING_STEPS = [
+    'Reading lead data…',
+    'Assembling features…',
+    'Running prediction model…',
+    'Analyzing risk factors…',
+    'Generating recommendation…',
+  ] as const;
+
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  useEffect(() => {
+    if (!isGenerating) {
+      setLoadingStep(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingStep((s) => (s < LOADING_STEPS.length - 1 ? s + 1 : s));
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isGenerating]);
+
   const action = prediction?.recommended_action ?? null;
   const { channel, actionHref } = useMemo(() => {
     const ch = action ? getRecommendedChannel(action) : null;
@@ -495,13 +517,15 @@ export function OraclePanel({
               disabled={isGenerating}
               onClick={() => execute({ leadId })}
             >
-              {prediction ? (
+              {isGenerating ? (
+                <Loader2 className="mr-1.5 size-4 animate-spin" />
+              ) : prediction ? (
                 <RefreshCw className="mr-1.5 size-4" />
               ) : (
                 <Sparkles className="mr-1.5 size-4" />
               )}
               {isGenerating
-                ? 'Reading lead...'
+                ? LOADING_STEPS[loadingStep]
                 : prediction
                   ? 'Refresh Oracle'
                   : 'Run Oracle'}
