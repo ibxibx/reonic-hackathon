@@ -147,6 +147,15 @@
   --breakpoint-2xl: 1400px;
   --width-8xl: 88rem;
 
+  /* Inter is the brand typeface (design/ guide); --font-inter is set on <html>
+     by next/font in layout.tsx. Wire it as the default sans everywhere. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-roboto-mono), ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+  --default-font-family: var(--font-sans);
+  --default-mono-font-family: var(--font-mono);
+
   @keyframes accordion-down {
     from {
       height: 0;
@@ -191,9 +200,11 @@
   }
   html {
     scroll-behavior: smooth;
+    font-family: var(--font-sans);
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
   }
 }
 
