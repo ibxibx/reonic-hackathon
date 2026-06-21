@@ -9,6 +9,10 @@ import {
   type GeneratedStrategy,
 } from './schemas';
 import type { Database } from '@/lib/database.types';
+import type {
+  GenerateOracleLlm,
+  OracleLlmOutput,
+} from '@/lib/oracle/contracts';
 import { AppError } from '@/lib/errors';
 import { buildArchetypePrompt } from './prompts';
 import { logStep, logError, startTimer } from './agent-log';
@@ -120,3 +124,15 @@ export async function generateOracle(
     );
   }
 }
+
+/**
+ * A4 — Oracle LLM call (STUB, Phase A). Returns the qualitative layer
+ * (blockerCode + recommendedAction + evidence, plus degraded-mode numbers and
+ * factor narration) via generateObject + the upgraded oracleSchema. The engine
+ * (A5) overrides the numbers with the fitted model in model mode.
+ */
+export const generateOracleLlm: GenerateOracleLlm = async (
+  _systemPrompt: string
+): Promise<OracleLlmOutput> => {
+  throw new Error('TODO: A4 — generateOracleLlm (provider.ts)');
+};
