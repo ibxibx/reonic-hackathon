@@ -55,7 +55,7 @@ The brief's **CORE** ask is simpler than our PRD. Build the CORE first; everythi
 
 ## ⏱️ Phase-by-phase
 
-### Phase 0 — Unblock & baseline · hours 0–1 · **everyone**
+### Phase 0 — Unblock & baseline · **everyone**
 Get the app running against Docker-Supabase before writing any feature.
 
 ```
@@ -72,7 +72,7 @@ pnpm dev
 
 ---
 
-### Phase 1 — CORE polish (the scored floor) · hours 1–5
+### Phase 1 — CORE polish (the scored floor)
 The brief's core ask is *believable, tailored, visual, iterable, 2+ profiles*. The base flow exists — make it demo-grade. **No new schema, no new tables.** Surgical only.
 
 **Phase 1 team: Ian, Sebastian, Ismael** (Eng 1 + Eng 2 are on other work). Three people, three different files, zero collisions:
@@ -99,7 +99,7 @@ The brief's core ask is *believable, tailored, visual, iterable, 2+ profiles*. T
 
 ---
 
-### Phase 2 — The Oracle (highest-value bonus) · hours 5–10 ✅ **DONE**
+### Phase 2 — The Oracle (highest-value bonus) ✅ **DONE**
 
 **2a · Schema** ✅ — `predictions(lead_id, sign_prob, ghost_risk, predicted_code, recommended_action, evidence, created_at)`, same RLS pattern. *Shipped as migration `20260620110000_create_predictions.sql`.*
 
@@ -158,7 +158,7 @@ Further capabilities built and shipped during this phase.
 
 ---
 
-### Phase 3 — Problem Codes ("something unexpected" bonus) · hours 10–15
+### Phase 3 — Problem Codes ("something unexpected" bonus)
 Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Parallelize schema / AI / UI.
 
 **3a · Schema** — NEW migration file (never edit the existing one):
@@ -180,7 +180,7 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 
 ---
 
-### Phase 4 — Interactions + engagement signals · hours 15–17
+### Phase 4 — Interactions + engagement signals
 
 - **4a** `interactions(lead_id, channel, direction, content, sentiment, occurred_at)`; log a row on every (real or mock) send.
 - **4b** Derive **E1/E2/E3** (going cold / re-engaged / high-intent) from recency — plain SQL/TS, no AI.
@@ -190,7 +190,7 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 
 ---
 
-### Phase 5 — Polish & demo-proof (CUT-LINE) · hours 17–19
+### Phase 5 — Polish & demo-proof (CUT-LINE)
 
 - DE/EN toggle on generated content (prompt-driven, don't hand-author twice)
 - Loading skeletons on Oracle + strategy (copy `strategy-skeleton.tsx`)
@@ -203,31 +203,12 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 
 ---
 
-### Phase 6 — Submit · hours 19–20
+### Phase 6 — Submit
 
 **The brief's 3 required deliverables (this IS the submission — nail all three):**
 1. **Working prototype** — demoable live. Have the happy path rehearsed + a fallback screen capture.
 2. **Example output for ≥2 different customer profiles** — show the variety (investor vs family is the cleanest contrast). This is literal and scored — don't demo just one.
 3. **Brief explanation** of the strategy + why this approach. Keep it short (Reonic: "no massive docs").
-
-**Mechanics:**
-- README (setup + APIs + tools — **required by rules**; minimal per Reonic's "no massive docs" note)
-- 2-min Loom (solution + live walkthrough hitting all 3 deliverables above)
-- Record a **fallback screen capture** of the happy path
-- Freeze features · public repo · opt-in **before 14:00**
-
----
-
-## 🛠️ Engineering Principles (how we build — read before coding)
-
-Full version committed at [`docs/ENGINEERING_PRINCIPLES.md`](docs/ENGINEERING_PRINCIPLES.md). Under a tight hackathon clock these aren't optional polish — they're how we avoid burning hours on the wrong thing.
-
-1. **Don't assume. Surface tradeoffs.** State assumptions before implementing. If two interpretations exist, name both — don't silently pick. If a simpler approach exists, say so. If something's unclear, stop and ask.
-2. **Simplicity first.** Minimum code that solves the problem, nothing speculative. No abstractions for single-use code, no unrequested config/flexibility, no error handling for impossible cases. If 200 lines could be 50, rewrite. *This is why Problem Codes can ship as 12, not 40, and why the Oracle skips RAG.*
-3. **Surgical changes.** Touch only what the task requires. Don't "improve" adjacent code, don't refactor what isn't broken, match existing style. Remove only the orphans *your* change created; flag pre-existing dead code, don't delete it. Every changed line should trace to the request. *Critical with 5 people on one repo — surgical diffs = clean rebases, fewer conflicts.*
-4. **Goal-driven execution.** Turn each task into a verifiable goal with a success check (the **"Done when:"** line on every phase above *is* that check). Strong criteria let you loop without re-asking.
-
-> These mirror the per-phase **"Done when:"** acceptance lines — that's the goal-driven loop in practice. If a phase has no clear "done" check, define one before starting.
 
 ---
 
