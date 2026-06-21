@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Oracle — pitch</title>
+<style>
+  :root{
+    --bg:#0a0b0d; --bg2:#0e1014; --card:rgba(255,255,255,.035); --card-bd:rgba(255,255,255,.08);
+    --ink:#eef1f6; --muted:#99a3b3; --faint:#6b7585;
+    --sign:#34d399; --ghost:#f87171; --warn:#fbbf24; --accent:#a78bfa; --blue:#60a5fa;
+    --sun:#fbbf24;
+    --radius:18px; --pad:clamp(28px,5vw,76px);
+    font-synthesis:none;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1200px 700px at 85% -10%, rgba(251,191,36,.10), transparent 55%),
+      radial-gradient(900px 600px at -5% 110%, rgba(52,211,153,.08), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; overflow:hidden;
+  }
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{
+    position:absolute;inset:0;display:none;
+    padding:var(--pad);
+    flex-direction:column;justify-content:center;
+    animation:fade .45s ease both;
+  }
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .wrap{max-width:1180px;width:100%;margin:0 auto}
+
+  .kicker{font-size:clamp(.72rem,1.1vw,.9rem);letter-spacing:.22em;text-transform:uppercase;color:var(--faint);font-weight:600;margin-bottom:clamp(14px,2vh,26px);display:flex;gap:12px;align-items:center}
+  .kicker .dot{width:7px;height:7px;border-radius:50%;background:var(--sun);box-shadow:0 0 14px var(--sun)}
+  h1{font-size:clamp(2.2rem,5.4vw,4.4rem);line-height:1.02;letter-spacing:-.02em;font-weight:800}
+  h2{font-size:clamp(1.7rem,4vw,3.1rem);line-height:1.06;letter-spacing:-.02em;font-weight:800}
+  .lede{font-size:clamp(1.05rem,1.7vw,1.5rem);color:var(--muted);margin-top:clamp(16px,2.4vh,28px);line-height:1.5;max-width:60ch}
+  .grad{background:linear-gradient(100deg,var(--sun),#fff 60%,var(--sign));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sign-c{color:var(--sign)} .ghost-c{color:var(--ghost)} .warn-c{color:var(--warn)} .accent-c{color:var(--accent)}
+  strong{color:var(--ink);font-weight:700}
+
+  ul.points{list-style:none;margin-top:clamp(18px,3vh,34px);display:flex;flex-direction:column;gap:clamp(12px,1.8vh,20px)}
+  ul.points li{font-size:clamp(1rem,1.55vw,1.3rem);line-height:1.45;color:var(--ink);padding-left:34px;position:relative;max-width:64ch}
+  ul.points li::before{content:"";position:absolute;left:0;top:.55em;width:14px;height:2px;background:var(--sun);border-radius:2px}
+  ul.points li .m{color:var(--muted)}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(12px,1.6vw,20px);margin-top:clamp(20px,3vh,36px)}
+  .card{background:var(--card);border:1px solid var(--card-bd);border-radius:var(--radius);padding:clamp(16px,2vw,26px)}
+  .card .big{font-size:clamp(1.8rem,3.6vw,3rem);font-weight:800;letter-spacing:-.02em;line-height:1}
+  .card .lab{color:var(--muted);font-size:clamp(.85rem,1.1vw,1rem);margin-top:10px;line-height:1.4}
+
+  /* two-up demo contrast */
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2.4vw,30px);margin-top:clamp(22px,3vh,38px)}
+  .lead{background:var(--card);border:1px solid var(--card-bd);border-radius:var(--radius);padding:clamp(18px,2.2vw,28px)}
+  .lead .name{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:clamp(1rem,1.5vw,1.3rem)}
+  .badge{font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid}
+  .b-ghost{color:var(--ghost);background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.32)}
+  .b-neg{color:var(--warn);background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.32)}
+  .meters{display:flex;gap:22px;margin:20px 0 4px}
+  .meter{flex:1}
+  .meter .v{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:800;line-height:1}
+  .meter .k{color:var(--faint);font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;margin-top:6px}
+  .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.07);margin-top:12px;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:99px}
+  .action{margin-top:18px;font-size:clamp(.92rem,1.2vw,1.08rem);line-height:1.45;color:var(--ink);border-top:1px solid var(--card-bd);padding-top:16px}
+  .action .lab{color:var(--faint);font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;display:block;margin-bottom:6px}
+
+  /* pipeline diagram */
+  .flow{display:flex;align-items:stretch;gap:10px;margin-top:clamp(20px,3vh,34px);flex-wrap:wrap}
+  .node{background:var(--card);border:1px solid var(--card-bd);border-radius:14px;padding:14px 16px;flex:1;min-width:140px;display:flex;flex-direction:column;gap:6px}
+  .node .t{font-weight:700;font-size:clamp(.92rem,1.2vw,1.05rem)}
+  .node .s{color:var(--muted);font-size:.82rem;line-height:1.35}
+  .node.model{border-color:rgba(167,139,250,.4);background:linear-gradient(180deg,rgba(167,139,250,.12),transparent)}
+  .node.out{border-color:rgba(52,211,153,.4);background:linear-gradient(180deg,rgba(52,211,153,.1),transparent)}
+  .arrow{align-self:center;color:var(--faint);font-size:1.4rem;flex:0 0 auto}
+  .hard{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 28px;margin-top:clamp(20px,3vh,32px)}
+  .hard div{font-size:clamp(.92rem,1.2vw,1.08rem);line-height:1.45;color:var(--muted);padding-left:26px;position:relative}
+  .hard div::before{content:"›";position:absolute;left:0;top:-1px;color:var(--sign);font-weight:800}
+  .hard b{color:var(--ink)}
+
+  .title-mark{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+  .logo{width:clamp(46px,5vw,64px);height:clamp(46px,5vw,64px);border-radius:16px;display:grid;place-items:center;
+    background:radial-gradient(circle at 35% 30%,#fff,var(--sun) 45%,#b45309 110%);box-shadow:0 0 40px rgba(251,191,36,.35)}
+  .logo svg{width:60%;height:60%}
+  .foot{position:absolute;left:var(--pad);right:var(--pad);bottom:22px;display:flex;justify-content:space-between;align-items:center;color:var(--faint);font-size:.8rem;letter-spacing:.04em}
+  .closer{font-size:clamp(1.3rem,2.4vw,2rem);font-weight:700;margin-top:clamp(24px,3.5vh,40px);line-height:1.25;letter-spacing:-.01em}
+  .closer .grad{font-weight:800}
+
+  /* nav */
+  .progress{position:fixed;left:0;top:0;height:3px;background:linear-gradient(90deg,var(--sun),var(--sign));z-index:10;transition:width .35s ease}
+  .count{position:fixed;right:18px;bottom:16px;color:var(--faint);font-size:.78rem;font-variant-numeric:tabular-nums;z-index:10}
+  .hint{position:fixed;left:18px;bottom:16px;color:var(--faint);font-size:.74rem;z-index:10;opacity:.7}
+  @media (max-width:760px){
+    .cards,.duo,.hard{grid-template-columns:1fr}
+    .flow{flex-direction:column}.arrow{transform:rotate(90deg)}
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 0 — TITLE -->
+  <section class="slide active">
+    <div class="wrap">
+      <div class="title-mark">
+        <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#1a1206" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2" fill="#1a1206" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></div>
+        <h1>Oracle</h1>
+      </div>
+      <p class="lede">The predictive brain for solar sales. For every lead it answers two questions a rep can't:
+        <span class="sign-c">will this close?</span> and <span class="ghost-c">will this ghost?</span></p>
+      <p class="lede" style="font-size:1rem;color:var(--faint);margin-top:22px">Part of the Solar Sales Copilot · Hackathon build</p>
+    </div>
+    <div class="foot"><span>Oracle</span><span>numbers from a model · words from the LLM</span></div>
+  </section>
+
+  <!-- 1 — PROBLEM -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker"><span class="dot"></span>The problem</div>
+      <h2>Half your leads go dark — and you can't tell<br>which ones are coming back.</h2>
+      <p class="lede">A solar rep opens Monday to 40 open quotes. Each one cost real money to acquire. Then comes the silence: a lead stops replying. Price? Trust? Financing? Already signed with someone else?</p>
+      <ul class="points">
+        <li><strong>~48% of reps never follow up even once.</strong> <span class="m">And ~80% of deals need 5+ touches.</span></li>
+        <li><strong>The clock is brutal:</strong> <span class="m">qualify-odds drop ~21× if you wait 30 min instead of 5 <em>(MIT / InsideSales Lead-Response study)</em>.</span></li>
+        <li><strong>So attention goes to the wrong leads</strong> <span class="m">— reps chase dead quotes while the ones one message from signing quietly slip away.</span></li>
+      </ul>
+    </div>
+    <div class="foot"><span>Problem</span><span>01 / 05</span></div>
+  </section>
+
+  <!-- 2 — SOLUTION -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker"><span class="dot"></span>The solution</div>
+      <h2>Two honest numbers for every lead —<br><span class="sign-c">sign</span> probability and <span class="ghost-c">ghost</span> risk.</h2>
+      <p class="lede">Plus a confidence band, the one dominant blocker, a single recommended action, and the evidence behind it.</p>
+      <div class="cards">
+        <div class="card">
+          <div class="big grad">Aha #1</div>
+          <div class="lab"><strong>Numbers from a model, words from the LLM.</strong> A statistical survival model owns the probabilities; the LLM only explains them. It never invents a percentage.</div>
+        </div>
+        <div class="card">
+          <div class="big grad">Aha #2</div>
+          <div class="lab"><strong>Ghost risk assumes you do nothing.</strong> The recommended action — which resets the silence clock — is the actual lever that moves the number. We hand you the one move that changes the outcome.</div>
+        </div>
+        <div class="card">
+          <div class="big grad">Aha #3</div>
+          <div class="lab"><strong>It tells the truth about itself.</strong> An honest "Uncalibrated" badge until real outcomes accrue — no faked confidence.</div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span>Solution</span><span>02 / 05</span></div>
+  </section>
+
+  <!-- 3 — DEMO -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker"><span class="dot"></span>Live demo</div>
+      <h2>Same pipeline. Two silent leads.<br>Two completely different calls to make.</h2>
+      <div class="duo">
+        <div class="lead">
+          <div class="name">Noah Patel <span class="badge b-ghost">Ghosted</span></div>
+          <div class="meters">
+            <div class="meter"><div class="v ghost-c">85%</div><div class="k">Ghost risk</div><div class="bar"><i style="width:85%;background:var(--ghost)"></i></div></div>
+            <div class="meter"><div class="v sign-c">7%</div><div class="k">Sign prob</div><div class="bar"><i style="width:7%;background:var(--sign)"></i></div></div>
+          </div>
+          <div class="action"><span class="lab">Recommended action · Timing</span>Send a short, low-pressure check-in within 24h to reopen the conversation before he's gone.</div>
+        </div>
+        <div class="lead">
+          <div class="name">Lukas Becker <span class="badge b-neg">Negotiating</span></div>
+          <div class="meters">
+            <div class="meter"><div class="v sign-c">44%</div><div class="k">Sign prob</div><div class="bar"><i style="width:44%;background:var(--sign)"></i></div></div>
+            <div class="meter"><div class="v ghost-c">37%</div><div class="k">Ghost risk</div><div class="bar"><i style="width:37%;background:var(--ghost)"></i></div></div>
+          </div>
+          <div class="action"><span class="lab">Recommended action · Trust</span>Strong economics, active sequence — hold cadence and bring one concrete proof point.</div>
+        </div>
+      </div>
+      <p class="lede" style="font-size:1.02rem;margin-top:24px">The magic moment: the panel tells you <strong>who to rescue right now</strong> — and exactly how.</p>
+    </div>
+    <div class="foot"><span>Demo · backdrop / fallback</span><span>03 / 05</span></div>
+  </section>
+
+  <!-- 4 — HOW IT WORKS -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker"><span class="dot"></span>How it works</div>
+      <h2>A real survival model under the hood —<br>validated on real labels.</h2>
+      <div class="flow">
+        <div class="node"><div class="t">Lead substrate</div><div class="s">quote · messages · sequence · timing</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="t">26 features</div><div class="s">economics · engagement · trend</div></div>
+        <div class="arrow">→</div>
+        <div class="node model"><div class="t">Competing-risks logit</div><div class="s">stay / sign / ghost, per active day</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="t">One survival walk</div><div class="s">cumulative incidence + signed drivers</div></div>
+        <div class="arrow">→</div>
+        <div class="node out"><div class="t">LLM narration</div><div class="s">blocker · action · evidence</div></div>
+      </div>
+      <div class="hard">
+        <div><b>Competing risks done right:</b> sign &amp; ghost share one survival walk → mutually consistent, monotonic over the horizon.</div>
+        <div><b>Ghost cold-start grounded in real cross-domain data:</b> IBM Telco churn + MIT lead-response decay — never faked as solar.</div>
+        <div><b>Validated:</b> the exact fitter+calibration on real labeled churn → <b class="sign-c">AUC 0.836</b> held-out.</div>
+        <div><b>Pure &amp; tested:</b> deterministic, seedable, no clock/RNG in the core — fully unit-tested.</div>
+      </div>
+    </div>
+    <div class="foot"><span>How it works</span><span>04 / 05</span></div>
+  </section>
+
+  <!-- 5 — WHY IT MATTERS / NEXT -->
+  <section class="slide">
+    <div class="wrap">
+      <div class="kicker"><span class="dot"></span>Why it matters · what's next</div>
+      <h2>Every rep hour goes to the lead<br>that will actually close.</h2>
+      <ul class="points">
+        <li><strong>Impact:</strong> <span class="m">stop burning touches on dead quotes; rescue the ones one message from ghosting — with the right message.</span></li>
+        <li><strong>Who pays:</strong> <span class="m">solar installers running outbound sales. Lead-gen is expensive — a few points of conversion lift pays for the whole stack.</span></li>
+        <li><strong>What's next:</strong> <span class="m">the schema, calibration math, and promotion trigger are built. Once ~30 real closed/ghosted outcomes land, retrain on real solar labels, the badge flips green, and bands tighten ±15 → ±8.</span></li>
+      </ul>
+      <p class="closer">Today it <span class="grad">ranks</span> your leads.<br>Tomorrow, on your data, it <span class="grad">knows</span> them.</p>
+    </div>
+    <div class="foot"><span>Oracle · the predictive brain for solar sales</span><span>05 / 05</span></div>
+  </section>
+
+</div>
+
+<div class="count" id="count">1 / 6</div>
+<div class="hint">← → / space to navigate · F fullscreen</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;
+  const progress=document.getElementById('progress');
+  const count=document.getElementById('count');
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    progress.style.width=((i+1)/slides.length*100)+'%';
+    count.textContent=(i+1)+' / '+slides.length;
+  }
+  function next(){show(i+1)} function prev(){show(i-1)}
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();next()}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev()}
+    else if(e.key==='Home'){show(0)} else if(e.key==='End'){show(slides.length-1)}
+    else if(e.key==='f'||e.key==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}
+  });
+  // click right half = next, left half = prev
+  document.getElementById('deck').addEventListener('click',e=>{
+    (e.clientX > window.innerWidth/2) ? next() : prev();
+  });
+  show(0);
+</script>
+</body>
+</html>

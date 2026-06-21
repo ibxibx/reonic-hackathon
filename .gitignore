@@ -31,6 +31,10 @@ yarn-error.log*
 test-results/
 playwright/.auth/
 
+# design-iteration screenshot artifacts (kept local, not committed)
+iteration-shots/
+**/iteration-shots/
+
 # Legacy ascii/one CLI ignore file
 .oneignore
 

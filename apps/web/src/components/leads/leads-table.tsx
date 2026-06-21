@@ -120,7 +120,9 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
               <TableRow>
                 <TableHead>Homeowner</TableHead>
                 <TableHead className="hidden md:table-cell">Address</TableHead>
-                <TableHead className="text-right">Monthly bill</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">
+                  Monthly bill
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden lg:table-cell">Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -153,7 +155,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                     <TableCell className="hidden md:table-cell text-muted-foreground">
                       {lead.address}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="hidden text-right tabular-nums sm:table-cell">
                       {formatCurrency(Number(lead.monthly_bill))}
                     </TableCell>
                     <TableCell>
