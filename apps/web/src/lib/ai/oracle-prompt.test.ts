@@ -231,6 +231,110 @@ describe('buildOraclePrompt — degraded mode', () => {
   });
 });
 
+describe('buildOraclePrompt — ghost engagement-decay framing', () => {
+  // Default features have daysSinceLastTouch=5 and a ghost-targeted factor, so
+  // the default ctx triggers the ghost framing in both modes.
+  const HEADER = 'Ghost (going-quiet) framing — directional only';
+  const DECAY_PHRASE = 'Re-engagement odds fall sharply the longer a lead stays quiet';
+
+  it('includes the honest engagement-decay framing when a lead is quiet (degraded)', () => {
+    const out = buildOraclePrompt(baseCtx());
+    expect(out).toContain(HEADER);
+    expect(out).toContain(DECAY_PHRASE);
+  });
+
+  it('includes the framing in model mode too', () => {
+    const out = buildOraclePrompt(baseCtx(modelCtxOverride));
+    expect(out).toContain(HEADER);
+    expect(out).toContain(DECAY_PHRASE);
+  });
+
+  it('triggers on a rising ghost trend even when not yet quiet', () => {
+    const out = buildOraclePrompt(
+      baseCtx({
+        features: { ...features, daysSinceLastTouch: 0, ghostRiskSlope: 0.3 },
+        factors: [], // remove the ghost factor so only the trend can trip it
+      })
+    );
+    expect(out).toContain(HEADER);
+  });
+
+  it('triggers when a supplied factor targets ghost (model mode)', () => {
+    const out = buildOraclePrompt(
+      baseCtx({
+        ...modelCtxOverride,
+        // no silence, no rising trend — only the ghost-targeted factor remains
+        features: { ...features, daysSinceLastTouch: 0, ghostRiskSlope: 0 },
+      })
+    );
+    expect(out).toContain(HEADER);
+  });
+
+  it('OMITS the framing when there is no ghost signal at all', () => {
+    const out = buildOraclePrompt(
+      baseCtx({
+        features: {
+          ...features,
+          daysSinceLastTouch: 0,
+          ghostRiskSlope: 0,
+        },
+        factors: [
+          {
+            feature: 'monthlySavingsRatio',
+            direction: 'increases',
+            weight: 0.42,
+            target: 'sign',
+            plainText: 'High savings favor signing.',
+          },
+        ],
+      })
+    );
+    expect(out).not.toContain(HEADER);
+    expect(out).not.toContain(DECAY_PHRASE);
+  });
+
+  it('does NOT trip on NaN ghost signals (degenerate input is safe)', () => {
+    const out = buildOraclePrompt(
+      baseCtx({
+        features: {
+          ...features,
+          daysSinceLastTouch: Number.NaN,
+          ghostRiskSlope: Number.NaN,
+        },
+        factors: [], // and no ghost factor
+      })
+    );
+    expect(out).not.toContain(HEADER);
+  });
+
+  it('injects NO fabricated numbers, percentages, or rates into the framing block', () => {
+    const out = buildOraclePrompt(baseCtx());
+    // Isolate exactly the framing block (header → next "## " section).
+    const start = out.indexOf(`## ${HEADER}`);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const rest = out.slice(start + 3); // skip the leading "## "
+    const nextSection = rest.indexOf('\n## ');
+    const block = nextSection >= 0 ? rest.slice(0, nextSection) : rest;
+    // No digits and no percent signs anywhere in the framing block — it must
+    // never assert a concrete decay rate, half-life value, or percentage.
+    expect(block).not.toMatch(/[0-9]/);
+    expect(block).not.toContain('%');
+    // It must explicitly disavow being a fact about this homeowner.
+    expect(block).toContain('NOT a fact about THIS homeowner');
+    expect(block.toLowerCase()).toContain('do not state any specific');
+  });
+
+  it('keeps the global no-invention rules intact alongside the framing', () => {
+    const out = buildOraclePrompt(baseCtx());
+    expect(out).toContain(HEADER); // framing present
+    expect(out).toContain('Use only the supplied data.');
+    expect(out).toContain('NEVER invent');
+    expect(out).toContain(
+      'Do not claim a message was opened, ignored, or answered unless it appears in the outreach summary'
+    );
+  });
+});
+
 describe('buildOraclePrompt — degenerate inputs render cleanly', () => {
   it('renders without "undefined" when engagement summary is empty', () => {
     const out = buildOraclePrompt(baseCtx({ engagementSummary: '' }));

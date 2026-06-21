@@ -4,7 +4,9 @@ import {
   confidenceBand,
   assembleRichPrediction,
   computeModelNumbersAndFactors,
+  DEGRADED_GHOST_PRIOR_WEIGHT,
 } from './engine-core';
+import { blendWithPrior } from './churn-prior';
 import { fitMultinomial } from './model/fitter';
 import { generateSyntheticCorpus } from './synthetic';
 import {
@@ -312,6 +314,156 @@ describe('computeModelNumbersAndFactors', () => {
     const lo = computeModelNumbersAndFactors(model, baseVector(1), 14);
     const hi = computeModelNumbersAndFactors(model, baseVector(25), 14);
     expect(hi.ghostRisk).toBeGreaterThanOrEqual(lo.ghostRisk);
+  });
+
+  // ── real-data ghost-prior grounding (model mode) ──────────────────────────
+  describe('ghost-prior grounding (model mode)', () => {
+    const x = baseVector(8);
+
+    it('priorWeight 0 leaves the ghost identical to the pure model', () => {
+      const pure = computeModelNumbersAndFactors(model, x, 14);
+      const w0 = computeModelNumbersAndFactors(model, x, 14, undefined, {
+        ghostPrior: 0.9, // a high prior...
+        priorWeight: 0, // ...but zero pull → must be ignored
+      });
+      expect(w0.ghostRisk).toBe(pure.ghostRisk);
+      // sign is never grounded
+      expect(w0.signProbability).toBe(pure.signProbability);
+    });
+
+    it('omitting grounding is back-compat (== pure model)', () => {
+      const pure = computeModelNumbersAndFactors(model, x, 14);
+      const none = computeModelNumbersAndFactors(model, x, 14, undefined);
+      expect(none.ghostRisk).toBe(pure.ghostRisk);
+    });
+
+    it('final ghost is MONOTONE non-decreasing in the prior (fixed model+weight)', () => {
+      const weight = 0.35;
+      let prev = -1;
+      for (const prior of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+        const out = computeModelNumbersAndFactors(model, x, 14, undefined, {
+          ghostPrior: prior,
+          priorWeight: weight,
+        });
+        expect(out.ghostRisk).toBeGreaterThanOrEqual(prev);
+        prev = out.ghostRisk;
+      }
+    });
+
+    it('a higher prior raises the final ghost vs a lower prior', () => {
+      const weight = 0.35;
+      const low = computeModelNumbersAndFactors(model, x, 14, undefined, {
+        ghostPrior: 0.05,
+        priorWeight: weight,
+      });
+      const high = computeModelNumbersAndFactors(model, x, 14, undefined, {
+        ghostPrior: 0.95,
+        priorWeight: weight,
+      });
+      expect(high.ghostRisk).toBeGreaterThan(low.ghostRisk);
+    });
+
+    it('the grounded ghost equals round(100 * blendWithPrior(modelGhost, prior, w))', () => {
+      const prior = 0.8;
+      const weight = 0.35;
+      const pure = computeModelNumbersAndFactors(model, x, 14);
+      const modelGhost01 = pure.ghostRisk / 100; // pure model is unblended
+      const grounded = computeModelNumbersAndFactors(model, x, 14, undefined, {
+        ghostPrior: prior,
+        priorWeight: weight,
+      });
+      // tolerance 1 because the pure ghostRisk was already rounded once.
+      const expected = Math.round(
+        100 * blendWithPrior(modelGhost01, prior, weight)
+      );
+      expect(Math.abs(grounded.ghostRisk - expected)).toBeLessThanOrEqual(1);
+    });
+
+    it('stays within [0,100] ints for extreme priors/weights', () => {
+      for (const prior of [-1, 0, 0.5, 1, 2, Number.NaN]) {
+        for (const weight of [-1, 0, 0.5, 1, 2, Number.NaN]) {
+          const out = computeModelNumbersAndFactors(model, x, 14, undefined, {
+            ghostPrior: prior,
+            priorWeight: weight,
+          });
+          expect(Number.isInteger(out.ghostRisk)).toBe(true);
+          expect(out.ghostRisk).toBeGreaterThanOrEqual(0);
+          expect(out.ghostRisk).toBeLessThanOrEqual(100);
+        }
+      }
+    });
+  });
+});
+
+// ── DEGRADED-mode ghost-prior spine (assembleRichPrediction) ─────────────────
+describe('assembleRichPrediction — degraded ghost grounded in the real prior', () => {
+  const baseLlm = (sign: number, ghost: number): OracleLlmOutput => ({
+    signProbability: sign,
+    ghostRisk: ghost,
+    signConfidence: 40,
+    ghostConfidence: 40,
+    blockerCode: 'Ti',
+    factors: [],
+    recommendedAction: 'Reach out.',
+    evidence: 'Quiet lately.',
+  });
+
+  function degraded(
+    llm: OracleLlmOutput | null,
+    ghostPrior: number | undefined
+  ) {
+    return assembleRichPrediction({
+      leadId: 'deg-prior',
+      mode: 'degraded',
+      calibrated: false,
+      modelVersion: MODEL_VERSION,
+      horizonDays: 14,
+      modelNumbers: null,
+      llm,
+      ghostPrior,
+    });
+  }
+
+  it('blends the LLM ghost toward the prior with the heavy degraded weight', () => {
+    const prior = 0.8;
+    const rich = degraded(baseLlm(40, 20), prior); // llm ghost 0.20
+    const expected = Math.round(
+      100 * blendWithPrior(0.2, prior, DEGRADED_GHOST_PRIOR_WEIGHT)
+    );
+    expect(rich.ghostRisk).toBe(expected);
+    // the prior is the SPINE: pulled well above the LLM's 20
+    expect(rich.ghostRisk).toBeGreaterThan(20);
+    // SIGN is untouched by grounding → still the LLM's number
+    expect(rich.signProbability).toBe(40);
+  });
+
+  it('uses the prior itself as the spine when the LLM is absent', () => {
+    const prior = 0.7;
+    const rich = degraded(null, prior);
+    // llmGhost01 ?? prior → prior; blend(prior, prior, w) === prior
+    expect(rich.ghostRisk).toBe(Math.round(100 * prior));
+    // no LLM → neutral sign fallback
+    expect(rich.signProbability).toBe(45);
+  });
+
+  it('a higher prior raises the degraded ghost (monotone)', () => {
+    const lo = degraded(baseLlm(40, 20), 0.1);
+    const hi = degraded(baseLlm(40, 20), 0.9);
+    expect(hi.ghostRisk).toBeGreaterThan(lo.ghostRisk);
+  });
+
+  it('without a prior, degraded behavior is unchanged (pure LLM ghost)', () => {
+    const rich = degraded(baseLlm(40, 71), undefined);
+    expect(rich.ghostRisk).toBe(71);
+  });
+
+  it('grounded degraded ghost stays a clamped [0,100] int', () => {
+    for (const prior of [0, 0.5, 1, 2, Number.NaN]) {
+      const rich = degraded(baseLlm(40, 20), prior);
+      expect(Number.isInteger(rich.ghostRisk)).toBe(true);
+      expect(rich.ghostRisk).toBeGreaterThanOrEqual(0);
+      expect(rich.ghostRisk).toBeLessThanOrEqual(100);
+    }
   });
 });
 

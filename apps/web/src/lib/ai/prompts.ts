@@ -112,6 +112,41 @@ function renderFactors(factors: OraclePromptContext['factors']): string {
     .join('\n');
 }
 
+/**
+ * Decide whether GHOST (going-quiet) reasoning is in play for this lead, so the
+ * prompt can attach an honest engagement-decay framing only when it is relevant.
+ * Ghost reasoning is "present" when ANY of:
+ *   • the lead has been quiet for at least a day (daysSinceLastTouch >= 1),
+ *   • the ghost-risk trend is rising (ghostRiskSlope > 0), or
+ *   • a supplied model factor targets the ghost outcome.
+ * Guarded against NaN so degenerate inputs never spuriously trip the block.
+ */
+function ghostReasoningPresent(ctx: OraclePromptContext): boolean {
+  const { features, factors } = ctx;
+  const quiet =
+    Number.isFinite(features.daysSinceLastTouch) &&
+    features.daysSinceLastTouch >= 1;
+  const ghostRising =
+    Number.isFinite(features.ghostRiskSlope) && features.ghostRiskSlope > 0;
+  const ghostFactor = factors.some((f) => f.target === 'ghost');
+  return quiet || ghostRising || ghostFactor;
+}
+
+/**
+ * Honest, NUMBER-FREE engagement-decay framing for the ghost side. This is a
+ * QUALITATIVE lens grounded in published lead-response / churn research (see
+ * lib/oracle/churn-prior.ts): re-engagement odds fall sharply the longer a lead
+ * stays quiet, and a lead being actively worked deep in a sequence is less
+ * likely to go quiet. It deliberately injects NO specific figures, half-lives,
+ * percentages, or rates — those live in the model layer, not the prompt — so the
+ * LLM gains the correct directional intuition without any fabricated specifics.
+ */
+const GHOST_DECAY_FRAMING = `## Ghost (going-quiet) framing — directional only
+Use this as a qualitative lens for the ghost side, NOT as data:
+- Re-engagement odds fall sharply the longer a lead stays quiet — a widening gap since the last touch should weigh toward higher ghost risk, all else equal.
+- A lead being actively worked (further along the outreach sequence, with recent touches) is, all else equal, less likely to go quiet.
+- This framing is a general directional pattern from external research, NOT a fact about THIS homeowner. Do NOT state any specific decay rate, percentage, half-life, or count, and do NOT imply a measured outcome — reason only over the actual days-since-touch, trend, and outreach facts supplied above.`;
+
 export function buildOraclePrompt(ctx: OraclePromptContext): string {
   const { lead, quote, strategy, features, factors, modelNumbers, mode } = ctx;
 
@@ -151,6 +186,10 @@ When evidence is thin, keep both probabilities in the middle range rather than c
 ## Factors
 Populate \`factors[]\` with the few signals you actually relied on (max 8). For each, give the feature name, direction (increases/decreases the relevant outcome), a weight, and a one-sentence plainText explanation grounded ONLY in the supplied facts.`;
   }
+
+  const ghostFraming = ghostReasoningPresent(ctx)
+    ? `\n\n${GHOST_DECAY_FRAMING}`
+    : '';
 
   return `You are the Oracle for a solar installer. Assess this homeowner's likelihood of signing and of going quiet, then classify the dominant blocker and prescribe the single best next action. Be decisive but calibrated: these are sales-prioritization signals, not facts or guarantees.
 
@@ -203,7 +242,7 @@ ${ctx.engagementSummary}
 ${probabilityInstructions}
 
 ## Blocker taxonomy — pick EXACTLY ONE blockerCode
-${renderTaxonomy()}
+${renderTaxonomy()}${ghostFraming}
 
 ## Recommended action
 Write exactly ONE recommendedAction. It must name a channel and timing, state the angle, be justified by the persona above, AND be tied to the current orchestration step (step ${

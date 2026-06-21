@@ -8,7 +8,11 @@ import {
   runGoldenCases,
   runEvalReport,
   buildSeedFeatures,
+  backtestPredictions,
 } from './eval';
+import { mulberry32 } from './synthetic';
+import type { BacktestRow } from './eval';
+import type { TerminalOutcome } from './contracts';
 
 function fitModel() {
   const corpus = generateSyntheticCorpus({ seed: 7, nLeads: 600 });
@@ -59,6 +63,113 @@ describe('runEvalReport', () => {
       expect(m.n).toBeGreaterThan(0);
     }
   }, 30000);
+});
+
+// ─── Backtest harness ────────────────────────────────────────────────────────
+//
+// Simulate a stored predictions-history vs final status. We GENERATE a
+// synthetic-but-realistic set where, per lead, the terminal status is drawn from
+// well-calibrated probabilities, so the harness should report low ECE, AUC well
+// above 0.5, and exact positive counts.
+
+/**
+ * Build n rows where the truth is drawn from the emitted probabilities, so the
+ * predictions ARE (in expectation) calibrated. ghost/sign/stay are mutually
+ * exclusive; we draw a single multinomial per lead and record its terminal.
+ */
+function makeBacktestSet(n: number, seed: number): BacktestRow[] {
+  const rng = mulberry32(seed);
+  const rows: BacktestRow[] = [];
+  for (let i = 0; i < n; i++) {
+    // Draw plausible emitted probs that sum to < 1 (stay takes the remainder).
+    let g = rng() * 0.6; // ghostRisk
+    let s = rng() * (1 - g) * 0.8; // signProbability
+    if (g + s > 1) {
+      const k = 1 / (g + s);
+      g *= k;
+      s *= k;
+    }
+    const u = rng();
+    let terminal: TerminalOutcome;
+    if (u < g) terminal = 'ghost';
+    else if (u < g + s) terminal = 'sign';
+    else terminal = 'censored';
+    rows.push({
+      leadId: `bt-${seed}-${i}`,
+      predictedGhost: g,
+      predictedSign: s,
+      terminalStatus: terminal,
+    });
+  }
+  return rows;
+}
+
+describe('backtestPredictions', () => {
+  it('on a self-calibrated set: low ECE, AUC > 0.5, finite metrics', () => {
+    const rows = makeBacktestSet(4000, 21);
+    const res = backtestPredictions(rows);
+
+    for (const key of ['sign', 'ghost'] as const) {
+      const m = res.metrics[key];
+      expect(Number.isFinite(m.brier)).toBe(true);
+      expect(Number.isFinite(m.auc)).toBe(true);
+      expect(Number.isFinite(m.ece)).toBe(true);
+      // Truth drawn from the emitted probs → genuinely calibrated → small ECE,
+      // and the probabilities discriminate the outcome.
+      expect(m.ece, `${key} ECE=${m.ece.toFixed(4)}`).toBeLessThan(0.05);
+      expect(m.auc, `${key} AUC=${m.auc.toFixed(4)}`).toBeGreaterThan(0.6);
+    }
+  });
+
+  it('counts positives and censored exactly; censored are 0-labels by default', () => {
+    const rows: BacktestRow[] = [
+      { predictedGhost: 0.9, predictedSign: 0.05, terminalStatus: 'ghost' },
+      { predictedGhost: 0.1, predictedSign: 0.85, terminalStatus: 'sign' },
+      { predictedGhost: 0.2, predictedSign: 0.2, terminalStatus: 'censored' },
+      { predictedGhost: 0.8, predictedSign: 0.1, terminalStatus: 'ghost' },
+    ];
+    const res = backtestPredictions(rows);
+    expect(res.counts.total).toBe(4);
+    expect(res.counts.ghost).toBe(2);
+    expect(res.counts.sign).toBe(1);
+    expect(res.counts.censored).toBe(1);
+    expect(res.metrics.ghost.n).toBe(4);
+    expect(res.metrics.sign.n).toBe(4);
+  });
+
+  it('includeCensored=false drops censored rows from both targets', () => {
+    const rows: BacktestRow[] = [
+      { predictedGhost: 0.9, predictedSign: 0.05, terminalStatus: 'ghost' },
+      { predictedGhost: 0.2, predictedSign: 0.2, terminalStatus: 'censored' },
+      { predictedGhost: 0.1, predictedSign: 0.85, terminalStatus: 'sign' },
+    ];
+    const res = backtestPredictions(rows, { includeCensored: false });
+    expect(res.counts.total).toBe(2); // censored dropped
+    expect(res.counts.censored).toBe(1); // still reported as observed
+    expect(res.metrics.ghost.n).toBe(2);
+  });
+
+  it('auto-detects a 0–100 (display-scale) snapshot', () => {
+    // Same truth, but probabilities stored on the 0–100 display scale.
+    const rows: BacktestRow[] = [
+      { predictedGhost: 90, predictedSign: 5, terminalStatus: 'ghost' },
+      { predictedGhost: 10, predictedSign: 85, terminalStatus: 'sign' },
+      { predictedGhost: 80, predictedSign: 8, terminalStatus: 'ghost' },
+      { predictedGhost: 12, predictedSign: 70, terminalStatus: 'sign' },
+    ];
+    const res = backtestPredictions(rows);
+    // Perfectly ordered → AUC 1 for both targets; metrics must be in [0,1].
+    expect(res.metrics.ghost.auc).toBeCloseTo(1, 6);
+    expect(res.metrics.sign.auc).toBeCloseTo(1, 6);
+    expect(res.metrics.ghost.brier).toBeLessThanOrEqual(1);
+  });
+
+  it('empty input yields safe zeroed metrics', () => {
+    const res = backtestPredictions([]);
+    expect(res.counts.total).toBe(0);
+    expect(res.metrics.ghost.n).toBe(0);
+    expect(res.metrics.sign.auc).toBe(0.5);
+  });
 });
 
 // ─── Feature-group ablation ──────────────────────────────────────────────────

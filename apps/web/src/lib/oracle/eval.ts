@@ -17,11 +17,12 @@ import type {
   GoldenCaseResult,
   OracleFeatures,
   SyntheticCorpus,
+  TerminalOutcome,
 } from './contracts';
 import { computeSolarEconomics } from '../solar';
 import { featuresToVector } from './features';
 import { cumulativeIncidence } from './model/competing-risks';
-import { calibrateFromCorpus } from './calibration';
+import { calibrateFromCorpus, evaluate } from './calibration';
 
 export interface EvalReport {
   metrics: { sign: EvalMetrics; ghost: EvalMetrics };
@@ -355,6 +356,119 @@ export function runEvalReport(
     golden,
     modelVersion: model.modelVersion,
     regime: corpus.regime,
+    notes,
+  };
+}
+
+// ─── Backtest harness ─────────────────────────────────────────────────────────
+//
+// Replays a stored predictions-history (the snapshot the engine persists per
+// scoring call) against each lead's FINAL absorbed status, and reports calibration
+// + discrimination of the sign and ghost probabilities as they were actually
+// emitted. This is the harness real `predictions` vs final `leads.status` rows
+// will feed once enough labels exist (MODEL_MODE_MIN_LABELS); until then it runs
+// on the synthetic corpus / a synthetic-but-realistic fixture.
+//
+// A `censored` terminal is a lead that never absorbed inside its observation
+// window: it is neither a positive sign nor a positive ghost, so by default it
+// is a 0-label for BOTH targets (the no-event-yet baseline). `includeCensored:
+// false` drops censored rows from both target sets instead — useful when you only
+// want to score the absorbed population.
+
+/** One replayed prediction snapshot vs the lead's eventual terminal status. */
+export interface BacktestRow {
+  /** ghostRisk that was emitted for this lead (0–1 OR 0–100; auto-detected). */
+  predictedGhost: number;
+  /** signProbability that was emitted for this lead (0–1 OR 0–100). */
+  predictedSign: number;
+  /** the lead's final absorbed status. */
+  terminalStatus: TerminalOutcome;
+  /** optional id for traceability / dedup (not required for metrics). */
+  leadId?: string;
+}
+
+export interface BacktestOptions {
+  /** treat a `censored` terminal as a 0-label for both targets (default true). */
+  includeCensored?: boolean;
+  /** reliability/ECE bin count forwarded to `evaluate` (default 10). */
+  nBins?: number;
+}
+
+export interface BacktestResult {
+  metrics: { sign: EvalMetrics; ghost: EvalMetrics };
+  /** how many rows actually contributed to each target's metrics. */
+  counts: { total: number; sign: number; ghost: number; censored: number };
+  notes: string[];
+}
+
+/**
+ * Normalize a probability that may be on a 0–1 or a 0–100 scale to [0,1]. We
+ * auto-detect per value: anything > 1 (and finite) is divided by 100. Mixed
+ * scales in one array are handled value-by-value so a stored 0–100 display
+ * snapshot and a 0–1 model snapshot both backtest correctly.
+ */
+function toUnit(v: number): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return 0;
+  const x = v > 1 ? v / 100 : v;
+  if (x < 0) return 0;
+  if (x > 1) return 1;
+  return x;
+}
+
+/**
+ * Backtest a predictions-history against final statuses. Returns held-by-design
+ * EvalMetrics (Brier/AUC/ECE/reliability) for BOTH the sign and the ghost
+ * probability streams. Pure: no clock, no RNG — it only reads the rows passed in.
+ *
+ * Labels: y_sign = 1 iff terminal === 'sign'; y_ghost = 1 iff terminal ===
+ * 'ghost'. Censored rows are 0 for both (or dropped if includeCensored=false).
+ */
+export function backtestPredictions(
+  rows: BacktestRow[],
+  opts?: BacktestOptions
+): BacktestResult {
+  const includeCensored = opts?.includeCensored ?? true;
+  const nBins = opts?.nBins ?? 10;
+
+  const signPred: number[] = [];
+  const signY: number[] = [];
+  const ghostPred: number[] = [];
+  const ghostY: number[] = [];
+  let nCensored = 0;
+
+  for (const row of rows) {
+    const terminal = row.terminalStatus;
+    const isCensored = terminal === 'censored';
+    if (isCensored) nCensored++;
+    if (isCensored && !includeCensored) continue;
+
+    signPred.push(toUnit(row.predictedSign));
+    signY.push(terminal === 'sign' ? 1 : 0);
+    ghostPred.push(toUnit(row.predictedGhost));
+    ghostY.push(terminal === 'ghost' ? 1 : 0);
+  }
+
+  const sign = evaluate(signPred, signY, nBins);
+  const ghost = evaluate(ghostPred, ghostY, nBins);
+
+  const notes: string[] = [
+    `backtest over ${rows.length} stored snapshots (${
+      includeCensored ? 'censored=0-label' : 'censored dropped'
+    }).`,
+    `sign: Brier=${fmt(sign.brier)} AUC=${fmt(sign.auc)} ECE=${fmt(sign.ece)}`,
+    `ghost: Brier=${fmt(ghost.brier)} AUC=${fmt(ghost.auc)} ECE=${fmt(
+      ghost.ece
+    )}`,
+  ];
+
+  return {
+    metrics: { sign, ghost },
+    counts: {
+      total: signY.length,
+      sign: signY.reduce((a, b) => a + b, 0),
+      ghost: ghostY.reduce((a, b) => a + b, 0),
+      censored: nCensored,
+    },
     notes,
   };
 }

@@ -61,4 +61,29 @@ describe('blockerCodeEnum', () => {
   it('rejects an unknown code', () => {
     expect(blockerCodeEnum.safeParse('ZZ').success).toBe(false);
   });
+
+  it('is case-sensitive (rejects lowercased valid codes)', () => {
+    for (const code of BLOCKER_CODES) {
+      const lower = code.toLowerCase();
+      if (lower === code) continue; // single-letter caps with no case twin skip
+      expect(
+        blockerCodeEnum.safeParse(lower).success,
+        `enum wrongly accepted lowercased ${lower}`
+      ).toBe(false);
+    }
+  });
+
+  it('rejects an empty string', () => {
+    expect(blockerCodeEnum.safeParse('').success).toBe(false);
+  });
+
+  it('rejects non-string inputs', () => {
+    expect(blockerCodeEnum.safeParse(null).success).toBe(false);
+    expect(blockerCodeEnum.safeParse(undefined).success).toBe(false);
+    expect(blockerCodeEnum.safeParse(0).success).toBe(false);
+  });
+
+  it('rejects a whitespace-padded valid code', () => {
+    expect(blockerCodeEnum.safeParse(' OK ').success).toBe(false);
+  });
 });

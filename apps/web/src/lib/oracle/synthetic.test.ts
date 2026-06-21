@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { generateSyntheticCorpus, mulberry32 } from './synthetic';
-import { FEATURE_COUNT } from './contracts';
-import type { SyntheticCorpus } from './contracts';
+import { FEATURE_COUNT, TERMINAL_OUTCOMES } from './contracts';
+import type { SyntheticCorpus, SyntheticRegime } from './contracts';
+import { CHURN_DATA } from './churn-prior';
 
 function ghostShare(corpus: SyntheticCorpus): number {
   const ghosts = corpus.labels.filter((l) => l.terminal === 'ghost').length;
@@ -286,6 +287,230 @@ describe('generateSyntheticCorpus — terminal mix differs as expected by regime
     for (const c of [high, sign, balanced]) {
       const total = ghostShare(c) + signShare(c) + censoredShare(c);
       expect(total).toBeCloseTo(1, 9);
+    }
+  });
+});
+
+// ─── Real-rate-anchored sanity check ────────────────────────────────────────
+//
+// HONESTY NOTE: this is a LOOSE SANITY BAND on a SYNTHETIC corpus, NOT a claim
+// that the synthetic process reproduces real solar outcomes. The anchor is
+// CHURN_DATA.telcoBaseChurn (= 0.265), a REAL telecom subscription-churn base
+// rate [IBM "Telco Customer Churn", 7,043 customers] used in churn-prior.ts as
+// a cross-domain PRIOR for the ghost hazard. We only assert that ONE configured
+// regime ('high-sign') can land its terminal ghost share in a realistic band
+// AROUND that cited proxy rate (0.20–0.35) — evidence the latent generator can
+// be tuned to plausible real-world magnitudes, never that it IS calibrated to
+// solar labels. The 'balanced'/'high-ghost' regimes intentionally sit far above
+// this band (they stress-test the high-ghost side), so they are NOT anchored.
+describe('generateSyntheticCorpus — real-rate-anchored ghost-share sanity', () => {
+  // Wide band around the cited telecom proxy: ±~0.07 of telcoBaseChurn (0.265).
+  const LOWER = 0.2;
+  const UPPER = 0.35;
+
+  it('cited anchor (telcoBaseChurn) sits inside the sanity band', () => {
+    // Documents that the band is centered on the REAL proxy rate we anchor to.
+    expect(CHURN_DATA.telcoBaseChurn).toBeGreaterThanOrEqual(LOWER);
+    expect(CHURN_DATA.telcoBaseChurn).toBeLessThanOrEqual(UPPER);
+  });
+
+  it("the 'high-sign' regime's terminal ghost share lands near the cited base rate", () => {
+    // Empirically (sweep of 80 seeds, nLeads=400, maxDays=60): high-sign ghost
+    // share ∈ [0.212, 0.307], mean ≈ 0.261 ≈ telcoBaseChurn (0.265). A large
+    // corpus + representative seed keeps this a stable, non-flaky check.
+    const corpus = generateSyntheticCorpus({
+      seed: 123,
+      nLeads: 600,
+      maxDays: 60,
+      regime: 'high-sign',
+    });
+    const g = ghostShare(corpus);
+    expect(g).toBeGreaterThanOrEqual(LOWER);
+    expect(g).toBeLessThanOrEqual(UPPER);
+    // And it tracks the cited proxy reasonably closely (loose, synthetic).
+    expect(Math.abs(g - CHURN_DATA.telcoBaseChurn)).toBeLessThan(0.1);
+  });
+
+  it("'high-sign' stays in-band across many seeds (loose synthetic sanity)", () => {
+    // Robustness: the band must hold for EVERY seed, not just the headline one.
+    for (const seed of [3, 17, 58, 123, 271, 404, 911, 1492, 2718, 5150]) {
+      const corpus = generateSyntheticCorpus({
+        seed,
+        nLeads: 500,
+        maxDays: 60,
+        regime: 'high-sign',
+      });
+      const g = ghostShare(corpus);
+      expect(g, `seed=${seed} ghost-share=${g}`).toBeGreaterThanOrEqual(LOWER);
+      expect(g, `seed=${seed} ghost-share=${g}`).toBeLessThanOrEqual(UPPER);
+    }
+  });
+
+  it('the high-ghost/balanced regimes are intentionally ABOVE the band (not anchored)', () => {
+    // Guards the honesty framing: only high-sign is anchored to the proxy rate;
+    // the other regimes stress the ghost side well past any realistic base rate.
+    const balanced = generateSyntheticCorpus({
+      seed: 42,
+      nLeads: 500,
+      maxDays: 60,
+      regime: 'balanced',
+    });
+    const highGhost = generateSyntheticCorpus({
+      seed: 42,
+      nLeads: 500,
+      maxDays: 60,
+      regime: 'high-ghost',
+    });
+    expect(ghostShare(balanced)).toBeGreaterThan(UPPER);
+    expect(ghostShare(highGhost)).toBeGreaterThan(UPPER);
+  });
+});
+
+// ─── Fuzz / property tests across many seeds ────────────────────────────────
+//
+// Structural invariants that must hold for EVERY seed × regime, independent of
+// the random draw. These are the contracts downstream fitters (A2/A3) rely on.
+describe('generateSyntheticCorpus — fuzz/property invariants over many seeds', () => {
+  const REGIMES: readonly SyntheticRegime[] = [
+    'balanced',
+    'high-ghost',
+    'high-sign',
+  ];
+  // A spread of seeds (incl. 0 and large values) to exercise the RNG broadly.
+  const SEEDS = [0, 1, 2, 3, 5, 8, 13, 21, 100, 999, 31337, 2 ** 31 - 1];
+
+  it('is deterministic: same {seed,nLeads,maxDays,regime} → deep-equal corpus', () => {
+    for (const regime of REGIMES) {
+      for (const seed of SEEDS) {
+        const a = generateSyntheticCorpus({ seed, nLeads: 40, maxDays: 12, regime });
+        const b = generateSyntheticCorpus({ seed, nLeads: 40, maxDays: 12, regime });
+        expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+      }
+    }
+  });
+
+  it('every person-period row.x has length === FEATURE_COUNT', () => {
+    for (const regime of REGIMES) {
+      for (const seed of SEEDS) {
+        const c = generateSyntheticCorpus({ seed, nLeads: 50, maxDays: 15, regime });
+        expect(c.rows.length).toBeGreaterThan(0);
+        for (const r of c.rows) {
+          expect(r.x).toHaveLength(FEATURE_COUNT);
+          expect(r.x.every((v) => Number.isFinite(v))).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('label snapshot vectors have length === FEATURE_COUNT and finite entries', () => {
+    for (const regime of REGIMES) {
+      for (const seed of SEEDS) {
+        const c = generateSyntheticCorpus({ seed, nLeads: 50, maxDays: 15, regime });
+        for (const l of c.labels) {
+          expect(l.features).toHaveLength(FEATURE_COUNT);
+          expect(l.features.every((v) => Number.isFinite(v))).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('emits NO rows after absorption: per-lead t is 0..k contiguous, only final row absorbs', () => {
+    for (const regime of REGIMES) {
+      for (const seed of SEEDS) {
+        const c = generateSyntheticCorpus({ seed, nLeads: 50, maxDays: 15, regime });
+        const byLead = new Map<string, typeof c.rows>();
+        for (const r of c.rows) {
+          const arr = byLead.get(r.leadId) ?? [];
+          arr.push(r);
+          byLead.set(r.leadId, arr);
+        }
+        for (const [, rows] of byLead) {
+          const sorted = rows.slice().sort((x, y) => x.t - y.t);
+          sorted.forEach((r, i) => expect(r.t).toBe(i));
+          // Any sign/ghost may appear ONLY on the final row.
+          sorted.slice(0, -1).forEach((r) => expect(r.outcome).toBe('stay'));
+        }
+      }
+    }
+  });
+
+  it('labels.length === nLeads and rows count === Σ daysObserved (no orphans)', () => {
+    for (const regime of REGIMES) {
+      for (const seed of SEEDS) {
+        const nLeads = 37; // odd count, not a default
+        const c = generateSyntheticCorpus({ seed, nLeads, maxDays: 15, regime });
+        expect(c.labels).toHaveLength(nLeads);
+        const counts = new Map<string, number>();
+        for (const r of c.rows) {
+          counts.set(r.leadId, (counts.get(r.leadId) ?? 0) + 1);
+        }
+        const expectedRows = c.labels.reduce((s, l) => s + l.daysObserved, 0);
+        expect(c.rows).toHaveLength(expectedRows);
+        for (const l of c.labels) {
+          expect(counts.get(l.leadId) ?? 0).toBe(l.daysObserved);
+        }
+      }
+    }
+  });
+
+  it('every terminal is a valid TERMINAL_OUTCOMES code; shares form a valid distribution', () => {
+    for (const regime of REGIMES) {
+      for (const seed of SEEDS) {
+        const c = generateSyntheticCorpus({ seed, nLeads: 200, maxDays: 20, regime });
+        let g = 0;
+        let s = 0;
+        let cen = 0;
+        for (const l of c.labels) {
+          expect(TERMINAL_OUTCOMES).toContain(l.terminal);
+          if (l.terminal === 'ghost') g++;
+          else if (l.terminal === 'sign') s++;
+          else cen++;
+        }
+        const n = c.labels.length;
+        expect(g + s + cen).toBe(n);
+        const dist = [g / n, s / n, cen / n];
+        // Valid probability vector: each in [0,1], summing to 1.
+        for (const p of dist) {
+          expect(p).toBeGreaterThanOrEqual(0);
+          expect(p).toBeLessThanOrEqual(1);
+        }
+        expect(dist[0] + dist[1] + dist[2]).toBeCloseTo(1, 9);
+      }
+    }
+  });
+
+  it('daysObserved is in [1, maxDays] for every lead, == maxDays exactly when censored', () => {
+    const maxDays = 18;
+    for (const regime of REGIMES) {
+      for (const seed of SEEDS) {
+        const c = generateSyntheticCorpus({ seed, nLeads: 80, maxDays, regime });
+        for (const l of c.labels) {
+          expect(l.daysObserved).toBeGreaterThanOrEqual(1);
+          expect(l.daysObserved).toBeLessThanOrEqual(maxDays);
+          if (l.terminal === 'censored') {
+            expect(l.daysObserved).toBe(maxDays);
+          }
+        }
+      }
+    }
+  });
+
+  it('leadIds are unique and tag both seed and regime-independent index', () => {
+    for (const regime of REGIMES) {
+      const seed = 12321;
+      const c = generateSyntheticCorpus({ seed, nLeads: 60, maxDays: 10, regime });
+      const ids = new Set(c.labels.map((l) => l.leadId));
+      expect(ids.size).toBe(c.labels.length);
+      // Provenance: id carries the seed so synthetic rows are unambiguous.
+      expect(c.labels.every((l) => l.leadId.startsWith(`syn-${seed}-`))).toBe(true);
+    }
+  });
+
+  it('different seeds almost always yield different corpora (RNG actually varies)', () => {
+    for (const regime of REGIMES) {
+      const a = generateSyntheticCorpus({ seed: 101, nLeads: 60, maxDays: 12, regime });
+      const b = generateSyntheticCorpus({ seed: 202, nLeads: 60, maxDays: 12, regime });
+      expect(JSON.stringify(a.rows)).not.toBe(JSON.stringify(b.rows));
     }
   });
 });

@@ -9,6 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Tooltip as InfoTooltip,
+  TooltipContent as InfoTooltipContent,
+  TooltipProvider as InfoTooltipProvider,
+  TooltipTrigger as InfoTooltipTrigger,
+} from '@/components/ui/tooltip';
 import { generateOracleAction } from '@/data/user/oracle';
 import { BLOCKER_TAXONOMY } from '@/lib/ai/blocker-taxonomy';
 import type { BlockerCode, OracleFactor } from '@/lib/oracle/contracts';
@@ -20,6 +26,7 @@ import {
   BadgeCheck,
   BrainCircuit,
   ChevronRight,
+  Info,
   RefreshCw,
   ShieldAlert,
   Sparkles,
@@ -28,6 +35,7 @@ import { useAction } from 'next-safe-action/hooks';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  CartesianGrid,
   Line,
   LineChart,
   PolarAngleAxis,
@@ -39,6 +47,7 @@ import {
   YAxis,
 } from 'recharts';
 import { toast } from 'sonner';
+import { getGhostProvenance } from './oracle-provenance';
 
 type Prediction = Table<'predictions'>;
 
@@ -174,43 +183,107 @@ function FactorRow({ factor }: { factor: OracleFactor }) {
   );
 }
 
-/** Tiny trend chart of sign_prob + ghost_risk over prediction history. */
+/** Tiny color-keyed legend so the two sparkline series are distinguishable. */
+function SparklineLegend() {
+  return (
+    <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+      <span className="inline-flex items-center gap-1">
+        <span
+          className="inline-block h-0.5 w-3 rounded-full"
+          style={{ backgroundColor: 'hsl(var(--chart-2))' }}
+          aria-hidden
+        />
+        Sign
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span
+          className="inline-block h-0.5 w-3 rounded-full"
+          style={{ backgroundColor: 'hsl(var(--destructive))' }}
+          aria-hidden
+        />
+        Ghost
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Trend chart of sign_prob + ghost_risk over prediction history. Readability:
+ * a 0/50/100 gridline frame, a highlighted dot on the most recent point of each
+ * series, and a hover tooltip. The screen-reader summary states the latest
+ * values + direction so the chart is not purely visual.
+ */
 function TrendSparkline({ history }: { history: Prediction[] }) {
   const data = history.map((p, i) => ({
     i,
     sign: clamp0to100(Math.round(Number(p.sign_prob))),
     ghost: clamp0to100(Math.round(Number(p.ghost_risk))),
   }));
+
+  const first = data[0];
+  const last = data[data.length - 1];
+  const trendWord = (from: number, to: number) =>
+    to > from ? 'up' : to < from ? 'down' : 'flat';
+  const a11ySummary =
+    first && last
+      ? `Trend over ${data.length} snapshots. Sign probability ${trendWord(
+          first.sign,
+          last.sign
+        )} to ${last.sign} percent; ghost risk ${trendWord(
+          first.ghost,
+          last.ghost
+        )} to ${last.ghost} percent.`
+      : 'Sign and ghost probability trend over time.';
+
   return (
-    <div className="h-20 w-full" aria-label="Sign and ghost probability trend over time" role="img">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
-          <XAxis dataKey="i" hide />
-          <YAxis domain={[0, 100]} hide />
-          <Tooltip
-            cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
-            contentStyle={{ fontSize: 11 }}
-            formatter={(v: number, name: string) => [`${v}%`, name === 'sign' ? 'Sign' : 'Ghost']}
-            labelFormatter={() => ''}
-          />
-          <Line
-            type="monotone"
-            dataKey="sign"
-            stroke="hsl(var(--chart-2))"
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="ghost"
-            stroke="hsl(var(--destructive))"
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+    <div className="space-y-1.5">
+      <div className="h-24 w-full" aria-label={a11ySummary} role="img">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={data}
+            margin={{ top: 6, right: 6, bottom: 0, left: 6 }}
+          >
+            <CartesianGrid
+              vertical={false}
+              stroke="hsl(var(--border))"
+              strokeOpacity={0.5}
+              strokeDasharray="2 4"
+            />
+            <XAxis dataKey="i" hide />
+            <YAxis domain={[0, 100]} ticks={[0, 50, 100]} hide />
+            <Tooltip
+              cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
+              contentStyle={{ fontSize: 11 }}
+              formatter={(v: number, name: string) => [
+                `${v}%`,
+                name === 'sign' ? 'Sign' : 'Ghost',
+              ]}
+              labelFormatter={(i: number) => `Snapshot ${Number(i) + 1}`}
+            />
+            <Line
+              type="monotone"
+              dataKey="sign"
+              name="sign"
+              stroke="hsl(var(--chart-2))"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 3 }}
+              isAnimationActive={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="ghost"
+              name="ghost"
+              stroke="hsl(var(--destructive))"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 3 }}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <SparklineLegend />
     </div>
   );
 }
@@ -272,6 +345,12 @@ export function OraclePanel({
   const calibrated = prediction?.calibrated === true;
   const modeLabel = prediction?.mode ?? null;
 
+  // Honest ghost provenance: when uncalibrated, the ghost number is blended with
+  // real-world churn benchmarks (a cross-domain prior, not measured solar data).
+  const ghostProvenance = prediction
+    ? getGhostProvenance(prediction.calibrated, prediction.mode)
+    : null;
+
   const rawCode = prediction?.blocker_code ?? prediction?.predicted_code ?? null;
   const blockerCode = rawCode as BlockerCode | null;
   const blockerName =
@@ -288,6 +367,7 @@ export function OraclePanel({
   const showTrend = history.length >= 2;
 
   return (
+    <InfoTooltipProvider delayDuration={150}>
     <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
@@ -296,27 +376,43 @@ export function OraclePanel({
             The Oracle
           </CardTitle>
           <CardDescription>
-            A calibrated close-risk signal and the one best next move.
+            {calibrated
+              ? 'A calibrated close-risk signal and the one best next move.'
+              : 'A close-risk signal (uncalibrated, grounded in real-world benchmarks) and the one best next move.'}
           </CardDescription>
         </div>
         <div className="flex items-center gap-2">
           {prediction ? (
-            <Badge
-              variant="outline"
-              className={
-                calibrated
-                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
-                  : 'border-amber-500/40 bg-amber-500/10 text-amber-700'
-              }
-              aria-label={calibrated ? 'Calibrated model' : 'Uncalibrated model'}
-            >
-              {calibrated ? (
-                <BadgeCheck className="mr-1 size-3.5" aria-hidden />
-              ) : (
-                <ShieldAlert className="mr-1 size-3.5" aria-hidden />
-              )}
-              {calibrated ? 'Calibrated' : 'Uncalibrated'}
-            </Badge>
+            <InfoTooltip>
+              <InfoTooltipTrigger asChild>
+                <Badge
+                  variant="outline"
+                  tabIndex={0}
+                  className={`cursor-help ${
+                    calibrated
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+                      : 'border-amber-500/40 bg-amber-500/10 text-amber-700'
+                  }`}
+                  aria-label={
+                    calibrated
+                      ? 'Calibrated model. Press for details.'
+                      : 'Uncalibrated model. Press for details.'
+                  }
+                >
+                  {calibrated ? (
+                    <BadgeCheck className="mr-1 size-3.5" aria-hidden />
+                  ) : (
+                    <ShieldAlert className="mr-1 size-3.5" aria-hidden />
+                  )}
+                  {calibrated ? 'Calibrated' : 'Uncalibrated'}
+                </Badge>
+              </InfoTooltipTrigger>
+              <InfoTooltipContent className="max-w-xs text-xs leading-relaxed">
+                {calibrated
+                  ? 'Fitted and calibrated on real absorbed (signed / ghosted) outcomes.'
+                  : 'Not yet calibrated: too few real solar outcomes exist. Numbers are directional and the ghost risk is grounded in real-world churn benchmarks, not measured solar data.'}
+              </InfoTooltipContent>
+            </InfoTooltip>
           ) : null}
           <Button
             size="sm"
@@ -348,20 +444,53 @@ export function OraclePanel({
               </p>
             )}
 
+            {modeLabel === 'degraded' ? (
+              <div
+                role="note"
+                className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-[11px] leading-relaxed text-amber-700"
+              >
+                <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                <span>
+                  Degraded mode: no fitted model is available yet, so these
+                  estimates are heuristic. Ghost risk is anchored to real-world
+                  churn benchmarks; treat the numbers as directional.
+                </span>
+              </div>
+            ) : null}
+
             <div className="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
-              <div className="flex justify-center gap-5 sm:gap-8">
-                <ScoreGauge
-                  label="Likely to sign"
-                  value={signValue}
-                  color="hsl(var(--chart-2))"
-                  band={signBand}
-                />
-                <ScoreGauge
-                  label="Ghost risk"
-                  value={ghostValue}
-                  color="hsl(var(--destructive))"
-                  band={ghostBand}
-                />
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex justify-center gap-5 sm:gap-8">
+                  <ScoreGauge
+                    label="Likely to sign"
+                    value={signValue}
+                    color="hsl(var(--chart-2))"
+                    band={signBand}
+                  />
+                  <ScoreGauge
+                    label="Ghost risk"
+                    value={ghostValue}
+                    color="hsl(var(--destructive))"
+                    band={ghostBand}
+                  />
+                </div>
+                {ghostProvenance?.blendedWithChurnPrior ? (
+                  <InfoTooltip>
+                    <InfoTooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex max-w-[16rem] items-center gap-1 rounded text-center text-[10px] leading-tight text-muted-foreground/80 hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`${ghostProvenance.caption}. Press for details.`}
+                      >
+                        <Info className="size-3 shrink-0" aria-hidden />
+                        <span>{ghostProvenance.caption}</span>
+                      </button>
+                    </InfoTooltipTrigger>
+                    <InfoTooltipContent className="max-w-xs text-xs leading-relaxed">
+                      {ghostProvenance.tooltip}
+                    </InfoTooltipContent>
+                  </InfoTooltip>
+                ) : null}
               </div>
 
               <div className="space-y-4">
@@ -434,13 +563,19 @@ export function OraclePanel({
         ) : (
           <div
             role="status"
-            className="rounded-lg border border-dashed bg-background/50 p-5 text-sm text-muted-foreground"
+            className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-background/50 p-6 text-center"
           >
-            Run the Oracle to identify the most likely blocker and the next
-            outreach move for this lead.
+            <Sparkles className="size-6 text-primary/70" aria-hidden />
+            <p className="text-sm font-medium">No prediction yet</p>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              {isGenerating
+                ? 'Reading this lead’s economics, engagement, and timing…'
+                : 'Run the Oracle to identify the most likely blocker and the next outreach move for this lead.'}
+            </p>
           </div>
         )}
       </CardContent>
     </Card>
+    </InfoTooltipProvider>
   );
 }

@@ -72,8 +72,10 @@ import {
   assembleRichPrediction,
   computeModelNumbersAndFactors,
   decideMode,
+  DEFAULT_SYNTHETIC_GHOST_PRIOR_WEIGHT,
 } from './engine-core';
-import type { ModelNumbersAndFactors } from './engine-core';
+import type { GhostPriorGrounding, ModelNumbersAndFactors } from './engine-core';
+import { churnGhostPrior } from './churn-prior';
 
 import { createSupabaseClient } from '@/supabase-clients/server';
 import {
@@ -236,12 +238,28 @@ export const scoreOracle = async (leadId: string): Promise<OracleScore> => {
   const mode = decideMode(realLabelCount, hasModel);
   const engagementSummary = buildEngagementSummary(features);
 
+  // Real-data ghost grounding (churn-prior.ts): an INFORMATIVE prior built from
+  // cited external lead-response decay + telecom commitment-churn statistics —
+  // used as a cross-domain ANCHOR, never as this installer's solar outcomes. The
+  // synthetic/uncalibrated model ghost is shrunk toward it; once a real calibrated
+  // model exists (calibrated===true) we trust the model and stop shrinking.
+  const ghostPrior = churnGhostPrior({
+    daysSinceTouch: features.daysSinceLastTouch,
+    financingType: String(features.financingType),
+    currentStep: features.currentStep,
+    totalSteps: features.totalSteps,
+  });
+  const priorWeight = calibrated ? 0 : DEFAULT_SYNTHETIC_GHOST_PRIOR_WEIGHT;
+  const grounding: GhostPriorGrounding = { ghostPrior, priorWeight };
+
   logStep('oracle', 'mode decided', {
     mode,
     calibrated,
     realLabelCount,
     minLabels: MODEL_MODE_MIN_LABELS,
     trainedOn: model.trainedOn,
+    ghostPrior: Math.round(ghostPrior * 100) / 100,
+    priorWeight,
   });
 
   // 4) Compute numbers + factors (model mode) and run the LLM narration layer.
@@ -251,8 +269,10 @@ export const scoreOracle = async (leadId: string): Promise<OracleScore> => {
     modelNumbers = computeModelNumbersAndFactors(
       model,
       xRaw,
-      DEFAULT_HORIZON_DAYS
+      DEFAULT_HORIZON_DAYS,
       // no real calibration params tonight → raw CIFs
+      undefined,
+      grounding // shrink synthetic ghost toward the real-data prior
     );
     factors = modelNumbers.factors;
   }
@@ -285,6 +305,8 @@ export const scoreOracle = async (leadId: string): Promise<OracleScore> => {
     horizonDays: DEFAULT_HORIZON_DAYS,
     modelNumbers,
     llm,
+    // Degraded-mode ghost spine: real prior grounds the LLM's ghost estimate.
+    ghostPrior,
   });
 
   // 6) Persist a snapshot — degrade cleanly (predictionId=null) on any error.

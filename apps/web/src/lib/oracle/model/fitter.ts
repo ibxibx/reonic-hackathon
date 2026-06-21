@@ -15,6 +15,7 @@ import type {
   Standardization,
 } from '../contracts';
 import { FEATURE_COUNT, FEATURE_NAMES, MODEL_VERSION } from '../contracts';
+import { mulberry32 } from '../synthetic';
 import { softmax } from './linalg';
 
 export interface FitOptions {
@@ -328,3 +329,185 @@ export const predictProbabilities: PredictProbabilities = (
   }
   return out;
 };
+
+// ─── Lead-aware k-fold cross-validation (additive) ──────────────────────────
+
+export interface CrossValidateL2Options {
+  /** L2 grid to search; the best (lowest mean held-out log-loss) is returned. */
+  l2Grid: number[];
+  /** number of folds (clamped to [2, #leads]); default 5. */
+  folds?: number;
+  /** deterministic seed for the lead→fold assignment (mulberry32). default 0. */
+  seed?: number;
+  /**
+   * Fit hyperparameters held FIXED across the sweep (only l2 varies). These flow
+   * straight into fitMultinomial; behavior of fitMultinomial is unchanged.
+   */
+  fit?: Omit<FitOptions, 'l2'>;
+}
+
+export interface CrossValidateL2FoldDetail {
+  l2: number;
+  /** per-fold mean held-out log-loss (NaN-free; folds with no usable held-out rows are omitted). */
+  foldLogLoss: number[];
+  /** mean over folds that produced a usable held-out score. */
+  meanLogLoss: number;
+}
+
+export interface CrossValidateL2Result {
+  /** the l2 from the grid with the lowest mean held-out log-loss. */
+  bestL2: number;
+  bestMeanLogLoss: number;
+  /** full per-l2 breakdown, grid order preserved. */
+  perL2: CrossValidateL2FoldDetail[];
+  folds: number;
+  /** number of distinct leads partitioned across folds. */
+  nLeads: number;
+  /** lead→fold map actually used (stable for a given rows+folds+seed). */
+  assignment: Record<string, number>;
+}
+
+/**
+ * Mean per-row negative log-loss of `model` on `rows` (skips rows whose outcome
+ * is not one of the model's classes). Returns NaN when no row is scorable.
+ */
+function meanLogLoss(model: FittedModel, rows: PersonPeriodRow[]): number {
+  const known = new Set<string>(model.classes);
+  let acc = 0;
+  let scored = 0;
+  for (const row of rows) {
+    if (!known.has(row.outcome)) continue;
+    const probs = predictProbabilities(model, row.x);
+    const p = probs[row.outcome];
+    const safe = isFiniteNum(p) && p > 1e-15 ? p : 1e-15;
+    acc += -Math.log(safe);
+    scored++;
+  }
+  return scored > 0 ? acc / scored : NaN;
+}
+
+/**
+ * Deterministically partition the DISTINCT leadIds into `folds` groups using a
+ * seeded Fisher–Yates shuffle (mulberry32). Returns a leadId→foldIndex map.
+ * Stable for a given (sorted lead set, folds, seed). NO leadId ever appears in
+ * more than one fold, so person-periods of the same lead never leak across the
+ * train/held-out boundary.
+ */
+function assignLeadsToFolds(
+  rows: PersonPeriodRow[],
+  folds: number,
+  seed: number
+): Record<string, number> {
+  // Sorted distinct leads → order is independent of row insertion order.
+  const leadSet = new Set<string>();
+  for (const r of rows) leadSet.add(r.leadId);
+  const leads = Array.from(leadSet).sort();
+
+  // Seeded Fisher–Yates shuffle (pure: RNG injected via mulberry32 seed).
+  const rng = mulberry32(seed);
+  for (let i = leads.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = leads[i];
+    leads[i] = leads[j];
+    leads[j] = tmp;
+  }
+
+  // Round-robin into folds so sizes are as balanced as possible.
+  const assignment: Record<string, number> = {};
+  for (let i = 0; i < leads.length; i++) {
+    assignment[leads[i]] = i % folds;
+  }
+  return assignment;
+}
+
+/**
+ * Lead-aware k-fold cross-validation over an L2 grid. For each candidate l2 we
+ * fit on the union of the other folds and score mean held-out log-loss on the
+ * left-out fold, then average over folds; the l2 with the LOWEST mean held-out
+ * log-loss wins. Folds are split BY leadId so all person-period rows of a lead
+ * stay together — there is no within-lead period leakage between train and test.
+ *
+ * Pure & deterministic: the lead→fold assignment is a seeded shuffle (mulberry32)
+ * and fitMultinomial itself is deterministic. Empty grid / <2 leads degrade
+ * gracefully (returns the only/first l2 with NaN-free bookkeeping).
+ */
+export function crossValidateL2(
+  rows: PersonPeriodRow[],
+  opts: CrossValidateL2Options
+): CrossValidateL2Result {
+  const grid =
+    opts.l2Grid && opts.l2Grid.length > 0 ? opts.l2Grid.slice() : [DEFAULT_L2];
+  const seed = opts.seed ?? 0;
+  const fitOpts = opts.fit ?? {};
+
+  // Count distinct leads to clamp the fold count sensibly.
+  const leadSet = new Set<string>();
+  for (const r of rows) leadSet.add(r.leadId);
+  const nLeads = leadSet.size;
+
+  const requested = opts.folds ?? 5;
+  // Need at least 2 folds, and never more folds than leads (else a fold is empty
+  // and its complement would silently train on everything).
+  const folds = Math.max(2, Math.min(requested, Math.max(2, nLeads)));
+
+  const assignment = assignLeadsToFolds(rows, folds, seed);
+
+  // Pre-bucket rows by their lead's fold so we build train/test sets once.
+  const rowsByFold: PersonPeriodRow[][] = Array.from(
+    { length: folds },
+    () => []
+  );
+  for (const r of rows) {
+    const f = assignment[r.leadId];
+    if (f !== undefined) rowsByFold[f].push(r);
+  }
+
+  const perL2: CrossValidateL2FoldDetail[] = [];
+  let bestL2 = grid[0];
+  let bestMeanLogLoss = Infinity;
+
+  for (const l2 of grid) {
+    const foldLogLoss: number[] = [];
+    for (let f = 0; f < folds; f++) {
+      const test = rowsByFold[f];
+      if (test.length === 0) continue; // nothing to score in this fold
+      // Train = all rows whose lead is NOT in fold f.
+      const train: PersonPeriodRow[] = [];
+      for (let g = 0; g < folds; g++) {
+        if (g === f) continue;
+        const bucket = rowsByFold[g];
+        for (let k = 0; k < bucket.length; k++) train.push(bucket[k]);
+      }
+      if (train.length === 0) continue; // degenerate; skip this fold
+      const model = fitMultinomial(train, { ...fitOpts, l2 });
+      const ll = meanLogLoss(model, test);
+      if (isFiniteNum(ll)) foldLogLoss.push(ll);
+    }
+
+    const meanLL =
+      foldLogLoss.length > 0
+        ? foldLogLoss.reduce((s, v) => s + v, 0) / foldLogLoss.length
+        : NaN;
+    perL2.push({ l2, foldLogLoss, meanLogLoss: meanLL });
+
+    if (isFiniteNum(meanLL) && meanLL < bestMeanLogLoss) {
+      bestMeanLogLoss = meanLL;
+      bestL2 = l2;
+    }
+  }
+
+  // If NO l2 produced a finite score (e.g. <2 leads), fall back to the first.
+  if (!isFiniteNum(bestMeanLogLoss)) {
+    bestL2 = grid[0];
+    bestMeanLogLoss = NaN;
+  }
+
+  return {
+    bestL2,
+    bestMeanLogLoss,
+    perL2,
+    folds,
+    nLeads,
+    assignment,
+  };
+}

@@ -223,6 +223,69 @@ describe('oracleSchema — evidence length boundaries', () => {
   });
 });
 
+describe('oracleSchema — factor field adversarial', () => {
+  it('rejects an invalid factor direction', () => {
+    const bad = {
+      ...validSample,
+      factors: [{ ...factor(), direction: 'sideways' }],
+    };
+    expect(oracleSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects a non-numeric factor weight', () => {
+    const bad = {
+      ...validSample,
+      factors: [{ ...factor(), weight: 'high' }],
+    };
+    expect(oracleSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects a NaN factor weight', () => {
+    const bad = {
+      ...validSample,
+      factors: [{ ...factor(), weight: Number.NaN }],
+    };
+    expect(oracleSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects a factor missing its plainText', () => {
+    const f: Record<string, unknown> = { ...factor() };
+    delete f.plainText;
+    const bad = { ...validSample, factors: [f] };
+    expect(oracleSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it('accepts a negative factor weight (signed contribution)', () => {
+    const ok = {
+      ...validSample,
+      factors: [{ ...factor(), weight: -0.5 }],
+    };
+    expect(oracleSchema.safeParse(ok).success).toBe(true);
+  });
+});
+
+describe('oracleSchema — non-numeric / type adversarial', () => {
+  it('rejects a string signProbability', () => {
+    const bad = { ...validSample, signProbability: '62' };
+    expect(oracleSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects a NaN signConfidence', () => {
+    const bad = { ...validSample, signConfidence: Number.NaN };
+    expect(oracleSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects null for a required probability', () => {
+    const bad = { ...validSample, ghostRisk: null };
+    expect(oracleSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rejects a non-string recommendedAction', () => {
+    const bad = { ...validSample, recommendedAction: 42 };
+    expect(oracleSchema.safeParse(bad).success).toBe(false);
+  });
+});
+
 describe('oracleSchema — factor plainText length boundaries', () => {
   it('accepts factor plainText at exactly the min length (1)', () => {
     const ok = { ...validSample, factors: [factor('x')] };

@@ -12,6 +12,7 @@
  */
 import {
   DEFAULT_HORIZON_DAYS,
+  FEATURE_NAMES,
   MODEL_VERSION,
 } from './contracts';
 import type {
@@ -27,6 +28,7 @@ import type {
 } from './contracts';
 import { cumulativeIncidence } from './model/competing-risks';
 import { mulberry32 } from './synthetic';
+import { churnGhostPrior, blendWithPrior } from './churn-prior';
 
 const EPS = 1e-6;
 
@@ -416,4 +418,234 @@ export function calibrateFromCorpus(
   const after = evaluate(calibratedTest, testY);
 
   return { params, heldOut: { before, after } };
+}
+
+// ─── Method selection: isotonic vs Platt ─────────────────────────────────────
+//
+// Both Platt and isotonic can OVER-fit a small calibration split and end up
+// WORSE than the raw scores on held-out data. This helper fits BOTH on the train
+// split, measures each (plus the raw "none" baseline) on the held-out test split,
+// and returns the method with the lowest held-out ECE. `'none'` is always in the
+// running, so the selected method's held-out ECE can never exceed the raw ECE
+// (the selection is a min over candidates that includes raw). That property is
+// what the lane test asserts.
+
+export interface SelectCalibrationOptions extends CalibrateFromCorpusOptions {
+  /** candidate methods to consider; 'none' (raw) is ALWAYS added. */
+  candidates?: CalibrationMethod[];
+}
+
+export interface CalibrationSelection {
+  target: 'sign' | 'ghost';
+  /** the winning method (lowest held-out ECE; ties → earlier candidate). */
+  chosen: CalibrationMethod;
+  /** persisted params for the chosen method (method='none' carries no maps). */
+  params: CalibrationParams;
+  /** held-out ECE per candidate, including the raw 'none' baseline. */
+  heldOutEce: Record<CalibrationMethod, number>;
+  /** full held-out metrics for the chosen method (before=raw, after=chosen). */
+  heldOut: { before: EvalMetrics; after: EvalMetrics };
+}
+
+/**
+ * Pick the recalibration method (isotonic | platt | none) with the lowest
+ * held-out ECE for `target` on a lead-level split of the corpus. Because the raw
+ * `'none'` baseline is always a candidate, the chosen method's held-out ECE is
+ * guaranteed ≤ the raw held-out ECE — selection never makes calibration worse.
+ *
+ * Implementation reuses `calibrateFromCorpus` per candidate with the SAME split
+ * seed / horizon so every candidate is scored on the identical held-out leads.
+ */
+export function selectCalibration(
+  model: FittedModel,
+  corpus: SyntheticCorpus,
+  target: 'sign' | 'ghost',
+  opts?: SelectCalibrationOptions
+): CalibrationSelection {
+  const requested = opts?.candidates ?? ['platt', 'isotonic'];
+  // De-dupe, drop 'none' from the requested list, then append it last so it is
+  // always evaluated as the raw baseline (and loses ties to a real method).
+  const methods: CalibrationMethod[] = [];
+  for (const m of requested) {
+    if (m !== 'none' && !methods.includes(m)) methods.push(m);
+  }
+  methods.push('none');
+
+  const shared: CalibrateFromCorpusOptions = {
+    splitSeed: opts?.splitSeed,
+    horizonDays: opts?.horizonDays,
+    testFraction: opts?.testFraction,
+  };
+
+  const heldOutEce = {} as Record<CalibrationMethod, number>;
+  let best: {
+    method: CalibrationMethod;
+    result: ReturnType<typeof calibrateFromCorpus>;
+  } | null = null;
+
+  for (const method of methods) {
+    const result = calibrateFromCorpus(model, corpus, target, {
+      ...shared,
+      method,
+    });
+    const ece = result.heldOut.after.ece;
+    heldOutEce[method] = ece;
+    // Strictly-less keeps the FIRST candidate on ties (real methods precede
+    // 'none', so a tie with raw is broken in favor of the real method).
+    if (best === null || ece < heldOutEce[best.method]) {
+      best = { method, result };
+    }
+  }
+
+  // `best` is always set (methods always contains at least 'none').
+  const chosenResult = best!.result;
+  return {
+    target,
+    chosen: best!.method,
+    params: chosenResult.params,
+    heldOutEce,
+    heldOut: chosenResult.heldOut,
+  };
+}
+
+// ─── Churn-prior blend impact on GHOST calibration ───────────────────────────
+//
+// HEADLINE real-data result: does blending the synthetic model's ghostRisk with
+// the literature-grounded churn PRIOR (churn-prior.ts — REAL external telecom /
+// lead-response statistics used as a prior, NOT this installer's solar outcomes)
+// improve held-out GHOST calibration?
+//
+// We hold leads out exactly as calibrateFromCorpus does (lead-level seeded split,
+// no period leakage). For each held-out lead we compute:
+//   • raw   = model ghostRisk (cumulative incidence)
+//   • prior = churnGhostPrior(...) from the lead's real-shaped signals
+//   • blend = blendWithPrior(raw, prior, weight)
+// and report held-out ECE/Brier/AUC of raw vs blended. `calibrated` stays false:
+// the prior is external/proxy, not fitted on real solar labels.
+
+/** Recover the financing-type string from the one-hot covariate flags. */
+function financingFromVector(x: number[]): string {
+  const iCash = FEATURE_NAMES.indexOf('financingIsCash');
+  const iLoan = FEATURE_NAMES.indexOf('financingIsLoan');
+  if (iCash >= 0 && (x[iCash] ?? 0) >= 0.5) return 'cash';
+  if (iLoan >= 0 && (x[iLoan] ?? 0) >= 0.5) return 'loan';
+  // Neither cash nor loan one-hot set → lease/PPA family (low-commitment analog).
+  return 'lease';
+}
+
+/** Build the churn-prior input from a FEATURE_NAMES-aligned RAW snapshot. */
+function priorInputFromVector(x: number[]): {
+  daysSinceTouch: number;
+  financingType: string;
+  currentStep: number;
+  totalSteps: number;
+} {
+  const iDays = FEATURE_NAMES.indexOf('daysSinceLastTouch');
+  const iProg = FEATURE_NAMES.indexOf('stepProgressRatio');
+  const daysSinceTouch = iDays >= 0 ? x[iDays] ?? 0 : 0;
+  // The corpus snapshot carries stepProgressRatio (0–1), not raw step counts;
+  // express progress as currentStep/totalSteps with a fixed totalSteps so the
+  // prior's engagement-relief term sees the same ratio.
+  const progress = iProg >= 0 ? clamp01(x[iProg] ?? 0) : 0;
+  const totalSteps = 4;
+  const currentStep = Math.round(progress * totalSteps);
+  return {
+    daysSinceTouch,
+    financingType: financingFromVector(x),
+    currentStep,
+    totalSteps,
+  };
+}
+
+export interface GhostPriorBlendOptions {
+  splitSeed?: number;
+  horizonDays?: number;
+  testFraction?: number;
+  /** prior pull in [0,1] for the convex blend (default 0.5). */
+  priorWeight?: number;
+}
+
+export interface GhostPriorBlendComparison {
+  /** held-out metrics of the RAW synthetic ghostRisk. */
+  raw: EvalMetrics;
+  /** held-out metrics of ghostRisk blended with the churn prior. */
+  blended: EvalMetrics;
+  /** ECE improvement (raw.ece − blended.ece); positive = prior helped. */
+  eceDelta: number;
+  priorWeight: number;
+  nHeldOut: number;
+  /** honesty flag: priors are external/proxy, never fitted solar labels. */
+  calibrated: false;
+  notes: string[];
+}
+
+/**
+ * Quantify the churn-prior blend's impact on held-out GHOST calibration over a
+ * synthetic corpus. Returns raw vs blended EvalMetrics on the SAME held-out
+ * leads, plus the ECE delta. Does NOT change any competing-risks signature; it
+ * only consumes `cumulativeIncidence`. Pure (seeded split, no Date/Math.random).
+ */
+export function compareGhostPriorBlend(
+  model: FittedModel,
+  corpus: SyntheticCorpus,
+  opts?: GhostPriorBlendOptions
+): GhostPriorBlendComparison {
+  const H = opts?.horizonDays ?? DEFAULT_HORIZON_DAYS;
+  const splitSeed = opts?.splitSeed ?? 1234;
+  const testFraction = opts?.testFraction ?? 0.3;
+  const priorWeight = clamp01(opts?.priorWeight ?? 0.5);
+
+  const labels = corpus.labels;
+  const nLeads = labels.length;
+
+  // Seeded Fisher–Yates over lead indices, identical scheme to calibrateFromCorpus.
+  const order = Array.from({ length: nLeads }, (_, i) => i);
+  const rng = mulberry32(splitSeed);
+  for (let i = nLeads - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = order[i];
+    order[i] = order[j];
+    order[j] = tmp;
+  }
+  const nTest = Math.max(1, Math.floor(nLeads * testFraction));
+  const testIdx = order.slice(0, nTest);
+
+  const rawPred: number[] = [];
+  const blendedPred: number[] = [];
+  const y: number[] = [];
+
+  for (const idx of testIdx) {
+    const label = labels[idx];
+    const raw = clamp01(cumulativeIncidence(model, label.features, H).ghostRisk);
+    const prior = churnGhostPrior(priorInputFromVector(label.features));
+    rawPred.push(raw);
+    blendedPred.push(blendWithPrior(raw, prior, priorWeight));
+    y.push(label.terminal === 'ghost' ? 1 : 0);
+  }
+
+  const raw = evaluate(rawPred, y);
+  const blended = evaluate(blendedPred, y);
+  const eceDelta = raw.ece - blended.ece;
+
+  const fmt = (v: number): string => v.toFixed(4);
+  const notes: string[] = [
+    `GHOST prior-blend (weight=${priorWeight}, held-out n=${y.length}):`,
+    `raw ECE=${fmt(raw.ece)} → blended ECE=${fmt(blended.ece)} (Δ=${fmt(
+      eceDelta
+    )}${eceDelta >= 0 ? ' improved' : ' worsened'})`,
+    `raw Brier=${fmt(raw.brier)} → blended Brier=${fmt(blended.brier)}`,
+    `raw AUC=${fmt(raw.auc)} → blended AUC=${fmt(blended.auc)}`,
+    'prior = REAL external telecom/lead-response stats used as a PRIOR, ' +
+      'not this installer\'s solar outcomes; calibrated=false.',
+  ];
+
+  return {
+    raw,
+    blended,
+    eceDelta,
+    priorWeight,
+    nHeldOut: y.length,
+    calibrated: false,
+    notes,
+  };
 }

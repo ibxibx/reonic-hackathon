@@ -5,6 +5,8 @@ import {
   evaluate,
   fitCalibration,
   applyCalibration,
+  selectCalibration,
+  compareGhostPriorBlend,
 } from './calibration';
 import { fitMultinomial } from './model/fitter';
 import type { CalibrationParams, SyntheticRegime } from './contracts';
@@ -212,4 +214,124 @@ describe('calibrateFromCorpus — across regimes', () => {
       ).toBeGreaterThan(0.6);
     }, 60000);
   }
+});
+
+describe('selectCalibration — isotonic vs Platt', () => {
+  // Selection includes the raw 'none' baseline, so the chosen held-out ECE can
+  // never exceed the raw held-out ECE (beyond floating-point noise).
+  const EPS = 1e-9;
+
+  function fit(regime: SyntheticRegime, seed: number) {
+    const corpus = generateSyntheticCorpus({ seed, nLeads: 700, regime });
+    const model = fitMultinomial(corpus.rows, {
+      l2: 0.5,
+      lr: 0.4,
+      maxIter: 600,
+    });
+    return { corpus, model };
+  }
+
+  for (const target of ['ghost', 'sign'] as const) {
+    it(`selection never increases ECE vs raw for ${target}`, () => {
+      const { corpus, model } = fit('balanced', 13);
+      const sel = selectCalibration(model, corpus, target, { splitSeed: 99 });
+
+      // 'none' is always evaluated as the raw baseline.
+      expect(sel.heldOutEce.none).toBeTypeOf('number');
+      const rawEce = sel.heldOutEce.none;
+      const chosenEce = sel.heldOutEce[sel.chosen];
+
+      // The chosen method's held-out ECE is the minimum over candidates, which
+      // INCLUDES raw → it can never be worse than raw beyond epsilon.
+      expect(
+        chosenEce,
+        `chosen=${sel.chosen} ece=${chosenEce.toFixed(
+          4
+        )} raw=${rawEce.toFixed(4)}`
+      ).toBeLessThanOrEqual(rawEce + EPS);
+
+      // Chosen is the argmin over all evaluated candidates.
+      for (const m of Object.keys(sel.heldOutEce) as Array<
+        keyof typeof sel.heldOutEce
+      >) {
+        expect(chosenEce).toBeLessThanOrEqual(sel.heldOutEce[m] + EPS);
+      }
+
+      // Params carry the chosen method and the right target.
+      expect(sel.params.method).toBe(sel.chosen);
+      expect(sel.params.target).toBe(target);
+    }, 60000);
+  }
+
+  it('respects an explicit candidate list and still adds raw', () => {
+    const { corpus, model } = fit('balanced', 13);
+    const sel = selectCalibration(model, corpus, 'ghost', {
+      splitSeed: 99,
+      candidates: ['isotonic'],
+    });
+    // Only isotonic was requested, but 'none' is appended as the baseline.
+    expect(sel.heldOutEce.isotonic).toBeTypeOf('number');
+    expect(sel.heldOutEce.none).toBeTypeOf('number');
+    expect(['isotonic', 'none']).toContain(sel.chosen);
+  }, 60000);
+});
+
+describe('compareGhostPriorBlend — churn-prior impact (headline real-data result)', () => {
+  it('reports held-out raw vs blended GHOST metrics; honest calibrated=false', () => {
+    // high-ghost regime gives a meaningful ghost base rate to calibrate against.
+    const corpus = generateSyntheticCorpus({
+      seed: 13,
+      nLeads: 800,
+      regime: 'high-ghost',
+    });
+    const model = fitMultinomial(corpus.rows, {
+      l2: 0.5,
+      lr: 0.4,
+      maxIter: 600,
+    });
+
+    const cmp = compareGhostPriorBlend(model, corpus, {
+      splitSeed: 99,
+      priorWeight: 0.5,
+    });
+
+    // Structural / honesty guarantees (numbers are reported, not force-asserted).
+    expect(cmp.calibrated).toBe(false);
+    expect(cmp.priorWeight).toBe(0.5);
+    expect(cmp.nHeldOut).toBeGreaterThan(0);
+    expect(Number.isFinite(cmp.raw.ece)).toBe(true);
+    expect(Number.isFinite(cmp.blended.ece)).toBe(true);
+    expect(cmp.eceDelta).toBeCloseTo(cmp.raw.ece - cmp.blended.ece, 12);
+    expect(cmp.notes.join(' ')).toContain('PRIOR');
+
+    // Surface the headline numbers in the test name output for the doc.
+    const f = (v: number) => v.toFixed(4);
+    expect(
+      true,
+      `GHOST prior blend: raw ECE=${f(cmp.raw.ece)} blended ECE=${f(
+        cmp.blended.ece
+      )} Δ=${f(cmp.eceDelta)} (n=${cmp.nHeldOut})`
+    ).toBe(true);
+  }, 60000);
+
+  it('weight 0 reproduces the raw metrics exactly', () => {
+    const corpus = generateSyntheticCorpus({
+      seed: 13,
+      nLeads: 400,
+      regime: 'high-ghost',
+    });
+    const model = fitMultinomial(corpus.rows, {
+      l2: 0.5,
+      lr: 0.4,
+      maxIter: 400,
+    });
+    const cmp = compareGhostPriorBlend(model, corpus, {
+      splitSeed: 99,
+      priorWeight: 0,
+    });
+    // weight 0 → blended === raw, so every metric matches and Δ = 0.
+    expect(cmp.blended.ece).toBeCloseTo(cmp.raw.ece, 12);
+    expect(cmp.blended.brier).toBeCloseTo(cmp.raw.brier, 12);
+    expect(cmp.eceDelta).toBeCloseTo(0, 12);
+  }, 60000);
 });

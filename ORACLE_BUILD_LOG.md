@@ -90,4 +90,14 @@ Entry format:
 - Ablation (held-out AUC): full > economics-only > engagement-only for BOTH targets (ghost 0.75 vs 0.67/0.61; sign 0.75 vs 0.67/0.61) — quantitative proof the engagement/orchestration signals add lift.
 - Decisions: global testTimeout is shared-infra (Orchestrator); kept lanes' additive per-test timeouts (harmless). No public API/contract changes anywhere in Phase D.
 - Debt/Deferred: live DB migration apply (standard additive DDL — apply via `supabase db reset`); panel render smoke-test skipped (would need a vitest @/ alias + heavy mocking — out of scope), defensive parsing covers the risk.
+- Commit: 0ddc96f
+
+---
+
+## [Improve Pass 1] [ORCH] — Real-churn grounding of ghost probability + hardening + adversarial verify
+- Did: sourced REAL churn/lead-response data (MIT/Oldroyd, IBM Telco, follow-up research) and built `churn-prior.ts` (cited priors; committed 01fde6d). Then ran a 9-agent loop: (1) wired the prior into ghost probability (engine/engine-core; weight 0.35 synthetic / 0.6 degraded; SIGN untouched; calibrated stays false); (2) 5 hardening lanes — A1 real-rate-anchored synthetic checks + fuzz, A2 lead-aware k-fold CV + gradient finite-diff check, A3 backtest harness + selectCalibration + compareGhostPriorBlend, A4 number-free honest decay framing in the prompt, A5 honest provenance helper + panel caption/a11y; (3) 3 adversarial skeptics.
+- Verified (authoritative): `tsc --noEmit` GREEN; full suite **329 passed (16 files)**; `oxlint` 0/0. (The transient "1 failure" other agents saw was a mid-write snapshot of A5's oracle-provenance.test.ts; final on-disk version is correct + green.)
+- HONEST headline: on the SYNTHETIC corpus the telecom-anchored prior does NOT improve ghost ECE (high-ghost 0.149→0.252 @w0.25) — synthetic ghost rate sits below the ~0.26 anchor, so the prior is a cold-start grounding/ranking aid, NOT a synthetic-calibration win. Documented in ORACLE_EVAL §10; harness ready to fit the weight on real labels. Method selection DOES cut ghost ECE (Platt 0.149→0.025). Ghost before/after: Noah 84→76, Lukas 36→34; sign unchanged.
+- Skeptics: all 3 could NOT refute (blend honesty 0.88, no-leakage 0.82, competing-risks math 0.97 vs independent reference). Noted caveat: calibrateFromCorpus base-model before-metrics are optimistic (base fit on full corpus); crossValidateL2 is leak-free. Deferred: refit base train-only.
 - Commit: (this commit)
+- Next: continue the loop (pass 2).
