@@ -305,10 +305,7 @@ the "could this be a company?" question directly. Full schema lives in
 | **Toasts** | `sonner` |
 | **Monorepo / Deploy** | Turborepo + pnpm · Vercel |
 
-> 💡 The ElevenLabs voice note also enters us into the **Best Use of Eleven Labs**
-> side challenge (6 months Scale tier, ~$1,980/member).
-> 🔐 **RLS means installers only ever see their own leads** — the multi-tenant story
-> that answers Point Nine's "could this be a company?"
+> 🔐 **RLS means installers only ever see their own leads** — multi-tenant by design.
 
 ---
 
@@ -647,48 +644,21 @@ the kind of outcome that makes a module sticky and expandable.
 - **3 live integrations** — Resend (email), Twilio (SMS), ElevenLabs (voice) — all with
   graceful mock fallbacks, every touch logged
 - **8 seeded demo leads** across all four archetypes and varied code stacks
-- **1 side-challenge entry** — the ElevenLabs voice note also competes for **Best Use
-  of Eleven Labs** (6 months Scale tier, ~$1,980/member)
-
----
-
-## 🎯 How It Maps to the Brief
-
-- **Solves the brief's actual problem** — the gap between "quote sent" and "contract
-  signed," addressed with strategy and reasoning, not a template dump.
-- **Strategically sound** — persona-grounded follow-up, with the *why* visible at every
-  step, exactly what the judges said they'd reward.
-- **Visually compelling & iterative** — an editable timeline an installer would show
-  their sales manager; the installer tweaks tone, timing, and copy on the fly, and an
-  inbound objection **re-aims the whole sequence automatically**.
-- **Multi-channel** — email, SMS, call, and voice in one strategy, each tied to a
-  diagnosed reason (hitting the brief's bonus criteria, not just the baseline).
-- **Predictive insights** — the "Oracle" warns "this customer might ghost" / "ready to
-  close now," exactly the bonus the brief names.
-- **Something unexpected** — the 40-code diagnosis system, the "Oracle", and the
-  self-rewriting outreach answer the brief's "an idea we didn't think of that works."
-- **Believably a company** — multi-tenant, RLS-secured, production-shaped — the answer
-  to "could this be a real product?" with Point Nine in the room.
-- **Partner fit** — it bolts directly onto Reonic's existing funnel, picking up exactly
-  where their offer PDF leaves off and turning more of those offers into signed deals.
 
 ---
 
 ## 👥 Team
 
-Built at the {Tech:Europe} AI × Energy Hackathon in Berlin, 20–21 June 2026.
+Built at the {Tech:Europe} AI × Energy Hackathon in Berlin, 20–21 June 2026 — a team of
+five: three full-stack engineers and two product developers.
 
-### Ian Baumeister — Product, Strategy & Full-Stack Build
-
-[GitHub `@ibxibx`](https://github.com/ibxibx) · [ianworks.dev](https://ianworks.dev) · Berlin, DE
-
-Solo developer and founder with a background spanning real estate, travel-tech, and
-marketing operations — a track record of building startups at the intersection of
-physical space and digital product. For this project: product vision, system
-architecture, the Supabase + Next.js build, the persona/strategy prompt design, and the
-hackathon pitch.
-
-> _Teammates: open a PR adding your name, role, and links here._
+| Member | Role | GitHub |
+|---|---|---|
+| **Ivan Vernihora** | Full Stack Engineer | [@VernihoraIvan](https://github.com/VernihoraIvan) |
+| **Ian Baumeister** | Full Stack Engineer | [@ibxibx](https://github.com/ibxibx) |
+| **Leonardo Sánchez** | Full Stack Engineer | [@Lordcreos](https://github.com/Lordcreos) |
+| **Ismael Montenegro** | Product Developer | [@ismaelmontenegro](https://github.com/ismaelmontenegro) |
+| **Sebastian** | Product Developer | [@sebakwie](https://github.com/sebakwie) |
 
 ---
 
@@ -696,7 +666,7 @@ hackathon pitch.
 
 ```
 README.md            ← you are here (product overview + features + ROI)
-PRD.md               ← full product requirements: features, 40-code taxonomy, schema, demo script
+prd/PRD.md           ← full product requirements: features, 40-code taxonomy, schema, demo script
 ACTION_PLAN.md       ← live build plan + shipped-status checklist (source of truth for what's built)
 AGENTS.md            ← agent/automation notes
 apps/                ← Next.js app + Supabase database (monorepo)
