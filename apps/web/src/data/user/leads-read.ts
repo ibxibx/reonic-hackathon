@@ -1,8 +1,8 @@
 'use server';
 
+import type { LeadStatus } from '@/lib/solar';
 import { createSupabaseClient } from '@/supabase-clients/server';
 import type { Table } from '@/types';
-import type { LeadStatus } from '@/lib/solar';
 
 export async function getLeads(): Promise<Array<Table<'leads'>>> {
   const supabase = await createSupabaseClient();
@@ -80,7 +80,10 @@ export async function getLatestPredictionForLead(
     .limit(1)
     .maybeSingle();
 
-  if (error) throw error;
+  // Degrade gracefully if the predictions table is unavailable (e.g. not yet
+  // migrated → PGRST205). A missing prediction is a clean empty state, never a
+  // page crash.
+  if (error) return null;
   return data;
 }
 
@@ -133,6 +136,26 @@ export async function getLeadsWithProblemCodes(): Promise<
   }));
 }
 
+/**
+ * Prior prediction snapshots for a lead, oldest→newest, for the Oracle trend
+ * sparkline. Returns [] if the predictions table is unavailable.
+ */
+export async function getPredictionHistoryForLead(
+  leadId: string,
+  limit = 24
+): Promise<Array<Table<'predictions'>>> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from('predictions')
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+
+  if (error) return [];
+  return data ?? [];
+}
+
 export async function getMessagesForLead(
   leadId: string
 ): Promise<Array<Table<'messages'>>> {
@@ -142,6 +165,53 @@ export async function getMessagesForLead(
     .select('*')
     .eq('lead_id', leadId)
     .order('sequence_order', { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getOrchestrationForLead(
+  leadId: string
+): Promise<Table<'lead_orchestration'> | null> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from('lead_orchestration')
+    .select('*')
+    .eq('lead_id', leadId)
+    .maybeSingle();
+
+  // Degrade gracefully if the lead_orchestration table is unavailable (e.g. the
+  // migration hasn't been applied yet → PGRST205). A missing orchestration row
+  // is a clean empty state, never a page crash.
+  if (error) return null;
+  return data;
+}
+
+export async function getLatestInboundForLead(
+  leadId: string
+): Promise<Table<'inbound_messages'> | null> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from('inbound_messages')
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getInboundForLead(
+  leadId: string
+): Promise<Array<Table<'inbound_messages'>>> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from('inbound_messages')
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: true });
 
   if (error) throw error;
   return data;

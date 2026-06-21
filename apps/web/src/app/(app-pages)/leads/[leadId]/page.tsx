@@ -1,8 +1,9 @@
 import { DeleteLeadButton } from '@/components/leads/delete-lead-button';
 import { StatusBadge } from '@/components/leads/status-badge';
 import { GenerateStrategyButton } from '@/components/strategy/generate-strategy-button';
-import { PersonaBadge } from '@/components/strategy/persona-badge';
+import { InboundPanel } from '@/components/strategy/inbound-panel';
 import { OraclePanel } from '@/components/strategy/oracle-panel';
+import { PersonaBadge } from '@/components/strategy/persona-badge';
 import { ProblemCodeChips } from '@/components/strategy/problem-code-chips';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,16 +16,22 @@ import {
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import {
-  getLeadWithQuote,
+  getLatestInboundForLead,
   getLatestPredictionForLead,
+  getLeadWithQuote,
+  getMessagesForLead,
+  getOrchestrationForLead,
+  getPredictionHistoryForLead,
   getProblemCodesForLead,
   getStrategyForLead,
 } from '@/data/user/leads-read';
 import {
+  CHANNEL_CONFIG,
   FINANCING_TYPE_LABELS,
   ROOF_TYPE_LABELS,
   formatCurrency,
   type FinancingType,
+  type MessageChannel,
   type RoofType,
 } from '@/lib/solar';
 import {
@@ -34,6 +41,8 @@ import {
   Home,
   Mail,
   MapPin,
+  MessageSquare,
+  Mic,
   Phone,
   Zap,
 } from 'lucide-react';
@@ -55,10 +64,31 @@ export default async function LeadDetailPage(props: {
     notFound();
   }
 
-  const strategy = await getStrategyForLead(leadId);
-  const prediction = await getLatestPredictionForLead(leadId);
-  const problemCodes = await getProblemCodesForLead(leadId);
+  const [strategy, prediction, predictionHistory, orchestration, problemCodes] =
+    await Promise.all([
+      getStrategyForLead(leadId),
+      getLatestPredictionForLead(leadId),
+      getPredictionHistoryForLead(leadId),
+      getOrchestrationForLead(leadId),
+      getProblemCodesForLead(leadId),
+    ]);
   const confidence = strategy?.persona_confidence ?? null;
+  const latestInbound = await getLatestInboundForLead(leadId);
+
+  // 2.5c — surface the NEXT step's actual message + its "why now" goal.
+  // current_step is 0-based (0 = nothing sent yet); the next touch to take is
+  // the message at sequence_order = current_step + 1. Null when completed.
+  const messages =
+    orchestration &&
+      orchestration.status !== 'completed' &&
+      orchestration.current_step < orchestration.total_steps
+      ? await getMessagesForLead(leadId)
+      : [];
+  const nextStepMessage = orchestration
+    ? (messages.find(
+      (m) => m.sequence_order === orchestration.current_step + 1
+    ) ?? null)
+    : null;
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 max-w-5xl w-full">
@@ -118,7 +148,15 @@ export default async function LeadDetailPage(props: {
         </div>
       </div>
 
-      <OraclePanel leadId={leadId} prediction={prediction} />
+      <OraclePanel
+        leadId={leadId}
+        prediction={prediction}
+        predictions={predictionHistory}
+      />
+
+      {strategy ? (
+        <InboundPanel leadId={leadId} latestInbound={latestInbound} />
+      ) : null}
 
       {problemCodes.length > 0 ? (
         <Card>
@@ -183,7 +221,7 @@ export default async function LeadDetailPage(props: {
                   label="Financing"
                   value={
                     FINANCING_TYPE_LABELS[
-                      quote.financing_type as FinancingType
+                    quote.financing_type as FinancingType
                     ] ?? quote.financing_type
                   }
                 />
@@ -243,6 +281,22 @@ export default async function LeadDetailPage(props: {
                 {strategy.strategy_summary}
               </p>
 
+              {orchestration ? (
+                <OrchestrationStatus orchestration={orchestration} />
+              ) : null}
+
+              {nextStepMessage ? (
+                <NextStepCard
+                  message={nextStepMessage}
+                  stepNumber={nextStepMessage.sequence_order}
+                  totalSteps={orchestration?.total_steps ?? 0}
+                />
+              ) : orchestration?.status === 'completed' ? (
+                <p className="text-sm text-muted-foreground">
+                  ✓ All steps sent — sequence complete.
+                </p>
+              ) : null}
+
               <Button asChild variant="outline" size="sm">
                 <Link href={`/leads/${leadId}/strategy`}>
                   View full strategy & timeline
@@ -261,6 +315,102 @@ export default async function LeadDetailPage(props: {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function NextStepCard({
+  message,
+  stepNumber,
+  totalSteps,
+}: {
+  message: {
+    channel_type: string;
+    subject: string | null;
+    content: string;
+    goal: string | null;
+  };
+  stepNumber: number;
+  totalSteps: number;
+}) {
+  const CHANNEL_ICONS: Record<MessageChannel, typeof Mail> = {
+    email: Mail,
+    sms: MessageSquare,
+    call: Phone,
+    voice: Mic,
+  };
+  const channel = message.channel_type as MessageChannel;
+  const Icon = CHANNEL_ICONS[channel] ?? Mail;
+  const channelLabel = CHANNEL_CONFIG[channel]?.label ?? message.channel_type;
+  const preview =
+    message.content.length > 160
+      ? `${message.content.slice(0, 160).trimEnd()}…`
+      : message.content;
+
+  return (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <div className="flex size-7 items-center justify-center rounded-full border bg-background">
+          <Icon className="size-3.5" />
+        </div>
+        <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+          Next step · {channelLabel}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {stepNumber} of {totalSteps}
+        </span>
+      </div>
+
+      {message.goal ? (
+        <p className="text-sm">
+          <span className="text-muted-foreground">Why now: </span>
+          {message.goal}
+        </p>
+      ) : null}
+
+      {message.subject ? (
+        <p className="text-sm">
+          <span className="text-muted-foreground">Subject: </span>
+          <span className="font-medium">{message.subject}</span>
+        </p>
+      ) : null}
+
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+        {preview}
+      </p>
+    </div>
+  );
+}
+
+function OrchestrationStatus({
+  orchestration,
+}: {
+  orchestration: {
+    current_step: number;
+    total_steps: number;
+    status: string;
+  };
+}) {
+  const STATUS_LABELS: Record<string, string> = {
+    not_started: 'Not started',
+    in_progress: 'In progress',
+    awaiting_reply: 'Awaiting reply',
+    completed: 'Completed',
+    paused: 'Paused',
+  };
+  const label = STATUS_LABELS[orchestration.status] ?? orchestration.status;
+  const stepDisplay =
+    orchestration.total_steps > 0
+      ? `Step ${Math.min(orchestration.current_step, orchestration.total_steps)} of ${orchestration.total_steps}`
+      : 'No steps';
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="font-medium">{stepDisplay}</span>
+      <span className="text-muted-foreground">·</span>
+      <Badge variant="outline" className="font-normal">
+        {label}
+      </Badge>
     </div>
   );
 }

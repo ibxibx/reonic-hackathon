@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -107,6 +107,95 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      inbound_messages: {
+        Row: {
+          body: string
+          category: string
+          confidence: number | null
+          created_at: string
+          id: string
+          lead_id: string
+          reasoning: string | null
+          suggested_next_step: string | null
+        }
+        Insert: {
+          body: string
+          category: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          reasoning?: string | null
+          suggested_next_step?: string | null
+        }
+        Update: {
+          body?: string
+          category?: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          reasoning?: string | null
+          suggested_next_step?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_orchestration: {
+        Row: {
+          current_step: number
+          id: string
+          lead_id: string
+          next_action_at: string | null
+          status: string
+          strategy_id: string | null
+          total_steps: number
+          updated_at: string
+        }
+        Insert: {
+          current_step?: number
+          id?: string
+          lead_id: string
+          next_action_at?: string | null
+          status?: string
+          strategy_id?: string | null
+          total_steps?: number
+          updated_at?: string
+        }
+        Update: {
+          current_step?: number
+          id?: string
+          lead_id?: string
+          next_action_at?: string | null
+          status?: string
+          strategy_id?: string | null
+          total_steps?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_orchestration_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_orchestration_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "strategies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leads: {
         Row: {
@@ -221,35 +310,103 @@ export type Database = {
           },
         ]
       }
-      predictions: {
+      model_calibration: {
         Row: {
           created_at: string
-          evidence: string
-          ghost_risk: number
           id: string
-          lead_id: string
-          predicted_code: string | null
-          recommended_action: string
-          sign_prob: number
+          installer_id: string
+          method: string
+          metrics: Json | null
+          model_version: string
+          n_labels: number
+          params: Json
+          target: string
+          trained_on: string
         }
         Insert: {
           created_at?: string
-          evidence: string
-          ghost_risk: number
           id?: string
-          lead_id: string
-          predicted_code?: string | null
-          recommended_action: string
-          sign_prob: number
+          installer_id: string
+          method: string
+          metrics?: Json | null
+          model_version: string
+          n_labels?: number
+          params?: Json
+          target: string
+          trained_on?: string
         }
         Update: {
           created_at?: string
+          id?: string
+          installer_id?: string
+          method?: string
+          metrics?: Json | null
+          model_version?: string
+          n_labels?: number
+          params?: Json
+          target?: string
+          trained_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_calibration_installer_id_fkey"
+            columns: ["installer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      predictions: {
+        Row: {
+          blocker_code: string | null
+          calibrated: boolean
+          created_at: string
+          evidence: string
+          factors: Json | null
+          ghost_confidence: number | null
+          ghost_risk: number
+          id: string
+          lead_id: string
+          mode: string | null
+          model_version: string | null
+          predicted_code: string | null
+          recommended_action: string
+          sign_confidence: number | null
+          sign_prob: number
+        }
+        Insert: {
+          blocker_code?: string | null
+          calibrated?: boolean
+          created_at?: string
+          evidence: string
+          factors?: Json | null
+          ghost_confidence?: number | null
+          ghost_risk: number
+          id?: string
+          lead_id: string
+          mode?: string | null
+          model_version?: string | null
+          predicted_code?: string | null
+          recommended_action: string
+          sign_confidence?: number | null
+          sign_prob: number
+        }
+        Update: {
+          blocker_code?: string | null
+          calibrated?: boolean
+          created_at?: string
           evidence?: string
+          factors?: Json | null
+          ghost_confidence?: number | null
           ghost_risk?: number
           id?: string
           lead_id?: string
+          mode?: string | null
+          model_version?: string | null
           predicted_code?: string | null
           recommended_action?: string
+          sign_confidence?: number | null
           sign_prob?: number
         }
         Relationships: [

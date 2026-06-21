@@ -5,6 +5,7 @@ import { generateVoiceNote } from '@/lib/integrations/elevenlabs';
 import { sendEmail } from '@/lib/integrations/resend';
 import { sendSms } from '@/lib/integrations/twilio';
 import { createSupabaseClient } from '@/supabase-clients/server';
+import { bumpStep } from '@/lib/orchestration-core';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -120,6 +121,12 @@ export const sendEmailAction = authActionClient
       throw new Error('Failed to update message status');
     }
 
+    // Advance the orchestrator one step on a successful send (the "touch sent"
+    // beat). No-op if the lead has no orchestration row yet.
+    if (result.success) {
+      await bumpStep(supabase, message.lead_id);
+    }
+
     revalidatePath(`/leads/${message.lead_id}`);
     revalidatePath(`/leads/${message.lead_id}/strategy`);
 
@@ -168,6 +175,12 @@ export const sendSmsAction = authActionClient
 
     if (updateError) {
       throw new Error('Failed to update message status');
+    }
+
+    // Advance the orchestrator one step on a successful send (the "touch sent"
+    // beat). No-op if the lead has no orchestration row yet.
+    if (result.success) {
+      await bumpStep(supabase, message.lead_id);
     }
 
     revalidatePath(`/leads/${message.lead_id}`);

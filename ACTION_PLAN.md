@@ -1,4 +1,4 @@
-# 🚀 RayCiprocity — 20-Hour Build Plan
+# 🚀 RayCiprocity — Build Plan
 
 **Track:** Reonic · AI-Powered Marketing for Renewable Installers
 **Build window:** ~20h left · **Submit:** Sunday 14:00
@@ -40,22 +40,9 @@ The brief's **CORE** ask is simpler than our PRD. Build the CORE first; everythi
 
 > **Reonic's explicit note: "No massive documentation needed. Impress us with what you build, not what you write about building it."** Keep the README minimal — just enough to satisfy the submission rules.
 
-## 🔨 Remaining work — priority order (cut from the bottom)
-
-1. **CORE polish** — persona strategy believable + visual + 2 demo profiles · *this is the floor; the base flow is already built*
-2. **The Oracle** — sign/ghost prob + predicted blocker + one next action · *highest-value bonus*
-3. **Problem Codes** — the 40-code diagnosis · *"something unexpected" bonus*
-4. **Interactions log** + engagement signals (E1/E2/E3)
-5. **Surveys** (resolve uncertain codes) — *cut candidate*
-6. **Keep-warm cadence** + dashboard risk column — *cut candidate*
-
-> **Reframe vs. earlier draft:** Codes dropped from #1 to #3. The brief's core is "tailored strategy + visual + iterable," which the shipped persona flow already covers. Lock that and the Oracle before investing 6 hours in 40 codes.
-
----
-
 ## ⏱️ Phase-by-phase
 
-### Phase 0 — Unblock & baseline · hours 0–1 · **everyone**
+### Phase 0 — Unblock & baseline · **everyone**
 Get the app running against Docker-Supabase before writing any feature.
 
 ```
@@ -72,7 +59,7 @@ pnpm dev
 
 ---
 
-### Phase 1 — CORE polish (the scored floor) · hours 1–5
+### Phase 1 — CORE polish (the scored floor)
 The brief's core ask is *believable, tailored, visual, iterable, 2+ profiles*. The base flow exists — make it demo-grade. **No new schema, no new tables.** Surgical only.
 
 **Phase 1 team: Ian, Sebastian, Ismael** (Eng 1 + Eng 2 are on other work). Three people, three different files, zero collisions:
@@ -87,11 +74,11 @@ The brief's core ask is *believable, tailored, visual, iterable, 2+ profiles*. T
 **Run by risk, not by label order:** 1c first (missing CORE feature, highest risk) → 1a seed drafts in parallel (unblocks 1b) → 1b (Ian+Ismael loop) → 1d last (cosmetic, first to cut).
 **Collision rule:** only Ian touches `timeline-step.tsx`; only Sebastian touches `seed.sql`. 1c and 1d are the *same file* — do them sequentially, never in parallel.
 
-**1c · Iterability is real** *(do FIRST — it's the missing CORE feature)* — there is **no edit path today**: cards render read-only and `data/user/messages.ts` has no `updateMessage` action (verified). Add `updateMessageAction` (edit body + subject, save to DB) and make the timeline cards editable. The installer adjusting a message live is a core demo beat the brief explicitly rewards.
+**1c · Iterability is real** ✅ **DONE** *(do FIRST — it's the missing CORE feature)* — there is **no edit path today**: cards render read-only and `data/user/messages.ts` has no `updateMessage` action (verified). Add `updateMessageAction` (edit body + subject, save to DB) and make the timeline cards editable. The installer adjusting a message live is a core demo beat the brief explicitly rewards. *Shipped: `updateMessageAction` (ownership-checked, blocks edits on sent), pencil-to-edit UI in `timeline-step.tsx`.*
 
 **1a · Two contrasting demo profiles** — pick 2 seed leads that show maximum variety (e.g. a numbers-driven *investor* vs. a reassurance-seeking *family*). Confirm each generates a visibly different strategy, tone, and channel mix. This is a literal deliverable ("example output for at least 2 profiles").
 
-**1b · "Why this" is visible** — the rationale + per-step reasoning must read as customer-specific, not generic. Tighten the prompt in `lib/ai/prompts.ts` so each step states *why this channel, why this tone, why now*. No code beyond prompt edits. Ismael judges output and flags where it still reads templated.
+**1b · "Why this" is visible** ✅ **DONE** — the rationale + per-step reasoning must read as customer-specific, not generic. Tighten the prompt in `lib/ai/prompts.ts` so each step states *why this channel, why this tone, why now*. No code beyond prompt edits. Ismael judges output and flags where it still reads templated.
 
 **1d · Visual credibility** *(do LAST — cuttable)* — the timeline should look like something shown to a sales manager: persona badge, channel icons, clear sequence. Polish spacing/hierarchy only; don't redesign.
 
@@ -99,44 +86,66 @@ The brief's core ask is *believable, tailored, visual, iterable, 2+ profiles*. T
 
 ---
 
-### Phase 2 — The Oracle (highest-value bonus) · hours 5–10
+### Phase 2 — The Oracle (highest-value bonus) ✅ **DONE**
 
-**2a · Schema** — `predictions(lead_id, sign_prob, ghost_risk, predicted_code, recommended_action, evidence, created_at)`, same RLS pattern.
+**2a · Schema** ✅ — `predictions(lead_id, sign_prob, ghost_risk, predicted_code, recommended_action, evidence, created_at)`, same RLS pattern. *Shipped as migration `20260620110000_create_predictions.sql`.*
 
-**2b · AI action** — `generateOracle(leadId)`: lead + quote + interaction signals → sign_prob, ghost_risk (0–100), single predicted blocking objection, one recommended action (channel + timing + angle) + evidence. Strict JSON via existing `lib/ai/provider.ts`.
+**2b · AI action** ✅ — `generateOracle(leadId)`: lead + quote + interaction signals → sign_prob, ghost_risk (0–100), single predicted blocking objection, one recommended action (channel + timing + angle) + evidence. Strict JSON via existing `lib/ai/provider.ts`.
 **⚠️ Skip pgvector/RAG** — feed structured rows straight into the prompt. RAG over-engineering is an explicit risk.
 **Note:** Oracle now ships *before* Problem Codes. Predict the blocker from persona + quote + (later) interactions. Once codes exist (Phase 3), feed the code stack in to sharpen the prediction — but don't block the Oracle on them.
 
-**2c · UI** — `components/strategy/oracle-panel.tsx`: two gauges (recharts, already a dep), predicted-objection chip, "one recommended action" card with a CTA that jumps to that channel's step. Top of the lead detail page.
+**2c · UI** ✅ — `components/strategy/oracle-panel.tsx`: two gauges (recharts, already a dep), predicted-objection chip, "one recommended action" card with a CTA that jumps to that channel's step. Top of the lead detail page.
 
-**Done when:** open a lead → *"68% sign / 41% ghost, blocker P2, recommended: WhatsApp voice note today"* with evidence. **Demo beat #2.**
+**Done when:** open a lead → *"68% sign / 41% ghost, blocker P2, recommended: WhatsApp voice note today"* with evidence. **Demo beat #2.** ✅
 
 ---
 
-### Phase 2.5 — Orchestrator (per-lead strategy-execution state) · **Ian + Ivan**
+### Phase 2.5 — Orchestrator (per-lead strategy-execution state) · **Ian + Ivan** ✅ **DONE**
 A hybrid state manager that tracks where each lead sits in its strategy sequence and drives what happens next. **DB holds the state; AI defines the strategy and the detail of each step.** Built before Ian's 2b Oracle action. The Oracle still ships as planned (Phase 2) — the orchestrator consumes the Oracle's output, it does not replace it.
 
 **Concept:** each lead is assigned a strategy-execution **state** = which step of its multi-channel sequence it's currently on (e.g. `step 0 / not started` → `step 2 / call sent, awaiting reply` → `done`). The orchestrator reads lead data + the generated strategy, advances the state, and exposes "what's the next step for this lead and why."
 
-**2.5a · Schema (DB = source of truth for state)** — NEW migration, never edit existing:
-`apps/database/supabase/migrations/<ts>_lead_orchestration.sql`
+**2.5a · Schema (DB = source of truth for state)** ✅ — NEW migration, never edit existing:
+`apps/database/supabase/migrations/20260620130000_lead_orchestration.sql`
 - `lead_orchestration(lead_id, strategy_id, current_step, total_steps, status, next_action_at, updated_at)` — one row per active lead. `status ∈ (not_started, in_progress, awaiting_reply, completed, paused)`.
 - RLS: copy the `strategies` policy pattern verbatim (`exists(... leads.installer_id = auth.uid())`).
 - index on `(lead_id)`. Apply → `pnpm gen-types-local`.
 
-**2.5b · State logic (DB-driven, no AI)** — `data/user/orchestration.ts`: server actions to `initOrchestration(leadId)` (seed state from the strategy's step count), `advanceStep(leadId)` (move current_step forward, flip status, set next_action_at), `getOrchestrationState(leadId)`. Plain TS + SQL — deterministic, no model call. Match the existing `authActionClient` + ownership pattern from `data/user/messages.ts`.
+**2.5b · State logic (DB-driven, no AI)** ✅ — `data/user/orchestration.ts`: server actions to `initOrchestration(leadId)` (seed state from the strategy's step count), `advanceStep(leadId)` (move current_step forward, flip status, set next_action_at), `getOrchestrationState(leadId)`. Plain TS + SQL — deterministic, no model call. Match the existing `authActionClient` + ownership pattern from `data/user/messages.ts`.
 
-**2.5c · AI defines the per-step detail** — reuse the existing strategy generation (`lib/ai`) as the source of *what each step is*; the orchestrator does not re-prompt per step. When a step advances, surface that step's already-generated message + its "why this / why now" goal. Only call AI here if a step needs regeneration (out of scope for v1 — flag, don't build).
+**2.5c · AI defines the per-step detail** ✅ — reuse the existing strategy generation (`lib/ai`) as the source of *what each step is*; the orchestrator does not re-prompt per step. When a step advances, surface that step's already-generated message + its "why this / why now" goal. *Shipped: the lead detail page surfaces the NEXT step's actual message + goal (`current_step + 1` → matching `sequence_order`).*
 
-**2.5d · UI hook** — minimal: show each lead's current state on the lead detail page (e.g. "Step 2 of 4 · awaiting reply · next touch due today"). Full dashboard wiring is Phase 4's engagement column — don't duplicate it here; just expose the state.
+**2.5d · UI hook** ✅ — minimal: show each lead's current state on the lead detail page (e.g. "Step 2 of 4 · awaiting reply · next touch due today"). Full dashboard wiring is Phase 4's engagement column — don't duplicate it here; just expose the state.
 
-**Done when:** opening a lead shows its current strategy-execution step + status from the DB, and advancing a step (e.g. after a send) visibly moves the state forward and persists.
+**Done when:** opening a lead shows its current strategy-execution step + status from the DB, and advancing a step (e.g. after a send) visibly moves the state forward and persists. ✅
+
+> **Live wiring shipped:** strategy generation auto-seeds the orchestration row; every successful email/SMS send auto-advances the step (`bumpStep` in `lib/orchestration-core.ts`). The orchestrator is no longer inert — it drives and reflects the real send flow.
 
 > **Boundary vs. Phase 4:** orchestration = *execution position* (which step, deterministic). Phase 4 engagement signals (E1/E2/E3) = *temperature* (cold/re-engaged/hot, recency-derived). Related but distinct — don't merge them; the orchestrator's `status` can later feed the engagement view.
 
 ---
 
-### Phase 3 — Problem Codes ("something unexpected" bonus) · hours 10–15
+### ✨ Phase 2.7 — Additional shipped work (all ✅ DONE)
+Further capabilities built and shipped during this phase.
+
+**Inbound reply triage + outreach pivot** ✅ *(a key demo beat)* — `data/user/inbound.ts`, `components/strategy/inbound-panel.tsx`, migration `20260620140000_inbound_messages.sql`.
+- A customer reply "lands on the dashboard" via a paste-a-reply panel on the lead detail page.
+- AI categorizes intent: **interested / objection / ghost_risk / ready_to_close** (`categorizeInbound`), persisted to `inbound_messages` with reasoning + suggested next step.
+- The orchestrator **reacts**: objection → hold (in_progress), ghost_risk → paused, ready_to_close → awaiting_reply.
+- **The outreach actually pivots:** `adaptStrategy` rewrites ALL remaining unsent messages to convincingly tackle the customer's concern (acknowledge-then-address, persona tone, no invented numbers). Verified live against `gpt-4o` — e.g. an objection about winter production rewrites the SMS/call/voice to address diffused-light performance + financing.
+- **Done when:** paste an objection → it's categorized, the timeline messages visibly change to address it, and the reply appears in the timeline. ✅
+
+**Customer replies interleaved into the Outreach Timeline** ✅ — `components/strategy/inbound-timeline-entry.tsx`, `strategy-timeline.tsx`. Inbound replies render as customer-side entries, chronologically ordered (by `sent_at` / `created_at`) so the back-and-forth reads in sequence.
+
+**Archetype classifier agent** ✅ — `data/user/classify-archetype.ts`, `classifyArchetype` in `lib/ai/provider.ts`. Standalone first-pass agent: lead → single archetype + confidence + signals + reasoning. Stateless; the orchestrator can call it before defining a strategy.
+
+**Anthropic → OpenAI provider swap** ✅ — full migration to `@ai-sdk/openai` (`gpt-4o` default via `OPENAI_MODEL`). Provider, integration-status, settings UI, env types all updated. *(Note: OpenAI strict JSON-schema mode requires every key in `required` — use `.nullable()`, never `.optional()`, on AI schemas.)*
+
+**Dev-only agent step logging** ✅ — `lib/ai/agent-log.ts`. Tagged, timestamped `[agent:<name>]` step logs across all agents (archetype / strategy / oracle / inbound / orchestrator). Greppable, secret-safe, silenced in prod or via `DEBUG_AGENTS=false`.
+
+---
+
+### Phase 3 — Problem Codes ("something unexpected" bonus)
 Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Parallelize schema / AI / UI.
 
 **3a · Schema** — NEW migration file (never edit the existing one):
@@ -158,7 +167,7 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 
 ---
 
-### Phase 4 — Interactions + engagement signals · hours 15–17
+### Phase 4 — Interactions + engagement signals
 
 - **4a** `interactions(lead_id, channel, direction, content, sentiment, occurred_at)`; log a row on every (real or mock) send.
 - **4b** Derive **E1/E2/E3** (going cold / re-engaged / high-intent) from recency — plain SQL/TS, no AI.
@@ -168,7 +177,7 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 
 ---
 
-### Phase 5 — Polish & demo-proof (CUT-LINE) · hours 17–19
+### Phase 5 — Polish & demo-proof (CUT-LINE)
 
 - DE/EN toggle on generated content (prompt-driven, don't hand-author twice)
 - Loading skeletons on Oracle + strategy (copy `strategy-skeleton.tsx`)
@@ -181,58 +190,9 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 
 ---
 
-### Phase 6 — Submit · hours 19–20
+### Phase 6 — Submit
 
 **The brief's 3 required deliverables (this IS the submission — nail all three):**
 1. **Working prototype** — demoable live. Have the happy path rehearsed + a fallback screen capture.
 2. **Example output for ≥2 different customer profiles** — show the variety (investor vs family is the cleanest contrast). This is literal and scored — don't demo just one.
 3. **Brief explanation** of the strategy + why this approach. Keep it short (Reonic: "no massive docs").
-
-**Mechanics:**
-- README (setup + APIs + tools — **required by rules**; minimal per Reonic's "no massive docs" note)
-- 2-min Loom (solution + live walkthrough hitting all 3 deliverables above)
-- Record a **fallback screen capture** of the happy path
-- Freeze features · public repo · opt-in **before 14:00**
-
----
-
-## 👥 Team split
-
-**Phase 1 (now):** Ian, Sebastian, Ismael. Eng 1 + Eng 2 are on other work and rejoin from Phase 2.
-
-| Who | Phase 1 (now) | Phase 2+ |
-|---|---|---|
-| **Ian** | 1c editable cards → 1d polish, 1b prompt | **2.5 Orchestrator (w/ Ivan)** → 2b Oracle action + 3c code-diagnosis prompts/schemas |
-| **Ivan** | — | **2.5 Orchestrator (w/ Ian)** — state schema + state logic |
-| **Sebastian** | 1a seed: 2 contrasting leads (`seed.sql`) | seed realism + code content library (~12 demo codes) |
-| **Ismael** | 1a output QA / templated-check + DE/EN copy | demo script + Loom + README |
-| **Eng 1 (rejoins P2)** | — | 2a/3a migrations |
-| **Eng 2 (rejoins P2)** | — | Phase 4 interactions/signals + 2c/3d/4c frontend |
-
----
-
-## ⚠️ Two standing flags
-
-1. **Node 24 vs our 22** — repo declares `engines: node >=24`; dev works on 22 but if a Next 16 build throws an engine error, get one machine on Node 24 as the build/submit box.
-2. **PRD says Next 14, repo is Next 16** — build to the repo (16). The PRD framework line is stale.
-
----
-
-## 🛠️ Engineering Principles (how we build — read before coding)
-
-Full version committed at [`docs/ENGINEERING_PRINCIPLES.md`](docs/ENGINEERING_PRINCIPLES.md). Under a 20-hour clock these aren't optional polish — they're how we avoid burning hours on the wrong thing.
-
-1. **Don't assume. Surface tradeoffs.** State assumptions before implementing. If two interpretations exist, name both — don't silently pick. If a simpler approach exists, say so. If something's unclear, stop and ask.
-2. **Simplicity first.** Minimum code that solves the problem, nothing speculative. No abstractions for single-use code, no unrequested config/flexibility, no error handling for impossible cases. If 200 lines could be 50, rewrite. *This is why Problem Codes can ship as 12, not 40, and why the Oracle skips RAG.*
-3. **Surgical changes.** Touch only what the task requires. Don't "improve" adjacent code, don't refactor what isn't broken, match existing style. Remove only the orphans *your* change created; flag pre-existing dead code, don't delete it. Every changed line should trace to the request. *Critical with 5 people on one repo — surgical diffs = clean rebases, fewer conflicts.*
-4. **Goal-driven execution.** Turn each task into a verifiable goal with a success check (the **"Done when:"** line on every phase above *is* that check). Strong criteria let you loop without re-asking.
-
-> These mirror the per-phase **"Done when:"** acceptance lines — that's the goal-driven loop in practice. If a phase has no clear "done" check, define one before starting.
-
----
-
-## 🧯 Quick unblocks
-
-- `next-env.d.ts` keeps blocking `git pull` → run once: `git update-index --skip-worktree apps/web/next-env.d.ts`
-- Supabase weirdness → `pnpm database#stop` then `#start` (Docker reset)
-- Git stderr showing red in PowerShell is normal, not an error

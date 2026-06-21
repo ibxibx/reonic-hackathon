@@ -2,6 +2,7 @@
 
 import { authActionClient } from '@/lib/safe-action';
 import { classifyArchetype } from '@/lib/ai/provider';
+import { logStep } from '@/lib/ai/agent-log';
 import { createSupabaseClient } from '@/supabase-clients/server';
 import { z } from 'zod';
 
@@ -22,6 +23,7 @@ export const classifyArchetypeAction = authActionClient
   .action(async ({ parsedInput, ctx }) => {
     const { leadId } = parsedInput;
     const supabase = await createSupabaseClient();
+    logStep('archetype', 'action → start', { leadId });
 
     // Lead con verificación de ownership
     const { data: lead, error: leadError } = await supabase
@@ -46,7 +48,13 @@ export const classifyArchetypeAction = authActionClient
       throw new Error('Quote not found');
     }
 
+    logStep('archetype', 'action → calling AI', { leadId });
     const classification = await classifyArchetype(lead, quote);
 
+    logStep('archetype', 'action ✓', {
+      leadId,
+      archetype: classification.archetype,
+      confidence: classification.confidence,
+    });
     return classification;
   });
