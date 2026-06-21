@@ -2,9 +2,6 @@
 import {
   Sidebar,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem
 } from '@/components/ui/sidebar';
 import { getCachedLoggedInVerifiedSupabaseUser } from '@/rsc-data/supabase';
 import Link from 'next/link';
