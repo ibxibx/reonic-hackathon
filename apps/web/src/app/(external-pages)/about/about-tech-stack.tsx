@@ -17,7 +17,7 @@ export function AboutTechStack({ technologies }: AboutTechStackProps) {
       <CardHeader>
         <CardTitle>Technology Stack</CardTitle>
         <CardDescription>
-          Built with modern, production-ready technologies
+          Built as a production-grade, multi-tenant B2B SaaS with Row Level Security
         </CardDescription>
       </CardHeader>
       <CardContent>

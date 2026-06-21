@@ -4,14 +4,14 @@ import { AboutHero } from './about-hero';
 import { AboutTechStack } from './about-tech-stack';
 
 const technologies = [
-  'Next.js 14',
+  'Next.js 16',
   'TypeScript',
   'Supabase',
   'Tailwind CSS',
   'shadcn/ui',
-  'React Hook Form',
-  'Zod',
-  'Framer Motion',
+  'OpenAI GPT-4o',
+  'ElevenLabs TTS',
+  'Vercel AI SDK',
 ];
 
 export default function About() {

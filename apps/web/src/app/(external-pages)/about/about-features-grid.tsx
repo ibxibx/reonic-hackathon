@@ -7,21 +7,21 @@ import {
 } from '@/components/ui/card';
 import { T } from '@/components/ui/Typography';
 import {
-  Database,
-  Lock,
-  Palette,
-  Rocket,
-  Shield,
-  Zap,
+  Brain,
+  Mail,
+  Mic,
+  RefreshCw,
+  Target,
+  TrendingUp,
 } from 'lucide-react';
 
 export function AboutFeaturesGrid() {
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <T.H2 className="text-3xl">Built for Developers</T.H2>
+        <T.H2 className="text-3xl">How It Works</T.H2>
         <T.P className="text-muted-foreground">
-          Everything you need to build production-ready applications
+          From quote to contract — AI handles the follow-up your team doesn't have time for
         </T.P>
       </div>
 
@@ -30,15 +30,14 @@ export function AboutFeaturesGrid() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Rocket className="h-6 w-6 text-primary" />
+                <Target className="h-6 w-6 text-primary" />
               </div>
-              <CardTitle>Next.js 14</CardTitle>
+              <CardTitle>Persona Detection</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <CardDescription>
-              Built on the latest Next.js with App Router, Server Components,
-              and Server Actions for optimal performance.
+              Classifies each homeowner into one of four archetypes — family, investor, environmentalist, or skeptic — to tailor every message.
             </CardDescription>
           </CardContent>
         </Card>
@@ -47,15 +46,14 @@ export function AboutFeaturesGrid() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-chart-2/10">
-                <Database className="h-6 w-6 text-chart-2" />
+                <Brain className="h-6 w-6 text-chart-2" />
               </div>
-              <CardTitle>Supabase</CardTitle>
+              <CardTitle>Problem-Code Diagnosis</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <CardDescription>
-              PostgreSQL database, authentication, real-time subscriptions,
-              and storage - all in one platform.
+              A 40-code taxonomy across 7 families identifies exactly why a deal is stuck — price shock, trust issues, timing, and more.
             </CardDescription>
           </CardContent>
         </Card>
@@ -64,15 +62,14 @@ export function AboutFeaturesGrid() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Shield className="h-6 w-6 text-primary" />
+                <Mail className="h-6 w-6 text-primary" />
               </div>
-              <CardTitle>Type-Safe</CardTitle>
+              <CardTitle>Multi-Channel Strategy</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <CardDescription>
-              Full TypeScript support with type-safe database queries and API
-              routes for confidence in your code.
+              Generates a coherent outreach plan across email, SMS, call scripts, and voice notes — each step with timing and rationale.
             </CardDescription>
           </CardContent>
         </Card>
@@ -81,15 +78,14 @@ export function AboutFeaturesGrid() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-chart-4/10">
-                <Palette className="h-6 w-6 text-chart-4" />
+                <Mic className="h-6 w-6 text-chart-4" />
               </div>
-              <CardTitle>shadcn/ui</CardTitle>
+              <CardTitle>AI Voice Notes</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <CardDescription>
-              Beautiful, accessible components built with Radix UI and
-              Tailwind CSS. Customizable and production-ready.
+              Personalized voice notes synthesized via ElevenLabs deliver human warmth at scale — the most memorable touch in the sequence.
             </CardDescription>
           </CardContent>
         </Card>
@@ -98,15 +94,14 @@ export function AboutFeaturesGrid() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-chart-1/10">
-                <Lock className="h-6 w-6 text-chart-1" />
+                <TrendingUp className="h-6 w-6 text-chart-1" />
               </div>
-              <CardTitle>Authentication</CardTitle>
+              <CardTitle>Oracle Predictions</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <CardDescription>
-              Complete auth flows including magic links, OAuth providers,
-              password reset, and protected routes.
+              Sign-vs-ghost scoring with evidence and a single recommended next action — so you know which leads need attention now.
             </CardDescription>
           </CardContent>
         </Card>
@@ -115,15 +110,14 @@ export function AboutFeaturesGrid() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-chart-5/10">
-                <Zap className="h-6 w-6 text-chart-5" />
+                <RefreshCw className="h-6 w-6 text-chart-5" />
               </div>
-              <CardTitle>Developer UX</CardTitle>
+              <CardTitle>Auto-Pivot on Reply</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <CardDescription>
-              Hot reload, TypeScript, ESLint, Prettier, and more. Optimized
-              for the best developer experience.
+              When a customer replies with an objection, every unsent message rewrites itself to address their specific concern automatically.
             </CardDescription>
           </CardContent>
         </Card>

@@ -1,39 +1,39 @@
 import { Separator } from '@/components/ui/separator';
-import { ArrowRight, Database, Lock, Palette, Shield, Zap } from 'lucide-react';
+import { Brain, Mail, MessageSquare, Mic, Phone, Target } from 'lucide-react';
 import { HomeCTA } from './home-cta';
 import { HomeFeatures, type HomeFeature } from './home-features';
 import { HomeHero } from './home-hero';
 
 const features: HomeFeature[] = [
   {
-    icon: Shield,
-    title: 'Type-Safe',
-    description: 'End-to-end TypeScript with auto-generated Supabase types. Catch errors at compile time.',
+    icon: Brain,
+    title: 'Problem-Code Diagnosis',
+    description: 'AI identifies exactly why each deal is stalling — from price shock to spouse hesitation — using a 40-code taxonomy across 7 families.',
   },
   {
-    icon: Zap,
-    title: 'Modern Stack',
-    description: 'Next.js 16, TypeScript, Supabase, and Tailwind CSS — the best tools for modern web development.',
+    icon: Target,
+    title: 'Persona Detection',
+    description: 'Classifies every homeowner as family, investor, environmentalist, or skeptic — then tailors tone, channel, and timing to match.',
   },
   {
-    icon: Palette,
-    title: 'UI Components',
-    description: 'Beautiful components built with Radix UI and Tailwind. Accessible and customizable.',
+    icon: Mail,
+    title: 'Multi-Channel Outreach',
+    description: 'Generates a complete follow-up strategy across email, SMS, call scripts, and voice notes — each step with a clear rationale.',
   },
   {
-    icon: Lock,
-    title: 'Authentication',
-    description: 'Magic links, OAuth providers, and email/password with protected routes — all pre-configured.',
+    icon: Mic,
+    title: 'AI Voice Notes',
+    description: 'Synthesizes personalized voice notes via ElevenLabs that deliver human warmth at scale — the demo wow-moment.',
   },
   {
-    icon: Database,
-    title: 'Database Ready',
-    description: 'Supabase with Row Level Security, migrations, and seed data — ready for production.',
+    icon: MessageSquare,
+    title: 'Inbound Triage & Pivot',
+    description: 'When a customer replies with an objection, every remaining unsent message rewrites itself to address their specific concern.',
   },
   {
-    icon: ArrowRight,
-    title: 'Fast Deployment',
-    description: 'Deploy to Vercel in minutes. CI/CD, preview deployments, and automatic type generation included.',
+    icon: Phone,
+    title: 'The "Oracle" Predictor',
+    description: 'Scores sign-vs-ghost probability for every lead and recommends the single next-best action with evidence.',
   },
 ];
 
