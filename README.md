@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./pics/poster.png" alt="AI × Energy Hackathon poster" width="240">
+  <img src="./design/logo_RayCi.png" alt="RayCiprocity logo" width="240">
 </p>
 
 <h1 align="center">☀️ RayCiprocity</h1>
