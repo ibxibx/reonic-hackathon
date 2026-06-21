@@ -268,7 +268,7 @@ Narrate the evidence ONLY over the facts and supplied factors above. Separate ob
 
 export function buildInboundPrompt(
   lead: Lead,
-  strategy: Strategy | null,
+  strategy: any | null,
   replyBody: string
 ): string {
   return `You are the inbound triage agent for a solar installer's sales dashboard. A customer has REPLIED to one of our outreach messages. Read their reply and classify their intent so the dashboard can adjust the next marketing step. You do NOT write a reply — you only categorize and recommend.
@@ -310,7 +310,7 @@ type DraftMessage = {
 
 export function buildAdaptStrategyPrompt(
   lead: Lead,
-  strategy: Strategy | null,
+  strategy: any | null,
   replyBody: string,
   category: string,
   drafts: DraftMessage[],
