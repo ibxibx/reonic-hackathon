@@ -543,83 +543,93 @@ Chorus, Wingman, Warmline, Closeline*.
 
 ## 💸 Outcomes & ROI — What This Is Worth to an Installer
 
-> **Read this as a transparent model, not a measured result.** The figures below are
-> conservative, clearly-stated estimates built on public solar-sales benchmarks and a
-> worked example — the kind of business case an installer (or Reonic) would sanity-check,
-> not scraped live data. Every assumption is shown so you can swap in your own numbers.
+> **A transparent model, not a measured result.** The figures below are conservative,
+> clearly-stated estimates built on public solar-sales benchmarks — the kind of business
+> case an installer (or Reonic) would sanity-check. Every assumption is shown, so you can
+> swap in your own numbers.
 
-### The money that's actually on the table
+### 📈 At a glance — for one small installer
+
+|  | Impact | Annualised |
+|---|---|---|
+| 💰 **Revenue recovered** | ~**€18,000 / month** | ≈ **€215,000 / year** |
+| ⏱️ **Sales-rep time freed** | ~**11 hours / month** per rep | ≈ **€5,400 / year** per rep |
+| ⚡ **Follow-up speed** | **~85% faster** per lead | 20 min → 3 min |
+
+*Baseline: 40 quotes/month · 20% close rate · ~€15,000 average system · +3-point uplift.
+Scales linearly with quote volume.*
 
 The expensive moment in solar sales isn't the pitch — it's the **silence after the
-quote**, where a meaningful share of already-quoted, already-interested deals quietly
-die. RayCiprocity attacks exactly that gap. Two levers drive the value:
+quote**, where already-quoted, already-interested deals quietly die. RayCiprocity
+attacks that gap with two levers.
 
-**Lever 1 — Recover lost deals (revenue generated).**
-Worked example for a small installer:
+---
 
-| Assumption (conservative) | Value |
+### Lever 1 · Recover lost deals → **revenue**
+
+| Assumption *(conservative)* | Value |
 |---|---|
 | Quotes sent per month | 40 |
 | Baseline quote→contract close rate | 20% → **8 deals/mo** |
-| Average installed system value (German residential PV, 8–12 kWp) | **~€15,000** |
-| Uplift from disciplined, persona-tailored, reasoning-backed follow-up | **+3 percentage points** (20% → 23%) |
-| Extra deals recovered | ~**1.2 deals/month** |
-| **Added revenue** | **~€18,000/month ≈ €215,000/year** |
+| Average installed system value *(German residential PV, 8–12 kWp)* | **~€15,000** |
+| Close-rate uplift from tailored, reasoning-backed follow-up | **+3 pts** (20% → 23%) |
+| Extra deals recovered | ~**1.2 / month** |
+| 💰 **Added revenue** | **~€18,000 / month  ·  ≈ €215,000 / year** |
 
-A +3-point close-rate lift is deliberately modest — structured follow-up and faster,
-more relevant touches are widely credited with **double-digit %** improvements in
-quote-stage conversion; we model a fraction of that. At a +5-point lift the same
-installer recovers ~2 deals/month (**~€30,000/month**).
+> A +3-point lift is deliberately modest — structured, faster, more relevant follow-up
+> is widely credited with **double-digit %** gains in quote-stage conversion. At **+5
+> points**, the same installer recovers ~2 deals/month → **~€30,000 / month**.
 
-**Lever 2 — Give the sales rep their week back (time + cost saved).**
+---
+
+### Lever 2 · Give the rep their week back → **time + cost**
+
 Personalising follow-up for 40 live leads — diagnosing each, drafting four on-tone
 messages, sequencing and timing them — is the task reps *don't* have time for, so it
-doesn't happen. RayCiprocity collapses it to one click + a quick edit.
+doesn't happen. RayCiprocity collapses it to **one click + a quick edit**.
 
-| Assumption (conservative) | Value |
+| Assumption *(conservative)* | Value |
 |---|---|
 | Manual personalised follow-up, per lead | ~20 min |
-| With RayCiprocity (review + edit a generated strategy) | ~3 min |
-| Time saved per lead | ~17 min |
-| Across 40 leads/month | **~11 hours/month per rep** |
-| Loaded sales-rep cost | ~€40/hour |
-| **Labour value freed** | **~€450/month per rep (~€5,400/year)** — redirected to closing, not typing |
+| With RayCiprocity *(review + edit a generated strategy)* | ~3 min |
+| Time saved per lead | **~17 min** *(≈ 85% faster)* |
+| Across 40 leads / month | ~**11 hours / month** per rep |
+| Loaded sales-rep cost | ~€40 / hour |
+| ⏱️ **Labour value freed** | **~€450 / month  ·  ≈ €5,400 / year** per rep |
 
-### Headline outcomes
+*Freed time is redirected to closing, not typing — and the **"Oracle"** points it at the
+leads most likely to ghost, before they go cold.*
 
-- **~€215k/year** in recovered deal revenue for a single small installer (40 quotes/mo,
-  +3-point close-rate lift, €15k average system) — and it scales linearly with quote volume.
-- **~11 hours/month per rep** of personalised-follow-up time removed (**~85% faster**
-  per lead: ~20 min → ~3 min).
-- **Faster, relevant follow-up** on the leads most likely to ghost — the "Oracle" flags
-  ghost-risk *before* the customer goes cold, so reps spend their hours where they convert.
-- **Higher per-deal value** as a bonus: the same diagnose-and-address engine surfaces
-  battery / heat-pump / EV-charger upsells the brief calls out, lifting average system
-  value beyond the €15k baseline used above.
+---
 
-### Why these are credible, not hype
+### 🧮 The model
 
-- The **average system value (~€15k)** is grounded in real German residential PV pricing
-  for 8–12 kWp systems — the exact segment Reonic's installers serve.
-- The **close-rate uplift (+3 pts)** is the cautious end of what disciplined,
-  personalised, well-timed follow-up is known to deliver; we model well below the
-  headline figures often quoted for solar lead nurture.
-- The **time saving** is a direct task-replacement measurement (manual personalisation
-  vs. review-and-edit), not a productivity hand-wave.
+```
+added revenue  ≈  quotes/mo  ×  close-rate-uplift  ×  average-system-value
+```
 
-> **Swap in your own numbers.** The model is linear: `added revenue ≈ quotes/mo ×
-> close-rate-uplift × average-system-value`. Double the quote volume and the annual
-> figure doubles. These are illustrative planning numbers for the pitch, to be validated
-> against a real installer's pipeline.
+Linear — double the quote volume and the annual figure doubles. **Bonus upside:** the
+same diagnose-and-address engine surfaces battery / heat-pump / EV-charger upsells the
+brief calls out, lifting average system value beyond the €15k baseline.
 
-### What it means for Reonic
+### ✅ Why these are credible, not hype
 
-RayCiprocity is the **recurring-revenue closing module** that bolts onto Reonic's
-existing funnel — picking up precisely where their address→3D→quote→offer-PDF flow stops.
-It deepens Reonic's "one software, not 24 tools" value: more of every installer's quotes
-turn into signed contracts, on the platform installers already live in, with the
-persuasion reasoning visible and editable. A measurable lift in *partner close rates* is
-the kind of outcome that makes a module sticky and expandable.
+- **Average system value (~€15k)** — real German residential PV pricing for 8–12 kWp
+  systems, the exact segment Reonic's installers serve.
+- **Close-rate uplift (+3 pts)** — the cautious end of what disciplined, well-timed
+  follow-up delivers; modelled well below the headline figures often quoted for solar
+  lead nurture.
+- **Time saving** — a direct task-replacement measurement (manual personalisation vs.
+  review-and-edit), not a productivity hand-wave.
+
+### 🤝 What it means for Reonic
+
+RayCiprocity is the **recurring-revenue closing module** that bolts onto Reonic's funnel
+— picking up precisely where their address → 3D → quote → offer-PDF flow stops. It
+deepens the "one software, not 24 tools" value: more of every installer's quotes turn
+into signed contracts, on the platform installers already live in, with the persuasion
+reasoning visible and editable. A measurable lift in *partner close rates* is the kind
+of outcome that makes a module sticky and expandable.
 
 ---
 
