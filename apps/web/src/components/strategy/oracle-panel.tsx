@@ -34,6 +34,7 @@ import {
 import { useAction } from 'next-safe-action/hooks';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -127,15 +128,16 @@ function ScoreGauge({
   color: string;
   band?: { low: number; high: number } | null;
 }) {
+  // Single authoritative SR description: point estimate plus the confidence
+  // range when present. The gauge + the numeric range are decorative duplicates
+  // (aria-hidden) so a screen reader announces this once, cleanly.
+  const srLabel = band
+    ? `${label}: ${value} percent, confidence range ${band.low} to ${band.high} percent.`
+    : `${label}: ${value} percent.`;
+
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div
-        className="relative size-28"
-        role="img"
-        aria-label={`${label}: ${value} percent${
-          band ? `, confidence range ${band.low} to ${band.high} percent` : ''
-        }`}
-      >
+    <figure className="m-0 flex flex-col items-center gap-1">
+      <div className="relative size-28" role="img" aria-label={srLabel}>
         <ResponsiveContainer width="100%" height="100%">
           <RadialBarChart
             data={[{ value, fill: color }]}
@@ -150,16 +152,20 @@ function ScoreGauge({
           </RadialBarChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="text-xl font-semibold tabular-nums">{value}%</span>
+          <span className="text-xl font-semibold tabular-nums" aria-hidden>
+            {value}%
+          </span>
         </div>
       </div>
-      <span className="text-xs text-muted-foreground">{label}</span>
-      {band ? (
-        <span className="text-[10px] tabular-nums text-muted-foreground/80">
-          {band.low}–{band.high}%
-        </span>
-      ) : null}
-    </div>
+      <figcaption className="flex flex-col items-center gap-0.5" aria-hidden>
+        <span className="text-xs text-muted-foreground">{label}</span>
+        {band ? (
+          <span className="rounded-full bg-muted/60 px-1.5 py-px text-[10px] font-medium tabular-nums text-muted-foreground/90">
+            {band.low}–{band.high}%
+          </span>
+        ) : null}
+      </figcaption>
+    </figure>
   );
 }
 
@@ -173,10 +179,23 @@ function FactorRow({ factor }: { factor: OracleFactor }) {
       : factor.direction === 'decreases';
   const Arrow = factor.direction === 'increases' ? ArrowUp : ArrowDown;
   const tone = helpsClose ? 'text-emerald-600' : 'text-destructive';
+  const iconWrap = helpsClose
+    ? 'bg-emerald-500/10 text-emerald-600'
+    : 'bg-destructive/10 text-destructive';
+  // SR text states the effect explicitly so the colour/arrow is not load-bearing.
+  const srEffect = helpsClose
+    ? 'Helps this lead close. '
+    : 'Raises the risk this lead drops off. ';
   return (
     <li className="flex items-start gap-2 text-xs">
-      <Arrow className={`mt-0.5 size-3.5 shrink-0 ${tone}`} aria-hidden />
-      <span className="leading-snug text-muted-foreground">
+      <span
+        className={`mt-px flex size-4 shrink-0 items-center justify-center rounded-full ${iconWrap}`}
+        aria-hidden
+      >
+        <Arrow className={`size-2.5 ${tone}`} />
+      </span>
+      <span className="leading-snug text-foreground/80">
+        <span className="sr-only">{srEffect}</span>
         {factor.plainText}
       </span>
     </li>
@@ -214,26 +233,30 @@ function SparklineLegend() {
  * values + direction so the chart is not purely visual.
  */
 function TrendSparkline({ history }: { history: Prediction[] }) {
-  const data = history.map((p, i) => ({
-    i,
-    sign: clamp0to100(Math.round(Number(p.sign_prob))),
-    ghost: clamp0to100(Math.round(Number(p.ghost_risk))),
-  }));
+  const { data, a11ySummary } = useMemo(() => {
+    const data = history.map((p, i) => ({
+      i,
+      sign: clamp0to100(Math.round(Number(p.sign_prob))),
+      ghost: clamp0to100(Math.round(Number(p.ghost_risk))),
+    }));
 
-  const first = data[0];
-  const last = data[data.length - 1];
-  const trendWord = (from: number, to: number) =>
-    to > from ? 'up' : to < from ? 'down' : 'flat';
-  const a11ySummary =
-    first && last
-      ? `Trend over ${data.length} snapshots. Sign probability ${trendWord(
-          first.sign,
-          last.sign
-        )} to ${last.sign} percent; ghost risk ${trendWord(
-          first.ghost,
-          last.ghost
-        )} to ${last.ghost} percent.`
-      : 'Sign and ghost probability trend over time.';
+    const first = data[0];
+    const last = data[data.length - 1];
+    const trendWord = (from: number, to: number) =>
+      to > from ? 'up' : to < from ? 'down' : 'flat';
+    const a11ySummary =
+      first && last
+        ? `Trend over ${data.length} snapshots. Sign probability ${trendWord(
+            first.sign,
+            last.sign
+          )} to ${last.sign} percent; ghost risk ${trendWord(
+            first.ghost,
+            last.ghost
+          )} to ${last.ghost} percent.`
+        : 'Sign and ghost probability trend over time.';
+
+    return { data, a11ySummary };
+  }, [history]);
 
   return (
     <div className="space-y-1.5">
@@ -310,59 +333,113 @@ export function OraclePanel({
 
   const isGenerating = status === 'executing';
 
-  const channel = prediction
-    ? getRecommendedChannel(prediction.recommended_action)
-    : null;
-  const actionHref = channel
-    ? `/leads/${leadId}/strategy#timeline-step-${channel}`
-    : `/leads/${leadId}/strategy#outreach-timeline`;
+  const action = prediction?.recommended_action ?? null;
+  const { channel, actionHref } = useMemo(() => {
+    const ch = action ? getRecommendedChannel(action) : null;
+    return {
+      channel: ch,
+      actionHref: ch
+        ? `/leads/${leadId}/strategy#timeline-step-${ch}`
+        : `/leads/${leadId}/strategy#outreach-timeline`,
+    };
+  }, [action, leadId]);
 
-  // ── Derived display values (guarded) ──────────────────────────────────────
-  const signValue = prediction
-    ? clamp0to100(Math.round(Number(prediction.sign_prob)))
-    : 0;
-  const ghostValue = prediction
-    ? clamp0to100(Math.round(Number(prediction.ghost_risk)))
-    : 0;
+  // ── Derived display values (guarded + memoized) ───────────────────────────
+  // All of these are pure functions of `prediction`; memoizing keeps them stable
+  // across the re-renders the recharts hover/animation state would otherwise
+  // trigger, so the gauges/factors don't re-parse on every mouse move.
+  const display = useMemo(() => {
+    if (!prediction) {
+      return {
+        signValue: 0,
+        ghostValue: 0,
+        signBand: null as { low: number; high: number } | null,
+        ghostBand: null as { low: number; high: number } | null,
+        calibrated: false,
+        modeLabel: null as string | null,
+        ghostProvenance: null as ReturnType<typeof getGhostProvenance> | null,
+        blockerCode: null as BlockerCode | null,
+        blockerName: null as string | null,
+        factors: [] as OracleFactor[],
+        topFactors: [] as OracleFactor[],
+      };
+    }
 
-  const signHalf = prediction ? Number(prediction.sign_confidence ?? 0) / 2 : 0;
-  const ghostHalf = prediction ? Number(prediction.ghost_confidence ?? 0) / 2 : 0;
-  const signBand =
-    prediction && Number.isFinite(signHalf) && signHalf > 0
-      ? {
-          low: clamp0to100(Math.round(signValue - signHalf)),
-          high: clamp0to100(Math.round(signValue + signHalf)),
-        }
-      : null;
-  const ghostBand =
-    prediction && Number.isFinite(ghostHalf) && ghostHalf > 0
-      ? {
-          low: clamp0to100(Math.round(ghostValue - ghostHalf)),
-          high: clamp0to100(Math.round(ghostValue + ghostHalf)),
-        }
-      : null;
+    const signValue = clamp0to100(Math.round(Number(prediction.sign_prob)));
+    const ghostValue = clamp0to100(Math.round(Number(prediction.ghost_risk)));
 
-  const calibrated = prediction?.calibrated === true;
-  const modeLabel = prediction?.mode ?? null;
+    const band = (
+      center: number,
+      confidence: number | null
+    ): { low: number; high: number } | null => {
+      const half = Number(confidence ?? 0) / 2;
+      if (!Number.isFinite(half) || half <= 0) return null;
+      return {
+        low: clamp0to100(Math.round(center - half)),
+        high: clamp0to100(Math.round(center + half)),
+      };
+    };
 
-  // Honest ghost provenance: when uncalibrated, the ghost number is blended with
-  // real-world churn benchmarks (a cross-domain prior, not measured solar data).
-  const ghostProvenance = prediction
-    ? getGhostProvenance(prediction.calibrated, prediction.mode)
-    : null;
+    const rawCode =
+      prediction.blocker_code ?? prediction.predicted_code ?? null;
+    const blockerCode = rawCode as BlockerCode | null;
 
-  const rawCode = prediction?.blocker_code ?? prediction?.predicted_code ?? null;
-  const blockerCode = rawCode as BlockerCode | null;
-  const blockerName =
-    blockerCode && BLOCKER_TAXONOMY[blockerCode]
-      ? BLOCKER_TAXONOMY[blockerCode].name
-      : null;
+    const factors = parseFactors(prediction.factors);
+    // Strongest drivers first (by |standardized contribution|), then cap at 6.
+    // Stable: ties keep their stored order via the index tiebreak.
+    const topFactors = factors
+      .map((f, i) => ({ f, i }))
+      .sort(
+        (a, b) =>
+          Math.abs(b.f.weight) - Math.abs(a.f.weight) || a.i - b.i
+      )
+      .slice(0, 6)
+      .map(({ f }) => f);
 
-  const factors = prediction ? parseFactors(prediction.factors) : [];
+    return {
+      signValue,
+      ghostValue,
+      signBand: band(signValue, prediction.sign_confidence),
+      ghostBand: band(ghostValue, prediction.ghost_confidence),
+      calibrated: prediction.calibrated === true,
+      modeLabel: prediction.mode ?? null,
+      // Honest ghost provenance: when uncalibrated, the ghost number is blended
+      // with real-world churn benchmarks (a cross-domain prior, not solar data).
+      ghostProvenance: getGhostProvenance(
+        prediction.calibrated,
+        prediction.mode
+      ),
+      blockerCode,
+      blockerName:
+        blockerCode && BLOCKER_TAXONOMY[blockerCode]
+          ? BLOCKER_TAXONOMY[blockerCode].name
+          : null,
+      factors,
+      topFactors,
+    };
+  }, [prediction]);
+
+  const {
+    signValue,
+    ghostValue,
+    signBand,
+    ghostBand,
+    calibrated,
+    modeLabel,
+    ghostProvenance,
+    blockerCode,
+    blockerName,
+    factors,
+    topFactors,
+  } = display;
 
   // History (chronological) for the sparkline — needs ≥2 points to render.
-  const history = [...predictions].sort(
-    (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)
+  const history = useMemo(
+    () =>
+      [...predictions].sort(
+        (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)
+      ),
+    [predictions]
   );
   const showTrend = history.length >= 2;
 
@@ -479,14 +556,19 @@ export function OraclePanel({
                     <InfoTooltipTrigger asChild>
                       <button
                         type="button"
-                        className="inline-flex max-w-[16rem] items-center gap-1 rounded text-center text-[10px] leading-tight text-muted-foreground/80 hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        aria-label={`${ghostProvenance.caption}. Press for details.`}
+                        className="inline-flex max-w-[16rem] items-center gap-1 rounded px-1 py-0.5 text-center text-[10px] leading-tight text-muted-foreground/80 transition-colors hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`${ghostProvenance.caption}. ${ghostProvenance.tooltip}`}
                       >
                         <Info className="size-3 shrink-0" aria-hidden />
-                        <span>{ghostProvenance.caption}</span>
+                        {/* aria-hidden: the caption is already in aria-label, so
+                            this prevents a screen reader announcing it twice. */}
+                        <span aria-hidden>{ghostProvenance.caption}</span>
                       </button>
                     </InfoTooltipTrigger>
-                    <InfoTooltipContent className="max-w-xs text-xs leading-relaxed">
+                    <InfoTooltipContent
+                      role="tooltip"
+                      className="max-w-xs text-xs leading-relaxed"
+                    >
                       {ghostProvenance.tooltip}
                     </InfoTooltipContent>
                   </InfoTooltip>
@@ -527,7 +609,7 @@ export function OraclePanel({
                       className="space-y-1"
                       aria-labelledby={`oracle-drivers-${leadId}`}
                     >
-                      {factors.slice(0, 6).map((f, i) => (
+                      {topFactors.map((f, i) => (
                         <FactorRow key={`${f.target}:${f.feature}:${i}`} factor={f} />
                       ))}
                     </ul>

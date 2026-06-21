@@ -64,13 +64,21 @@ export function advanceCovariates(xRaw: number[], periods: number): number[] {
  *  - Every period's outcome is "stay" except the final period:
  *      • terminal sign|ghost → the final row carries that absorbing outcome
  *      • terminal censored    → all rows (incl. final) stay (no absorption seen)
- *  - daysObserved <= 0 → no rows (nothing observed).
+ *  - daysObserved is taken as whole periods (floored); <= 0 (or NaN) → no rows.
  */
 export function expandToPersonPeriods(
   timeline: LeadTimeline
 ): PersonPeriodRow[] {
-  const { leadId, x0, terminal, daysObserved, synthetic } = timeline;
-  if (daysObserved <= 0) return [];
+  const { leadId, x0, terminal, synthetic } = timeline;
+  // Periods are whole days. Flooring keeps every integer input identical while
+  // making a fractional daysObserved (e.g. 3.5) safe: without it the loop would
+  // emit ⌈daysObserved⌉ rows yet no integer t would equal the fractional
+  // lastIndex, so `isFinal` would never fire and a sign/ghost absorption would
+  // be silently dropped (the lead would be mislabeled censored). NaN floors to
+  // NaN, for which `<= 0` is false and the loop guard `t < NaN` is false, so we
+  // normalize it to 0 (no rows) explicitly.
+  const daysObserved = Math.floor(timeline.daysObserved);
+  if (!(daysObserved > 0)) return [];
 
   const absorbing: PeriodOutcome | null =
     terminal === 'sign' || terminal === 'ghost' ? terminal : null;

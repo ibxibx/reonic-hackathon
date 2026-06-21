@@ -468,3 +468,254 @@ describe('assembleFeatures — edge cases stay finite & well-shaped', () => {
     expect(f.daysInPipeline).toBe(0);
   });
 });
+
+// ── More lead SHAPES: cash buyer, skeptic, draft-only, unknown financing,
+//    duplicate channels, out-of-order sends. featuresToVector stays aligned. ──
+describe('assembleFeatures / featuresToVector — across lead shapes', () => {
+  it('cash + skeptic → cash one-hot set, loan clear, skeptic one-hot set', () => {
+    const quote = {
+      ...noahInput().quote,
+      financing_type: 'cash',
+    } as unknown as FeatureAssemblyInput['quote'];
+    const strategy = {
+      ...noahInput().strategy,
+      persona_detected: 'skeptic',
+    } as unknown as FeatureAssemblyInput['strategy'];
+    const f = assembleFeatures(noahInput({ quote, strategy }));
+    expect(f.persona).toBe('skeptic');
+    const v = featuresToVector(f);
+    expect(v[idx('financingIsCash')]).toBe(1);
+    expect(v[idx('financingIsLoan')]).toBe(0);
+    expect(v[idx('personaInvestor')]).toBe(0);
+    expect(v[idx('personaSkeptic')]).toBe(1);
+    // cash buyer → full upfront required (financingAdjustedUpfront > 0)
+    expect(f.financingAdjustedUpfront).toBeGreaterThan(0);
+    expect(v[idx('financingAdjustedUpfront')]).toBe(f.financingAdjustedUpfront);
+  });
+
+  it('unknown financing → no cash/loan one-hot is set', () => {
+    const quote = {
+      ...noahInput().quote,
+      financing_type: 'lease',
+    } as unknown as FeatureAssemblyInput['quote'];
+    const f = assembleFeatures(noahInput({ quote }));
+    const v = featuresToVector(f);
+    expect(v[idx('financingIsCash')]).toBe(0);
+    expect(v[idx('financingIsLoan')]).toBe(0);
+  });
+
+  it('draft-only timeline → 0 sent, last-touch falls back to pipeline, no lastChannel', () => {
+    const drafts = [
+      {
+        id: 'd1',
+        lead_id: 'noah',
+        channel_type: 'email',
+        status: 'draft',
+        sequence_order: 1,
+        sent_at: null,
+        created_at: day(2),
+        strategy_id: 's',
+        content: '',
+        subject: null,
+        goal: null,
+        audio_path: null,
+        error_message: null,
+        provider_message_id: null,
+      },
+      {
+        id: 'd2',
+        lead_id: 'noah',
+        channel_type: 'email',
+        status: 'draft',
+        sequence_order: 2,
+        sent_at: null,
+        created_at: day(1),
+        strategy_id: 's',
+        content: '',
+        subject: null,
+        goal: null,
+        audio_path: null,
+        error_message: null,
+        provider_message_id: null,
+      },
+    ] as unknown as FeatureAssemblyInput['messages'];
+    const f = assembleFeatures(noahInput({ messages: drafts }));
+    expect(f.messagesSent).toBe(0);
+    expect(f.messagesDraft).toBe(2);
+    expect(f.distinctChannels).toBe(1); // both email
+    expect(f.maxSequenceOrder).toBe(2);
+    expect(f.lastChannel).toBeNull(); // nothing actually sent
+    expect(f.daysSinceLastTouch).toBeCloseTo(f.daysInPipeline, 6);
+  });
+
+  it('lastChannel tracks the latest SENT message even when rows are unordered', () => {
+    // Newest send (day 2) is listed BEFORE the older one (day 9) on purpose.
+    const unordered = [
+      {
+        id: 'a',
+        lead_id: 'noah',
+        channel_type: 'call',
+        status: 'sent',
+        sequence_order: 5,
+        sent_at: day(2), // most recent
+        created_at: day(2),
+        strategy_id: 's',
+        content: '',
+        subject: null,
+        goal: null,
+        audio_path: null,
+        error_message: null,
+        provider_message_id: null,
+      },
+      {
+        id: 'b',
+        lead_id: 'noah',
+        channel_type: 'email',
+        status: 'sent',
+        sequence_order: 1,
+        sent_at: day(9), // older
+        created_at: day(9),
+        strategy_id: 's',
+        content: '',
+        subject: null,
+        goal: null,
+        audio_path: null,
+        error_message: null,
+        provider_message_id: null,
+      },
+    ] as unknown as FeatureAssemblyInput['messages'];
+    const f = assembleFeatures(noahInput({ messages: unordered }));
+    expect(f.lastChannel).toBe('call'); // latest sent_at wins regardless of order
+    expect(f.daysSinceLastTouch).toBeCloseTo(2, 6);
+    expect(f.messagesSent).toBe(2);
+  });
+
+  it('messages with null channel_type do not inflate distinctChannels', () => {
+    const msgs = [
+      {
+        id: 'n1',
+        lead_id: 'noah',
+        channel_type: null,
+        status: 'sent',
+        sequence_order: 1,
+        sent_at: day(3),
+        created_at: day(3),
+        strategy_id: 's',
+        content: '',
+        subject: null,
+        goal: null,
+        audio_path: null,
+        error_message: null,
+        provider_message_id: null,
+      },
+      {
+        id: 'n2',
+        lead_id: 'noah',
+        channel_type: 'sms',
+        status: 'sent',
+        sequence_order: 2,
+        sent_at: day(1),
+        created_at: day(1),
+        strategy_id: 's',
+        content: '',
+        subject: null,
+        goal: null,
+        audio_path: null,
+        error_message: null,
+        provider_message_id: null,
+      },
+    ] as unknown as FeatureAssemblyInput['messages'];
+    const f = assembleFeatures(noahInput({ messages: msgs }));
+    expect(f.distinctChannels).toBe(1); // only 'sms' counts; null skipped
+    expect(f.messagesSent).toBe(2);
+    expect(f.lastChannel).toBe('sms'); // newest sent
+  });
+
+  it('stepProgressRatio clamps gracefully at the ends (0/N and N/N)', () => {
+    const fresh = {
+      ...noahInput().orchestration,
+      current_step: 0,
+      total_steps: 6,
+    } as unknown as FeatureAssemblyInput['orchestration'];
+    const done = {
+      ...noahInput().orchestration,
+      current_step: 6,
+      total_steps: 6,
+    } as unknown as FeatureAssemblyInput['orchestration'];
+    expect(assembleFeatures(noahInput({ orchestration: fresh })).stepProgressRatio).toBe(0);
+    expect(assembleFeatures(noahInput({ orchestration: done })).stepProgressRatio).toBe(1);
+  });
+
+  it('totalSteps=0 → stepProgressRatio 0 (no divide-by-zero)', () => {
+    const zeroSteps = {
+      ...noahInput().orchestration,
+      current_step: 0,
+      total_steps: 0,
+    } as unknown as FeatureAssemblyInput['orchestration'];
+    const f = assembleFeatures(noahInput({ orchestration: zeroSteps }));
+    expect(f.stepProgressRatio).toBe(0);
+    expect(Number.isFinite(f.stepProgressRatio)).toBe(true);
+  });
+});
+
+// ── featuresToVector is a faithful, exhaustive projection of OracleFeatures.
+//    Every named numeric/derived field must land in its FEATURE_NAMES slot. ──
+describe('featuresToVector — faithful projection invariants', () => {
+  it('places every plain numeric feature into its named slot', () => {
+    const f = assembleFeatures(noahInput());
+    const v = featuresToVector(f);
+    const plain: Array<keyof typeof f> = [
+      'monthlyBill',
+      'systemSizeKw',
+      'totalCost',
+      'costPerKw',
+      'simplePaybackYears',
+      'monthlySavingsRatio',
+      'roi25yrRatio',
+      'financingAdjustedUpfront',
+      'personaConfidence',
+      'messagesSent',
+      'messagesFailed',
+      'distinctChannels',
+      'maxSequenceOrder',
+      'daysSinceLastTouch',
+      'stepProgressRatio',
+      'daysToNextAction',
+      'daysInPipeline',
+      'daysSinceLatestStrategy',
+      'signProbSlope',
+      'ghostRiskSlope',
+    ];
+    for (const name of plain) {
+      expect(v[idx(name as string)]).toBe(f[name] as number);
+    }
+  });
+
+  it('every vector slot is one of: a named field value or 0/1 flag', () => {
+    const v = featuresToVector(assembleFeatures(noahInput()));
+    expect(v).toHaveLength(FEATURE_COUNT);
+    // booleans/one-hots are strictly 0 or 1
+    for (const flag of [
+      'awaitingReply',
+      'hasStrategy',
+      'financingIsCash',
+      'financingIsLoan',
+      'personaInvestor',
+      'personaSkeptic',
+    ]) {
+      expect([0, 1]).toContain(v[idx(flag)]);
+    }
+  });
+
+  it('the vector is deterministic — same input twice yields identical vectors', () => {
+    const a = featuresToVector(assembleFeatures(noahInput()));
+    const b = featuresToVector(assembleFeatures(noahInput()));
+    expect(a).toEqual(b);
+  });
+
+  it('one-hots are mutually exclusive within financing and within persona', () => {
+    const v = featuresToVector(assembleFeatures(noahInput())); // loan + investor
+    expect(v[idx('financingIsCash')] + v[idx('financingIsLoan')]).toBeLessThanOrEqual(1);
+    expect(v[idx('personaInvestor')] + v[idx('personaSkeptic')]).toBeLessThanOrEqual(1);
+  });
+});

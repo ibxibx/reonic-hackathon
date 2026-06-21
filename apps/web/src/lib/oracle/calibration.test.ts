@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { generateSyntheticCorpus, mulberry32 } from './synthetic';
 import {
   calibrateFromCorpus,
+  calibrateFromCorpusHonest,
+  compareGhostPriorRanking,
   evaluate,
   fitCalibration,
   applyCalibration,
@@ -333,5 +335,200 @@ describe('compareGhostPriorBlend — churn-prior impact (headline real-data resu
     expect(cmp.blended.ece).toBeCloseTo(cmp.raw.ece, 12);
     expect(cmp.blended.brier).toBeCloseTo(cmp.raw.brier, 12);
     expect(cmp.eceDelta).toBeCloseTo(0, 12);
+  }, 60000);
+});
+
+describe('calibrateFromCorpusHonest — fully out-of-sample base metrics', () => {
+  function makeCorpus(seed: number) {
+    return generateSyntheticCorpus({
+      seed,
+      nLeads: 800,
+      regime: 'high-ghost',
+    });
+  }
+
+  const SHARED_FIT = { l2: 0.5, lr: 0.4, maxIter: 600 } as const;
+
+  it('produces a clean lead-level split with NO leakage', () => {
+    const corpus = makeCorpus(13);
+    const res = calibrateFromCorpusHonest(corpus, 'ghost', {
+      splitSeed: 99,
+      fit: SHARED_FIT,
+    });
+
+    const trainSet = new Set(res.trainLeadIds);
+    const testSet = new Set(res.testLeadIds);
+
+    // Train and test leadIds are disjoint.
+    for (const id of res.testLeadIds) {
+      expect(trainSet.has(id)).toBe(false);
+    }
+    // No duplicate ids within either split.
+    expect(trainSet.size).toBe(res.trainLeadIds.length);
+    expect(testSet.size).toBe(res.testLeadIds.length);
+    // Together they cover every lead exactly once.
+    expect(res.nTrainLeads + res.nTestLeads).toBe(corpus.labels.length);
+    expect(res.nTrainLeads).toBe(res.trainLeadIds.length);
+    expect(res.nTestLeads).toBe(res.testLeadIds.length);
+
+    // CRITICAL leakage check: NOT ONE person-period row of any TEST lead may
+    // have entered the base-model fit. The base model is fit on train rows only,
+    // so the count of train-lead distinct rows must equal the rows the model saw.
+    const trainRowLeadIds = new Set(
+      corpus.rows.filter((r) => trainSet.has(r.leadId)).map((r) => r.leadId)
+    );
+    for (const id of res.testLeadIds) {
+      expect(trainRowLeadIds.has(id)).toBe(false);
+    }
+    // The base model's nLeads reflects ONLY train leads (no test lead leaked in).
+    expect(res.baseModel.nLeads).toBe(res.nTrainLeads);
+  }, 60000);
+
+  it('honest before-metrics are no better than the optimistic ones (ghost)', () => {
+    const corpus = makeCorpus(13);
+
+    // Optimistic path: model fit on the FULL corpus, graded on held-out leads
+    // whose rows the model already saw at fit time.
+    const fullModel = fitMultinomial(corpus.rows, SHARED_FIT);
+    const optimistic = calibrateFromCorpus(fullModel, corpus, 'ghost', {
+      method: 'platt',
+      splitSeed: 99,
+    });
+
+    // Honest path: same split, but the base model is re-fit on TRAIN leads only.
+    const honest = calibrateFromCorpusHonest(corpus, 'ghost', {
+      method: 'platt',
+      splitSeed: 99,
+      fit: SHARED_FIT,
+    });
+
+    // Both evaluate on the SAME held-out lead set (same seed/fraction).
+    expect(honest.nTestLeads).toBe(
+      corpus.labels.length - honest.nTrainLeads
+    );
+
+    // The honest base model never saw the test leads, so its discrimination on
+    // them cannot be inflated by memorization: honest before-AUC is NOT higher
+    // than the optimistic before-AUC (allow tiny float noise).
+    expect(
+      honest.heldOut.before.auc,
+      `honest before-AUC=${honest.heldOut.before.auc.toFixed(
+        4
+      )} optimistic before-AUC=${optimistic.heldOut.before.auc.toFixed(4)}`
+    ).toBeLessThanOrEqual(optimistic.heldOut.before.auc + 1e-6);
+
+    // And the honest numbers are genuinely DIFFERENT from the optimistic ones —
+    // a different (train-only) base model yields a different ghostRisk surface,
+    // so at least one of {auc, ece, brier} must move (not a copy of the old path).
+    const moved =
+      Math.abs(honest.heldOut.before.auc - optimistic.heldOut.before.auc) >
+        1e-6 ||
+      Math.abs(honest.heldOut.before.ece - optimistic.heldOut.before.ece) >
+        1e-6 ||
+      Math.abs(honest.heldOut.before.brier - optimistic.heldOut.before.brier) >
+        1e-6;
+    expect(moved).toBe(true);
+
+    // The honest base model still discriminates (ghost ranking is real, not noise).
+    expect(honest.heldOut.before.auc).toBeGreaterThan(0.55);
+
+    // Honesty: trainedOn stays synthetic; calibration params are well-formed.
+    expect(honest.params.target).toBe('ghost');
+    expect(honest.params.trainedOn).toBe('synthetic');
+    expect(honest.baseModel.trainedOn).toBe('synthetic');
+
+    // Surface the headline comparison for the report.
+    const f = (v: number) => v.toFixed(4);
+    expect(
+      true,
+      `HONEST vs OPTIMISTIC ghost before: ` +
+        `AUC ${f(honest.heldOut.before.auc)} vs ${f(
+          optimistic.heldOut.before.auc
+        )} · ECE ${f(honest.heldOut.before.ece)} vs ${f(
+          optimistic.heldOut.before.ece
+        )} · Brier ${f(honest.heldOut.before.brier)} vs ${f(
+          optimistic.heldOut.before.brier
+        )} (n=${honest.nTestLeads})`
+    ).toBe(true);
+  }, 90000);
+
+  it('honest calibration does not materially worsen held-out ECE (sign + ghost)', () => {
+    const corpus = makeCorpus(13);
+    const ECE_EPS = 0.06; // finite OOS test split is noisy.
+    for (const target of ['ghost', 'sign'] as const) {
+      const honest = calibrateFromCorpusHonest(corpus, target, {
+        method: 'platt',
+        splitSeed: 99,
+        fit: SHARED_FIT,
+      });
+      expect(
+        honest.heldOut.after.ece,
+        `${target} honest ECE after=${honest.heldOut.after.ece.toFixed(
+          4
+        )} before=${honest.heldOut.before.ece.toFixed(4)}`
+      ).toBeLessThanOrEqual(honest.heldOut.before.ece + ECE_EPS);
+    }
+  }, 90000);
+});
+
+describe('compareGhostPriorRanking — does the prior help ORDERING (honest, OOS)', () => {
+  it('reports raw / prior-alone / blended held-out ghost AUC; calibrated=false', () => {
+    const corpus = generateSyntheticCorpus({
+      seed: 13,
+      nLeads: 800,
+      regime: 'high-ghost',
+    });
+
+    const rank = compareGhostPriorRanking(corpus, {
+      splitSeed: 99,
+      priorWeight: 0.5,
+      fit: { l2: 0.5, lr: 0.4, maxIter: 600 },
+    });
+
+    // Structural / honesty guarantees.
+    expect(rank.calibrated).toBe(false);
+    expect(rank.priorWeight).toBe(0.5);
+    expect(rank.nHeldOut).toBeGreaterThan(0);
+    expect(Number.isFinite(rank.rawAuc)).toBe(true);
+    expect(Number.isFinite(rank.priorAuc)).toBe(true);
+    expect(Number.isFinite(rank.blendedAuc)).toBe(true);
+    expect(rank.aucDelta).toBeCloseTo(rank.blendedAuc - rank.rawAuc, 12);
+    expect(rank.notes.join(' ')).toContain('PRIOR');
+    expect(rank.notes.join(' ')).toContain('out-of-sample');
+
+    // All AUCs are valid probabilities-of-correct-ordering in [0,1].
+    for (const a of [rank.rawAuc, rank.priorAuc, rank.blendedAuc]) {
+      expect(a).toBeGreaterThanOrEqual(0);
+      expect(a).toBeLessThanOrEqual(1);
+    }
+
+    // The raw (train-fit) model genuinely ranks ghosters above non-ghosters OOS.
+    expect(rank.rawAuc).toBeGreaterThan(0.55);
+
+    // Surface the headline ranking result for the report.
+    const f = (v: number) => v.toFixed(4);
+    expect(
+      true,
+      `GHOST RANKING (OOS): raw AUC=${f(rank.rawAuc)} prior-alone AUC=${f(
+        rank.priorAuc
+      )} blended AUC=${f(rank.blendedAuc)} Δvs raw=${f(rank.aucDelta)} (n=${
+        rank.nHeldOut
+      })`
+    ).toBe(true);
+  }, 90000);
+
+  it('weight 0 makes the blend identical to raw (AUC matches, Δ=0)', () => {
+    const corpus = generateSyntheticCorpus({
+      seed: 13,
+      nLeads: 400,
+      regime: 'high-ghost',
+    });
+    const rank = compareGhostPriorRanking(corpus, {
+      splitSeed: 99,
+      priorWeight: 0,
+      fit: { l2: 0.5, lr: 0.4, maxIter: 400 },
+    });
+    expect(rank.blendedAuc).toBeCloseTo(rank.rawAuc, 12);
+    expect(rank.aucDelta).toBeCloseTo(0, 12);
   }, 60000);
 });

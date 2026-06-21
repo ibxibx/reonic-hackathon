@@ -22,11 +22,14 @@ import type {
   EvalMetrics,
   FittedModel,
   IsotonicParams,
+  PersonPeriodRow,
   PlattParams,
   ReliabilityBin,
   SyntheticCorpus,
 } from './contracts';
 import { cumulativeIncidence } from './model/competing-risks';
+import { fitMultinomial } from './model/fitter';
+import type { FitOptions } from './model/fitter';
 import { mulberry32 } from './synthetic';
 import { churnGhostPrior, blendWithPrior } from './churn-prior';
 
@@ -643,6 +646,277 @@ export function compareGhostPriorBlend(
     raw,
     blended,
     eceDelta,
+    priorWeight,
+    nHeldOut: y.length,
+    calibrated: false,
+    notes,
+  };
+}
+
+// ─── Honest, fully out-of-sample calibration ─────────────────────────────────
+//
+// SKEPTIC CAVEAT (pass-1): calibrateFromCorpus takes a model that was fit on the
+// FULL corpus, then evaluates "before"-metrics on a held-out subset of the SAME
+// leads. Those leads' person-period rows were seen by the base model at fit time,
+// so the held-out "before" numbers are OPTIMISTIC — the base model has partially
+// memorized the very leads it is being graded on.
+//
+// calibrateFromCorpusHonest closes that leak end-to-end:
+//   1. Split LEADS by leadId (seeded Fisher–Yates), identical scheme to
+//      calibrateFromCorpus, so no lead's periods straddle the train/test line.
+//   2. Re-FIT the base model with fitMultinomial on ONLY the TRAIN leads' rows.
+//      (calibrateFromCorpus reuses a caller-supplied, full-corpus model; here we
+//      ignore any such model and train fresh on train rows.)
+//   3. Compute cumulativeIncidence on the held-out TEST leads' snapshots →
+//      genuinely out-of-sample "before" metrics for the base model.
+//   4. Fit the calibration transform on the TRAIN leads' predictions, then score
+//      raw vs calibrated on the TEST leads → out-of-sample "after" metrics.
+//
+// The old calibrateFromCorpus is left fully intact for back-compat.
+
+/** Partition leadIds into test/train via a seeded Fisher–Yates shuffle. */
+function splitLeadIds(
+  leadIds: string[],
+  splitSeed: number,
+  testFraction: number
+): { testIds: Set<string>; trainIds: Set<string> } {
+  // Sort first so the order is independent of corpus row/label ordering.
+  const sorted = leadIds.slice().sort();
+  const rng = mulberry32(splitSeed);
+  for (let i = sorted.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = sorted[i];
+    sorted[i] = sorted[j];
+    sorted[j] = tmp;
+  }
+  const nTest = Math.max(1, Math.floor(sorted.length * testFraction));
+  const testIds = new Set(sorted.slice(0, nTest));
+  const trainIds = new Set(sorted.slice(nTest));
+  return { testIds, trainIds };
+}
+
+export interface CalibrateFromCorpusHonestOptions
+  extends CalibrateFromCorpusOptions {
+  /**
+   * Fit hyperparameters for the FRESH base-model fit on train rows. Mirrors the
+   * caller's normal fitMultinomial call so the honest base model matches the
+   * production fit. Defaults match the lane's usual {l2:0.5, lr:0.4, maxIter:600}.
+   */
+  fit?: Omit<FitOptions, 'classes'>;
+}
+
+export interface CalibrateFromCorpusHonestResult {
+  params: CalibrationParams;
+  /** out-of-sample held-out metrics: before = raw base model, after = calibrated. */
+  heldOut: { before: EvalMetrics; after: EvalMetrics };
+  /** the base model trained on TRAIN leads only (handy for inspection/tests). */
+  baseModel: FittedModel;
+  nTrainLeads: number;
+  nTestLeads: number;
+  /** the held-out test leadIds (for leakage assertions). */
+  testLeadIds: string[];
+  /** the train leadIds used to fit the base model + calibration. */
+  trainLeadIds: string[];
+}
+
+const HONEST_DEFAULT_FIT: Omit<FitOptions, 'classes'> = {
+  l2: 0.5,
+  lr: 0.4,
+  maxIter: 600,
+};
+
+/**
+ * Fully out-of-sample calibration: re-fits the base model on TRAIN leads only,
+ * then evaluates the base model AND the fitted calibration transform on entirely
+ * held-out TEST leads. Unlike calibrateFromCorpus (which grades a model that was
+ * fit on the full corpus), the base-model "before" metrics here contain zero leak
+ * — the TEST leads' rows never touched fitMultinomial. Pure (seeded split, no
+ * Date.now / Math.random). Honesty: trainedOn flows from the corpus provenance;
+ * `calibrated` semantics are unchanged (still synthetic, not real solar labels).
+ */
+export function calibrateFromCorpusHonest(
+  corpus: SyntheticCorpus,
+  target: 'sign' | 'ghost',
+  opts?: CalibrateFromCorpusHonestOptions
+): CalibrateFromCorpusHonestResult {
+  const method: CalibrationMethod = opts?.method ?? 'platt';
+  const H = opts?.horizonDays ?? DEFAULT_HORIZON_DAYS;
+  const splitSeed = opts?.splitSeed ?? 1234;
+  const testFraction = opts?.testFraction ?? 0.3;
+  const fitOpts = opts?.fit ?? HONEST_DEFAULT_FIT;
+  const metricKey: 'signProbability' | 'ghostRisk' =
+    target === 'sign' ? 'signProbability' : 'ghostRisk';
+
+  const labels = corpus.labels;
+
+  // Distinct leadIds from the LABELS (one per lead), split by leadId.
+  const leadIds = labels.map((l) => l.leadId);
+  const { testIds, trainIds } = splitLeadIds(leadIds, splitSeed, testFraction);
+
+  // Base model is fit on TRAIN leads' person-period rows ONLY — no test leakage.
+  const trainRows: PersonPeriodRow[] = corpus.rows.filter((r) =>
+    trainIds.has(r.leadId)
+  );
+  // Corpus is synthetic by construction; keep trainedOn honest as 'synthetic'
+  // unless the caller's fit opts explicitly override it.
+  const baseModel = fitMultinomial(trainRows, {
+    trainedOn: 'synthetic',
+    ...fitOpts,
+  });
+
+  // Predictions per lead, partitioned by the SAME lead split.
+  const trainPred: number[] = [];
+  const trainY: number[] = [];
+  const testPred: number[] = [];
+  const testY: number[] = [];
+  const trainLeadIds: string[] = [];
+  const testLeadIds: string[] = [];
+
+  for (const label of labels) {
+    const ci = cumulativeIncidence(baseModel, label.features, H);
+    const p = ci[metricKey];
+    const yi = label.terminal === target ? 1 : 0;
+    if (testIds.has(label.leadId)) {
+      testPred.push(p);
+      testY.push(yi);
+      testLeadIds.push(label.leadId);
+    } else if (trainIds.has(label.leadId)) {
+      trainPred.push(p);
+      trainY.push(yi);
+      trainLeadIds.push(label.leadId);
+    }
+  }
+
+  // Fit calibration ONLY on train predictions.
+  const params = fitCalibration({
+    predicted: trainPred,
+    labels: trainY,
+    target,
+    method,
+    modelVersion: baseModel.modelVersion,
+    nLabels: trainY.length,
+    trainedOn: baseModel.trainedOn,
+  });
+
+  // Out-of-sample metrics on TEST leads: before = raw base, after = calibrated.
+  const before = evaluate(testPred, testY);
+  const calibratedTest = testPred.map((pp) => applyCalibration(pp, params));
+  const after = evaluate(calibratedTest, testY);
+
+  return {
+    params,
+    heldOut: { before, after },
+    baseModel,
+    nTrainLeads: trainLeadIds.length,
+    nTestLeads: testLeadIds.length,
+    testLeadIds,
+    trainLeadIds,
+  };
+}
+
+// ─── Honest ghost-prior RANKING evaluation ───────────────────────────────────
+//
+// compareGhostPriorBlend answers "does blending the churn prior improve held-out
+// ECE/Brier (CALIBRATION)?" — and the honest answer is often "no", because the
+// prior is on a different scale than this synthetic model. But a PRIOR's natural
+// job is to improve ORDERING: ranking quiet/low-commitment leads above engaged
+// ones. AUC is invariant to monotone rescaling, so it isolates that ranking
+// signal from the scale mismatch ECE penalizes.
+//
+// compareGhostPriorRanking reports held-out ghost AUC for raw vs prior-blended
+// (and the prior alone), on the SAME held-out leads, re-fitting the base model on
+// TRAIN leads only so the ranking comparison is itself out-of-sample. This gives
+// the honest "does the prior help ORDERING" answer, separately from calibration.
+
+export interface GhostPriorRankingOptions extends GhostPriorBlendOptions {
+  /** fit hyperparameters for the fresh TRAIN-only base model. */
+  fit?: Omit<FitOptions, 'classes'>;
+}
+
+export interface GhostPriorRankingComparison {
+  /** held-out ghost AUC of the raw (TRAIN-fit) model ghostRisk. */
+  rawAuc: number;
+  /** held-out ghost AUC of the prior alone. */
+  priorAuc: number;
+  /** held-out ghost AUC of the convex blend(raw, prior, weight). */
+  blendedAuc: number;
+  /** blendedAuc − rawAuc; positive = the prior improved ORDERING. */
+  aucDelta: number;
+  priorWeight: number;
+  nHeldOut: number;
+  /** honesty flag: priors are external/proxy, never fitted solar labels. */
+  calibrated: false;
+  notes: string[];
+}
+
+/**
+ * Honest held-out RANKING comparison for the churn prior on GHOST. Re-fits the
+ * base model on TRAIN leads only (no leakage), then on the held-out TEST leads
+ * reports ghost AUC for raw model vs prior-alone vs blend. Ranking (AUC) is the
+ * dimension a prior can help even when ECE/scale worsens, so this isolates the
+ * "does the prior help ORDERING" answer. Pure (seeded split, no Date/Math.random).
+ */
+export function compareGhostPriorRanking(
+  corpus: SyntheticCorpus,
+  opts?: GhostPriorRankingOptions
+): GhostPriorRankingComparison {
+  const H = opts?.horizonDays ?? DEFAULT_HORIZON_DAYS;
+  const splitSeed = opts?.splitSeed ?? 1234;
+  const testFraction = opts?.testFraction ?? 0.3;
+  const priorWeight = clamp01(opts?.priorWeight ?? 0.5);
+  const fitOpts = opts?.fit ?? HONEST_DEFAULT_FIT;
+
+  const labels = corpus.labels;
+  const leadIds = labels.map((l) => l.leadId);
+  const { testIds, trainIds } = splitLeadIds(leadIds, splitSeed, testFraction);
+
+  // Re-fit base model on TRAIN leads only → out-of-sample ranking on TEST.
+  const trainRows: PersonPeriodRow[] = corpus.rows.filter((r) =>
+    trainIds.has(r.leadId)
+  );
+  const baseModel = fitMultinomial(trainRows, fitOpts);
+
+  const rawPred: number[] = [];
+  const priorPred: number[] = [];
+  const blendedPred: number[] = [];
+  const y: number[] = [];
+
+  for (const label of labels) {
+    if (!testIds.has(label.leadId)) continue;
+    const raw = clamp01(
+      cumulativeIncidence(baseModel, label.features, H).ghostRisk
+    );
+    const prior = churnGhostPrior(priorInputFromVector(label.features));
+    rawPred.push(raw);
+    priorPred.push(prior);
+    blendedPred.push(blendWithPrior(raw, prior, priorWeight));
+    y.push(label.terminal === 'ghost' ? 1 : 0);
+  }
+
+  const rawAuc = evaluate(rawPred, y).auc;
+  const priorAuc = evaluate(priorPred, y).auc;
+  const blendedAuc = evaluate(blendedPred, y).auc;
+  const aucDelta = blendedAuc - rawAuc;
+
+  const fmt = (v: number): string => v.toFixed(4);
+  const notes: string[] = [
+    `GHOST prior RANKING (weight=${priorWeight}, held-out n=${y.length}, ` +
+      'TRAIN-fit base model — fully out-of-sample):',
+    `raw AUC=${fmt(rawAuc)} · prior-alone AUC=${fmt(priorAuc)} · ` +
+      `blended AUC=${fmt(blendedAuc)} (Δvs raw=${fmt(aucDelta)}${
+        aucDelta >= 0 ? ' prior helps ordering' : ' prior hurts ordering'
+      })`,
+    'AUC is rescaling-invariant, so it isolates ORDERING from the scale ' +
+      'mismatch ECE penalizes.',
+    'prior = REAL external telecom/lead-response stats used as a PRIOR, ' +
+      "not this installer's solar outcomes; calibrated=false.",
+  ];
+
+  return {
+    rawAuc,
+    priorAuc,
+    blendedAuc,
+    aucDelta,
     priorWeight,
     nHeldOut: y.length,
     calibrated: false,

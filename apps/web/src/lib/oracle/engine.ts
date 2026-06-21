@@ -38,11 +38,13 @@
  *   overstates trust. `realLabelCount` is still computed + logged so the switch
  *   is observable the moment real data accrues.
  *
- * SYNTHETIC-MODEL MEMOIZATION — `getSyntheticModel()` fits the model ONCE per
- *   server process and caches it in the module-level `SYNTHETIC_MODEL` singleton.
- *   The fit is deterministic (fixed seed=7, fixed corpus options, no Date.now /
- *   Math.random in the pure fitter), so the cached model is identical to a fresh
- *   fit — memoization is a pure performance optimization, never a behavior change.
+ * SYNTHETIC-MODEL MEMOIZATION — `getSyntheticModel()` cross-validates the L2
+ *   penalty over a fixed grid, then fits the model ONCE per server process and
+ *   caches it in the module-level `SYNTHETIC_MODEL` singleton. Both the CV-chosen
+ *   L2 and the final fit are deterministic (fixed seed=7, fixed corpus options,
+ *   seeded mulberry32 fold assignment, no Date.now / Math.random in the pure
+ *   fitter), so the cached model is identical to a fresh build — memoization is a
+ *   pure performance optimization, never a behavior change.
  *
  * DEGRADATION GUARANTEES (this function degrades, it does not crash) —
  *   • Missing `predictions` table (PostgREST error code PGRST205, "could not find
@@ -66,7 +68,7 @@ import {
 } from './contracts';
 import type { FittedModel, OracleLlmOutput, OracleScore } from './contracts';
 import { assembleFeatures, featuresToVector } from './features';
-import { fitMultinomial } from './model/fitter';
+import { fitMultinomial, crossValidateL2 } from './model/fitter';
 import { generateSyntheticCorpus } from './synthetic';
 import {
   assembleRichPrediction,
@@ -94,9 +96,22 @@ import type { OracleFeatures, OracleFactor, OraclePromptContext } from './contra
 
 let SYNTHETIC_MODEL: FittedModel | null = null;
 
+/** L2 grid swept by cross-validation to pick the synthetic model's penalty. */
+const SYNTHETIC_L2_GRID = [0.1, 0.3, 1, 3, 10] as const;
+/** Fixed CV settings — deterministic for the fixed-seed corpus. */
+const SYNTHETIC_CV_FOLDS = 5;
+const SYNTHETIC_CV_SEED = 7;
+
 /**
- * Build (once) and reuse the synthetic-trained model. Pure inputs + a fixed seed
- * make the fit deterministic; memoizing avoids refitting on every request.
+ * Build (once) and reuse the synthetic-trained model. The L2 penalty is chosen by
+ * lead-aware k-fold cross-validation over a fixed grid (lowest mean held-out
+ * log-loss wins), then the model is fit ONCE on the full corpus with that L2.
+ *
+ * Determinism: the corpus is generated at a fixed seed (7) with fixed options, the
+ * CV lead→fold assignment is a seeded shuffle (mulberry32, seed 7), and
+ * fitMultinomial has no Date.now / Math.random — so both the CV-chosen L2 and the
+ * final fit are identical on every process. Memoizing is therefore a pure
+ * performance optimization (fit once per process), never a behavior change.
  */
 function getSyntheticModel(): FittedModel {
   if (SYNTHETIC_MODEL) return SYNTHETIC_MODEL;
@@ -105,10 +120,30 @@ function getSyntheticModel(): FittedModel {
     nLeads: 600,
     regime: 'balanced',
   });
-  SYNTHETIC_MODEL = fitMultinomial(corpus.rows, { trainedOn: 'synthetic' });
+
+  // Pick L2 once via lead-aware CV (deterministic on the fixed-seed corpus).
+  const cv = crossValidateL2(corpus.rows, {
+    l2Grid: SYNTHETIC_L2_GRID.slice(),
+    folds: SYNTHETIC_CV_FOLDS,
+    seed: SYNTHETIC_CV_SEED,
+    fit: { trainedOn: 'synthetic' },
+  });
+  logStep('oracle', 'synthetic model L2 cross-validated', {
+    grid: SYNTHETIC_L2_GRID.slice(),
+    bestL2: cv.bestL2,
+    bestMeanLogLoss: Math.round(cv.bestMeanLogLoss * 1e4) / 1e4,
+    folds: cv.folds,
+    nLeads: cv.nLeads,
+  });
+
+  SYNTHETIC_MODEL = fitMultinomial(corpus.rows, {
+    l2: cv.bestL2,
+    trainedOn: 'synthetic',
+  });
   logStep('oracle', 'synthetic model fit', {
     rows: SYNTHETIC_MODEL.nRows,
     leads: SYNTHETIC_MODEL.nLeads,
+    l2: SYNTHETIC_MODEL.l2,
     trainedOn: SYNTHETIC_MODEL.trainedOn,
   });
   return SYNTHETIC_MODEL;

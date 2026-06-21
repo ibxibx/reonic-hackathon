@@ -6,29 +6,46 @@ describe('getGhostProvenance', () => {
     const p = getGhostProvenance(true, 'model');
     expect(p.calibrated).toBe(true);
     expect(p.blendedWithChurnPrior).toBe(false);
+    expect(p.blendKind).toBe('calibrated');
     expect(p.caption).toBe('');
     expect(p.tooltip).toMatch(/calibrated/i);
     expect(p.tooltip).toMatch(/real absorbed/i);
   });
 
-  it('uncalibrated model mode → churn-blended caption + synthetic-corpus tooltip', () => {
+  it('uncalibrated model mode → model-vs-prior BLEND caption + synthetic-corpus tooltip', () => {
     const p = getGhostProvenance(false, 'model');
     expect(p.calibrated).toBe(false);
     expect(p.mode).toBe('model');
     expect(p.blendedWithChurnPrior).toBe(true);
+    expect(p.blendKind).toBe('model-blend');
     expect(p.caption).toMatch(/real-world churn benchmarks/i);
     expect(p.caption).toMatch(/uncalibrated/i);
+    // model mode is honestly described as a BLEND (model spine), not a bare prior
+    expect(p.caption).toMatch(/blend/i);
+    expect(p.tooltip).toMatch(/blend/i);
     expect(p.tooltip).toMatch(/synthetic/i);
     expect(p.tooltip).toMatch(/uncalibrated/i);
   });
 
-  it('uncalibrated degraded mode → churn-blended caption + heuristic tooltip', () => {
+  it('uncalibrated degraded mode → prior-spine caption + heuristic tooltip', () => {
     const p = getGhostProvenance(false, 'degraded');
     expect(p.blendedWithChurnPrior).toBe(true);
     expect(p.mode).toBe('degraded');
+    expect(p.blendKind).toBe('prior-spine');
     expect(p.caption).toMatch(/real-world churn benchmarks/i);
+    // degraded is a heuristic anchored to the prior, NOT a model blend
+    expect(p.caption).toMatch(/heuristic|anchored/i);
+    expect(p.caption).not.toMatch(/\bblend(ed)?\b/i);
     expect(p.tooltip).toMatch(/heuristic/i);
     expect(p.tooltip).toMatch(/uncalibrated/i);
+  });
+
+  it('blendKind distinguishes model-blend from prior-spine; calibrated has neither', () => {
+    expect(getGhostProvenance(true, 'model').blendKind).toBe('calibrated');
+    expect(getGhostProvenance(false, 'model').blendKind).toBe('model-blend');
+    expect(getGhostProvenance(false, 'degraded').blendKind).toBe('prior-spine');
+    // unknown mode is treated like the (synthetic) model path
+    expect(getGhostProvenance(false, 'weird').blendKind).toBe('model-blend');
   });
 
   it('HONESTY: benchmarks are explicitly NOT presented as measured solar data', () => {

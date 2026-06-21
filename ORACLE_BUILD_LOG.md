@@ -99,5 +99,15 @@ Entry format:
 - Verified (authoritative): `tsc --noEmit` GREEN; full suite **329 passed (16 files)**; `oxlint` 0/0. (The transient "1 failure" other agents saw was a mid-write snapshot of A5's oracle-provenance.test.ts; final on-disk version is correct + green.)
 - HONEST headline: on the SYNTHETIC corpus the telecom-anchored prior does NOT improve ghost ECE (high-ghost 0.149→0.252 @w0.25) — synthetic ghost rate sits below the ~0.26 anchor, so the prior is a cold-start grounding/ranking aid, NOT a synthetic-calibration win. Documented in ORACLE_EVAL §10; harness ready to fit the weight on real labels. Method selection DOES cut ghost ECE (Platt 0.149→0.025). Ghost before/after: Noah 84→76, Lukas 36→34; sign unchanged.
 - Skeptics: all 3 could NOT refute (blend honesty 0.88, no-leakage 0.82, competing-risks math 0.97 vs independent reference). Noted caveat: calibrateFromCorpus base-model before-metrics are optimistic (base fit on full corpus); crossValidateL2 is leak-free. Deferred: refit base train-only.
-- Commit: (this commit)
+- Commit: 8807064
 - Next: continue the loop (pass 2).
+
+---
+
+## [Improve Pass 2] [ORCH] — Real labeled-data benchmark + honest calibration + engine CV
+- Did: fetched the REAL IBM Telco churn dataset, encoded a deterministic 3000-row fixture (fc89cd1; sample churn 0.257 confirms cited 26.5%). Ran a 7-agent pass: (REAL-BENCHMARK) new real-benchmark.ts fits the EXACT ghost machinery on real labels; (HONEST-CALIB) calibrateFromCorpusHonest (train-only base refit) + compareGhostPriorRanking; (ENGINE-CV) CV-selected L2 into the synthetic model; (DATA-DEEP) fixed a real expandToPersonPeriods fractional-daysObserved bug + 39 tests; (UI) provenance GhostBlendKind + panel memoization/a11y; + 2 skeptics.
+- Verified (authoritative): `tsc` GREEN; full suite **374 passed (17 files)**; `oxlint` 0/0.
+- HEADLINE real-data result: held-out **AUC 0.836 / ECE 0.027 / Brier 0.139** (n=900 real telco customers) — the machinery learns real churn signal (cross-domain, NOT solar, calibrated stays false). Honest calibration: ghost before-AUC 0.821 (optimistic) → 0.803 (honest out-of-sample), confirming the pass-1 caveat. Honest ranking: prior helps neither calibration nor ranking vs a fitted model (prior-alone AUC ≈0.557) → cold-start-only value. Engine L2 CV→0.1 (deterministic, memoized).
+- Skeptics: both could NOT refute (real-benchmark honesty/leakage 0.93; engine-CV determinism/no-regression 0.93). Disclosed caveat: real-benchmark calibratedAfter Platt is in-sample (separate field, not headline).
+- Commit: (this commit)
+- Next: continue the loop (pass 3) or report.

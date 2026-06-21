@@ -27,6 +27,17 @@
 /** The engine's two honest provenance modes (mirrors OracleMode loosely). */
 export type ProvenanceMode = 'model' | 'degraded' | 'unknown';
 
+/**
+ * How the displayed ghost number was composed, honestly:
+ *  • 'calibrated'      — fitted + calibrated on real absorbed solar outcomes;
+ *                        no benchmark blending.
+ *  • 'model-blend'     — a fitted (synthetic-trained) model number SHRUNK toward
+ *                        the real-world churn benchmark prior (model is the spine).
+ *  • 'prior-spine'     — degraded mode: the benchmark prior IS the spine, the
+ *                        model contributes little/nothing (heuristic estimate).
+ */
+export type GhostBlendKind = 'calibrated' | 'model-blend' | 'prior-spine';
+
 /** A small, render-ready provenance descriptor for the ghost number. */
 export interface GhostProvenance {
   /** true only when the persisted prediction is genuinely calibrated. */
@@ -39,6 +50,14 @@ export interface GhostProvenance {
    * the prior; degraded = prior is the spine). False once calibrated.
    */
   blendedWithChurnPrior: boolean;
+  /**
+   * Honest description of HOW the number was composed. Distinguishes an
+   * uncalibrated *model* number that was merely shrunk toward the benchmark
+   * (model-blend) from a *degraded* number where the benchmark is the spine
+   * (prior-spine). 'calibrated' once real solar labels exist. Additive: callers
+   * may ignore it and rely on `blendedWithChurnPrior` alone.
+   */
+  blendKind: GhostBlendKind;
   /** short caption shown inline under the ghost gauge (empty when calibrated). */
   caption: string;
   /** longer, fully-honest explanation for the tooltip. */
@@ -68,6 +87,7 @@ export function getGhostProvenance(
       calibrated: true,
       mode,
       blendedWithChurnPrior: false,
+      blendKind: 'calibrated',
       caption: '',
       tooltip:
         'Ghost risk from a calibrated model fitted on real absorbed (signed / ghosted) outcomes.',
@@ -75,17 +95,24 @@ export function getGhostProvenance(
   }
 
   // Uncalibrated: the ghost is always grounded in the real-world churn prior.
-  const caption = 'Ghost risk blended with real-world churn benchmarks (uncalibrated)';
+  // Degraded mode → the prior IS the spine (heuristic); model mode → a fitted
+  // (synthetic-trained) number shrunk toward the prior. Caption is GHOST-only.
+  const degraded = mode === 'degraded';
+  const blendKind: GhostBlendKind = degraded ? 'prior-spine' : 'model-blend';
 
-  const tooltip =
-    mode === 'degraded'
-      ? 'Heuristic estimate: not enough real solar outcomes to fit a model yet, so ghost risk is anchored to real-world churn benchmarks (published lead-response decay and telecom commitment-churn rates) used as a cross-domain prior — not measured solar data. Uncalibrated.'
-      : 'Model estimate on a synthetic corpus (only a handful of real outcomes exist), shrunk toward real-world churn benchmarks (published lead-response decay and telecom commitment-churn rates) used as a cross-domain prior — not measured solar data. Stays uncalibrated until real solar labels exist.';
+  const caption = degraded
+    ? 'Ghost risk anchored to real-world churn benchmarks (heuristic, uncalibrated)'
+    : 'Ghost risk: model blended with real-world churn benchmarks (uncalibrated)';
+
+  const tooltip = degraded
+    ? 'Heuristic estimate: not enough real solar outcomes to fit a model yet, so ghost risk is anchored to real-world churn benchmarks (published lead-response decay and telecom commitment-churn rates) used as a cross-domain prior — not measured solar data. Uncalibrated.'
+    : 'Blend: a model estimate on a synthetic corpus (only a handful of real outcomes exist) shrunk toward real-world churn benchmarks (published lead-response decay and telecom commitment-churn rates) used as a cross-domain prior — not measured solar data. Stays uncalibrated until real solar labels exist.';
 
   return {
     calibrated: false,
     mode,
     blendedWithChurnPrior: true,
+    blendKind,
     caption,
     tooltip,
   };

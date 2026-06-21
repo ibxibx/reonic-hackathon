@@ -235,3 +235,44 @@ held false (conf 0.88); (2) no calibration/lead leakage — every split is by
 correct survival-weighted discrete-time competing-risks CIF and `attributeFactors`
 are correct standardized contributions (conf 0.97, verified against an independent
 reference implementation to machine precision).
+
+## 11. Real labeled-data benchmark (cross-domain)
+
+To prove the pipeline works on **actual labeled churn data** (not only synthetic),
+`benchmarkRealChurn` ([`real-benchmark.ts`](apps/web/src/lib/oracle/real-benchmark.ts))
+runs the **exact** Oracle ghost machinery on the real **IBM Telco Customer Churn**
+dataset (deterministic 3000-row fixture): each customer → a person-period row with
+classes `['stay','ghost']`, so `predictProbabilities(...).ghost` is the predicted
+churn. Seeded by-row split (one row per customer → zero leakage), fit on train,
+evaluate held-out.
+
+**Headline (real held-out, n=900): AUC 0.836 · ECE 0.027 · Brier 0.139.** The
+same fitter+calibration that we built and tested on synthetic data learns genuine
+signal on real labels. This is honestly a **telecom cross-domain** benchmark — it
+is **not** solar data and does **not** flip the live `calibrated` flag (which
+stays false for solar until real solar labels exist). _Disclosed caveat:_ the
+benchmark's optional Platt pass (`calibratedAfter`) is fit+evaluated in-sample on
+the held-out set (a separate, clearly-named field; the headline AUC/ECE/Brier are
+the raw out-of-sample numbers).
+
+**Honest calibration refit.** `calibrateFromCorpusHonest` re-fits the base model
+on **train leads only** (the pass-1 skeptic caveat, now fixed): ghost held-out AUC
+drops from **0.821 (optimistic, base fit on full corpus) → 0.803 (honest,
+out-of-sample)** — confirming the old before-metrics were inflated.
+
+**Honest ranking finding.** Against the fitted synthetic model the literature
+churn prior helps **neither calibration nor ranking** (`compareGhostPriorRanking`:
+prior-alone ghost AUC ≈ **0.557**, near chance on synthetic; blending lowers AUC).
+So the prior's value is strictly **cold-start** (when there is *no* fitted model),
+which is exactly how it's used — reinforcing `calibrated=false` and the cold-start
+role from §10.
+
+**Engine model selection.** The synthetic model's L2 is now chosen by
+deterministic lead-aware 5-fold CV (`crossValidateL2`, grid [0.1,0.3,1,3,10] →
+0.1), fit once per process (memoized). **Robustness fix:** `expandToPersonPeriods`
+now floors fractional `daysObserved` (it was silently dropping the absorbing
+outcome → mislabeling absorbed leads as censored).
+
+Both new artifacts were adversarially verified: real-benchmark honesty/leak-free
+**conf 0.93**; engine-CV deterministic + no regression + `calibrated` untouched
+**conf 0.93**.
