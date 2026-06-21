@@ -196,11 +196,3 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 1. **Working prototype** — demoable live. Have the happy path rehearsed + a fallback screen capture.
 2. **Example output for ≥2 different customer profiles** — show the variety (investor vs family is the cleanest contrast). This is literal and scored — don't demo just one.
 3. **Brief explanation** of the strategy + why this approach. Keep it short (Reonic: "no massive docs").
-
----
-
-## 🧯 Quick unblocks
-
-- `next-env.d.ts` keeps blocking `git pull` → run once: `git update-index --skip-worktree apps/web/next-env.d.ts`
-- Supabase weirdness → `pnpm database#stop` then `#start` (Docker reset)
-- Git stderr showing red in PowerShell is normal, not an error
