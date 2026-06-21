@@ -1,4 +1,4 @@
-# 🚀 RayCiprocity — 20-Hour Build Plan
+# 🚀 RayCiprocity — Build Plan
 
 **Track:** Reonic · AI-Powered Marketing for Renewable Installers
 **Build window:** ~20h left · **Submit:** Sunday 14:00
@@ -132,16 +132,16 @@ A hybrid state manager that tracks where each lead sits in its strategy sequence
 
 **Done when:** opening a lead shows its current strategy-execution step + status from the DB, and advancing a step (e.g. after a send) visibly moves the state forward and persists. ✅
 
-> **Live wiring shipped (beyond original spec):** strategy generation auto-seeds the orchestration row; every successful email/SMS send auto-advances the step (`bumpStep` in `lib/orchestration-core.ts`). The orchestrator is no longer inert — it drives and reflects the real send flow.
+> **Live wiring shipped:** strategy generation auto-seeds the orchestration row; every successful email/SMS send auto-advances the step (`bumpStep` in `lib/orchestration-core.ts`). The orchestrator is no longer inert — it drives and reflects the real send flow.
 
 > **Boundary vs. Phase 4:** orchestration = *execution position* (which step, deterministic). Phase 4 engagement signals (E1/E2/E3) = *temperature* (cold/re-engaged/hot, recency-derived). Related but distinct — don't merge them; the orchestrator's `status` can later feed the engagement view.
 
 ---
 
-### ✨ Phase 2.7 — Built but not originally in the plan (all ✅ DONE)
-Work that emerged during the build and shipped. Listed here so the plan reflects reality.
+### ✨ Phase 2.7 — Additional shipped work (all ✅ DONE)
+Further capabilities built and shipped during this phase.
 
-**Inbound reply triage + outreach pivot** ✅ *(the strongest unplanned demo beat)* — `data/user/inbound.ts`, `components/strategy/inbound-panel.tsx`, migration `20260620140000_inbound_messages.sql`.
+**Inbound reply triage + outreach pivot** ✅ *(a key demo beat)* — `data/user/inbound.ts`, `components/strategy/inbound-panel.tsx`, migration `20260620140000_inbound_messages.sql`.
 - A customer reply "lands on the dashboard" via a paste-a-reply panel on the lead detail page.
 - AI categorizes intent: **interested / objection / ghost_risk / ready_to_close** (`categorizeInbound`), persisted to `inbound_messages` with reasoning + suggested next step.
 - The orchestrator **reacts**: objection → hold (in_progress), ghost_risk → paused, ready_to_close → awaiting_reply.
@@ -218,31 +218,9 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 
 ---
 
-## 👥 Team split
-
-**Phase 1 (now):** Ian, Sebastian, Ismael. Eng 1 + Eng 2 are on other work and rejoin from Phase 2.
-
-| Who | Phase 1 (now) | Phase 2+ |
-|---|---|---|
-| **Ian** | 1c editable cards → 1d polish, 1b prompt | **2.5 Orchestrator (w/ Ivan)** → 2b Oracle action + 3c code-diagnosis prompts/schemas |
-| **Ivan** | — | **2.5 Orchestrator (w/ Ian)** — state schema + state logic |
-| **Sebastian** | 1a seed: 2 contrasting leads (`seed.sql`) | seed realism + code content library (~12 demo codes) |
-| **Ismael** | 1a output QA / templated-check + DE/EN copy | demo script + Loom + README |
-| **Eng 1 (rejoins P2)** | — | 2a/3a migrations |
-| **Eng 2 (rejoins P2)** | — | Phase 4 interactions/signals + 2c/3d/4c frontend |
-
----
-
-## ⚠️ Two standing flags
-
-1. **Node 24 vs our 22** — repo declares `engines: node >=24`; dev works on 22 but if a Next 16 build throws an engine error, get one machine on Node 24 as the build/submit box.
-2. **PRD says Next 14, repo is Next 16** — build to the repo (16). The PRD framework line is stale.
-
----
-
 ## 🛠️ Engineering Principles (how we build — read before coding)
 
-Full version committed at [`docs/ENGINEERING_PRINCIPLES.md`](docs/ENGINEERING_PRINCIPLES.md). Under a 20-hour clock these aren't optional polish — they're how we avoid burning hours on the wrong thing.
+Full version committed at [`docs/ENGINEERING_PRINCIPLES.md`](docs/ENGINEERING_PRINCIPLES.md). Under a tight hackathon clock these aren't optional polish — they're how we avoid burning hours on the wrong thing.
 
 1. **Don't assume. Surface tradeoffs.** State assumptions before implementing. If two interpretations exist, name both — don't silently pick. If a simpler approach exists, say so. If something's unclear, stop and ask.
 2. **Simplicity first.** Minimum code that solves the problem, nothing speculative. No abstractions for single-use code, no unrequested config/flexibility, no error handling for impossible cases. If 200 lines could be 50, rewrite. *This is why Problem Codes can ship as 12, not 40, and why the Oracle skips RAG.*
