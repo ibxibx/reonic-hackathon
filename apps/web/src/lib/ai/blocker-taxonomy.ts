@@ -1,11 +1,16 @@
 /**
- * A4 — Blocker taxonomy (STUB, Phase A).
- * Human-readable names + definitions for every BlockerCode in contracts, plus a
- * zod enum + a human map for the UI. A4 refines the definitions; the code set is
- * frozen in contracts.BLOCKER_CODES.
+ * A4 — Blocker taxonomy.
+ *
+ * Human-readable names + crisp one-sentence definitions for every BlockerCode in
+ * contracts.BLOCKER_CODES, plus a zod enum typed to the BlockerCode union. The
+ * code set is frozen in contracts; A4 owns only the names/definitions here.
+ *
+ * The Oracle LLM picks exactly one of these codes as the dominant obstacle (or
+ * `OK` when the lead is progressing with no single blocker). The UI renders the
+ * name; the definition disambiguates the taxonomy for both humans and the model.
  */
 import { z } from 'zod';
-import { BLOCKER_CODES, type BlockerCode } from '@/lib/oracle/contracts';
+import { BLOCKER_CODES, type BlockerCode } from '../oracle/contracts';
 
 export interface BlockerInfo {
   name: string;
@@ -13,13 +18,41 @@ export interface BlockerInfo {
 }
 
 export const BLOCKER_TAXONOMY: Record<BlockerCode, BlockerInfo> = {
-  P: { name: 'Price', definition: 'TODO: A4 — price/cost objection' },
-  F: { name: 'Financing', definition: 'TODO: A4 — financing structure/affordability' },
-  T: { name: 'Trust', definition: 'TODO: A4 — credibility / risk reassurance' },
-  Ti: { name: 'Timing', definition: 'TODO: A4 — readiness / scheduling' },
-  Te: { name: 'Technical', definition: 'TODO: A4 — roof/system technical concern' },
-  C: { name: 'Competition', definition: 'TODO: A4 — comparing other offers' },
-  OK: { name: 'On track', definition: 'TODO: A4 — no dominant blocker' },
+  P: {
+    name: 'Price',
+    definition:
+      'The total price feels too high relative to the homeowner’s expectations or budget, independent of how it is financed.',
+  },
+  F: {
+    name: 'Financing',
+    definition:
+      'The obstacle is the financing structure or monthly affordability — loan terms, upfront cash, or cash-flow concerns rather than the headline price.',
+  },
+  T: {
+    name: 'Trust',
+    definition:
+      'The homeowner needs credibility, references, or risk reassurance before committing to the installer or the technology.',
+  },
+  Ti: {
+    name: 'Timing',
+    definition:
+      'The homeowner is interested but not ready right now — scheduling, life events, or a deliberate wait is delaying the decision.',
+  },
+  Te: {
+    name: 'Technical',
+    definition:
+      'A roof, system-sizing, or installation feasibility concern is the main thing standing between the homeowner and a yes.',
+  },
+  C: {
+    name: 'Competition',
+    definition:
+      'The homeowner is comparing or leaning toward a competing offer and is weighing alternatives before deciding.',
+  },
+  OK: {
+    name: 'On track',
+    definition:
+      'No single dominant blocker — the lead is progressing normally and the priority is sustaining momentum.',
+  },
 };
 
 export const blockerCodeEnum = z.enum(
