@@ -3,10 +3,11 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Textarea } from '@/components/ui/textarea';
 import { processInboundAction } from '@/data/user/inbound';
 import { Inbox, Mail } from 'lucide-react';
@@ -116,34 +117,37 @@ export function InboundPanel({
           {isProcessing ? 'Processing…' : 'Process reply'}
         </Button>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled
-              className="gap-1.5 border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300"
-            >
-              <Mail className="size-4" />
-              Connect Email MCP
-              <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-purple-400">
-                Premium
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} className="inline-flex">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled
+                  className="pointer-events-none gap-1.5 border-purple-500/40 bg-purple-500/10 text-purple-400"
+                >
+                  <Mail className="size-4" />
+                  Connect Email MCP
+                  <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-purple-400">
+                    Premium
+                  </span>
+                </Button>
               </span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent side="top" className="w-80 text-sm space-y-2">
-            <p className="font-semibold">Automate inbound with Email MCP</p>
-            <p className="text-muted-foreground">
-              Connect your mailbox via the Model Context Protocol so incoming
-              customer replies are processed automatically — no more
-              copy-pasting. Replies are categorized in real time and your
-              outreach timeline updates instantly.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Coming soon — MCP integration is in beta.
-            </p>
-          </PopoverContent>
-        </Popover>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+              <p className="font-semibold">Automate inbound with Email MCP</p>
+              <p className="mt-1 text-muted-foreground">
+                Link the client's email address so incoming replies are picked
+                up automatically — no copy-pasting. Each reply is categorized
+                in real time and your outreach timeline adapts instantly.
+              </p>
+              <p className="mt-1 text-muted-foreground/70">
+                Premium feature — coming soon.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {result ? (
