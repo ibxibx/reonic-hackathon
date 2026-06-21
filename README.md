@@ -2,7 +2,8 @@
   <img src="./pics/poster.png" alt="AI × Energy Hackathon poster" width="240">
 </p>
 
-# ☀️ RayCiprocity — AI Sales Copilot for Renewable Installers
+<h1 align="center">☀️ RayCiprocity</h1>
+<p align="center"><strong>AI Sales Copilot for Renewable Installers</strong></p>
 
 > **Track:** Reonic — *AI-Powered Marketing to Enable Renewable Installers*
 > **Event:** {Tech:Europe} AI × Energy Hackathon, Berlin · 20–21 June 2026
@@ -658,7 +659,7 @@ five: three full-stack engineers and two product developers.
 | **Ian Baumeister** | Full Stack Engineer | [@ibxibx](https://github.com/ibxibx) |
 | **Leonardo Sánchez** | Full Stack Engineer | [@Lordcreos](https://github.com/Lordcreos) |
 | **Ismael Montenegro** | Product Developer | [@ismaelmontenegro](https://github.com/ismaelmontenegro) |
-| **Sebastian** | Product Developer | [@sebakwie](https://github.com/sebakwie) |
+| **Sebastian [Kwiedor](https://www.linkedin.com/in/sebastian-kwiedor/)** | Product Developer | [@sebakwie](https://github.com/sebakwie) |
 
 ---
 
