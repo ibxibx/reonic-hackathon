@@ -114,10 +114,10 @@ export default async function StrategyPage(props: {
       {header}
 
       {emailMock || smsMock ? (
-        <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-200">
-          <TriangleAlert className="h-4 w-4 !text-amber-400" />
-          <AlertTitle>Simulated send mode</AlertTitle>
-          <AlertDescription className="text-amber-200/80">
+        <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+          <TriangleAlert className="h-4 w-4 !text-amber-600 dark:!text-amber-400" />
+          <AlertTitle className="font-semibold">Simulated send mode</AlertTitle>
+          <AlertDescription className="text-amber-800 dark:text-amber-200/80">
             {emailMock && smsMock
               ? 'Email and SMS'
               : emailMock

@@ -29,9 +29,22 @@ before vs. after (see `screenshots/before` vs `screenshots/after`).
 - Dark theme kept on-brand (green `--primary`/`--ring`/sidebar/charts) so the
   optional dark mode isn't left off-palette.
 
-### `apps/web/src/app/(app-pages)/app-sidebar.tsx`
-- Brand logo chip recolored from amber→orange (`from-amber-400 to-orange-500`) to
-  the forest-green gradient `from-brand-500 to-brand-800` + `shadow-sm`.
+### `apps/web/src/app/(app-pages)/app-sidebar.tsx` + `globals.css` (dark-green nav)
+- **Navigation rail is now dark green** (`--sidebar` → `#1b4332`, light
+  foreground, `#2d6a4f` active/hover pill with white text, translucent-white
+  border). With `variant="inset"` this also frames the white content card in
+  brand green — matching the design guide's dark-green nav.
+- **Real RAYciprocity logo at the top-left:** replaced the amber sun chip + text
+  lockup with `public/logo-rayci.png` (the `design/logo_RayCi.png` mark, cropped
+  to icon + wordmark, tagline removed, white trimmed) inside a white rounded tile
+  so the green/navy logo reads on the dark-green rail.
+
+### `apps/web/src/app/(app-pages)/leads/[leadId]/strategy/page.tsx`
+- **Contrast fix:** the "Simulated send mode" banner used `text-amber-200` (a
+  dark-theme tint) on a light amber background — nearly invisible in the light
+  theme. Now `text-amber-900`/`-800` heading+body on `bg-amber-50` with an
+  `amber-600` icon for light mode, with `dark:` variants preserving the original
+  light-amber treatment in dark mode.
 
 ### `apps/web/src/components/strategy/oracle-panel.tsx` (Oracle hero)
 - **Bug fix (broken styling):** gauges, sparklines, legend dots, grid and tooltip
