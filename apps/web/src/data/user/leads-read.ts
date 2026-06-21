@@ -80,8 +80,31 @@ export async function getLatestPredictionForLead(
     .limit(1)
     .maybeSingle();
 
-  if (error) throw error;
+  // Degrade gracefully if the predictions table is unavailable (e.g. not yet
+  // migrated → PGRST205). A missing prediction is a clean empty state, never a
+  // page crash.
+  if (error) return null;
   return data;
+}
+
+/**
+ * Prior prediction snapshots for a lead, oldest→newest, for the Oracle trend
+ * sparkline. Returns [] if the predictions table is unavailable.
+ */
+export async function getPredictionHistoryForLead(
+  leadId: string,
+  limit = 24
+): Promise<Array<Table<'predictions'>>> {
+  const supabase = await createSupabaseClient();
+  const { data, error } = await supabase
+    .from('predictions')
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+
+  if (error) return [];
+  return data ?? [];
 }
 
 export async function getMessagesForLead(

@@ -68,4 +68,15 @@ Entry format:
 - Verified: engine-core 21 tests; project-wide `tsc --noEmit` GREEN; full suite **146 passed (14 files)**; `oxlint` 0 errors (37 stylistic no-new-array warnings → Phase D).
 - Decisions (semantics): mode='model' whenever a usable model exists; `calibrated` stays FALSE until ≥K real labels AND real calibration params (synthetic model honestly flagged uncalibrated, amber badge, wider ±15 band). Layer split: model owns numbers+factors, LLM only narrates blocker/action/evidence; degraded → LLM owns numbers; LLM failure → deterministic fallback. Persist stores band width in sign/ghost_confidence + factors jsonb + blocker_code + model_version + calibrated + mode (legacy predicted_code also populated).
 - Debt/Deferred: real-data training + real calibration params (intentional cold-start); page wiring of prediction-history → Phase C (Orchestrator). Continuable agentId a185f361d16a756a5.
+- Commit: 49f9cf1
+
+---
+
+## [Phase C] [ORCH] — Integration, page wiring, eval report
+- Did: made prediction reads degrade gracefully in `leads-read.ts` (getLatestPredictionForLead returns null on error/PGRST205 instead of throwing — no more page crash on un-migrated DB) + added `getPredictionHistoryForLead`; wired `leads/[leadId]/page.tsx` to fetch the 4 reads in parallel and pass `predictions` history to OraclePanel (sparkline). Generated REAL eval numbers across all 3 regimes via a temporary vitest report generator (then deleted it); wrote `ORACLE_EVAL.md` with corpus summary, coefficient recovery, calibration before/after, golden directions, mode behavior, honest synthetic-vs-real disclosure + cold-start limits, and the exact degraded→model promotion trigger.
+- Verified: project-wide `tsc --noEmit` GREEN; full suite **146 passed (14 files)**; `oxlint` 0 errors (37 stylistic warnings → Phase D).
+- Eval headlines (synthetic, seed 7, 800 leads/regime): coefficient recovery r 0.73–0.85; Platt improves GHOST ECE in every regime (balanced 0.193→0.049, high-ghost 0.195→0.027), SIGN already ~calibrated (Platt neutral); AUC 0.71–0.86; golden BOTH PASS (Noah ghost 0.86 > Lukas 0.37; Lukas sign 0.44 > Noah 0.07). Honest limitation logged: Elena (real=closed) reads high-ghost because her no-strategy fixture looks disengaged — fixed by real-label retraining, not a hand override.
+- Decisions: page wiring + prediction-history read are Orchestrator integration (kept A5 lane disjoint); graceful PGRST205 in the read layer realizes the "degrade, never crash" principle end-to-end.
+- Debt/Deferred: live DB apply of the migration deferred (standard additive/idempotent DDL; apply via `supabase db reset` when bringing up the local stack); no-new-array lint warnings → Phase D code-quality.
 - Commit: (this commit)
+- Next: Phase D hardening swarm.

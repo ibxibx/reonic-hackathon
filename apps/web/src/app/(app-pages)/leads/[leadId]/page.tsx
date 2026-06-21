@@ -16,6 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   getLeadWithQuote,
   getLatestPredictionForLead,
+  getPredictionHistoryForLead,
   getStrategyForLead,
   getOrchestrationForLead,
 } from '@/data/user/leads-read';
@@ -54,10 +55,14 @@ export default async function LeadDetailPage(props: {
     notFound();
   }
 
-  const strategy = await getStrategyForLead(leadId);
-  const prediction = await getLatestPredictionForLead(leadId);
+  const [strategy, prediction, predictionHistory, orchestration] =
+    await Promise.all([
+      getStrategyForLead(leadId),
+      getLatestPredictionForLead(leadId),
+      getPredictionHistoryForLead(leadId),
+      getOrchestrationForLead(leadId),
+    ]);
   const confidence = strategy?.persona_confidence ?? null;
-  const orchestration = await getOrchestrationForLead(leadId);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 max-w-5xl w-full">
@@ -117,7 +122,11 @@ export default async function LeadDetailPage(props: {
         </div>
       </div>
 
-      <OraclePanel leadId={leadId} prediction={prediction} />
+      <OraclePanel
+        leadId={leadId}
+        prediction={prediction}
+        predictions={predictionHistory}
+      />
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Property + bill */}
