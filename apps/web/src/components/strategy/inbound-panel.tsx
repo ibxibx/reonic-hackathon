@@ -1,7 +1,7 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverContent,
@@ -121,10 +121,14 @@ export function InboundPanel({
             <Button
               size="sm"
               variant="outline"
+              disabled
               className="gap-1.5 border-purple-500/40 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300"
             >
               <Mail className="size-4" />
               Connect Email MCP
+              <span className="rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none text-purple-400">
+                Premium
+              </span>
             </Button>
           </PopoverTrigger>
           <PopoverContent side="top" className="w-80 text-sm space-y-2">
