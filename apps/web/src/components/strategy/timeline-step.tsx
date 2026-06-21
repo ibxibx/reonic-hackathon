@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  generateVariantAction,
   sendEmailAction,
   sendSmsAction,
   updateMessageAction,
@@ -17,6 +18,7 @@ import type { Table } from '@/types';
 import {
   Check,
   Copy,
+  FlaskConical,
   Mail,
   MessageSquare,
   Mic,
@@ -54,6 +56,7 @@ export function TimelineStep({
   const label = CHANNEL_CONFIG[channel]?.label ?? channel;
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [abOpen, setAbOpen] = useState(false);
   const isLong = message.content.length > 180;
   const alreadySent = message.status === 'sent';
   const canEdit = !alreadySent;
@@ -136,6 +139,14 @@ export function TimelineStep({
             </>
           )}
 
+          {editing ? null : abOpen ? (
+            <ABTestPanel
+              message={message}
+              channel={channel}
+              onClose={() => setAbOpen(false)}
+            />
+          ) : null}
+
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {channel === 'email' || channel === 'sms' ? (
               <SendButton message={message} channel={channel} />
@@ -151,6 +162,18 @@ export function TimelineStep({
                 initialAudioPath={message.audio_path}
                 initialSignedUrl={voiceSignedUrl}
               />
+            ) : null}
+
+            {canEdit && !editing ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground"
+                onClick={() => setAbOpen((v) => !v)}
+              >
+                <FlaskConical className="mr-1 h-4 w-4" />
+                {abOpen ? 'Hide A/B' : 'A/B test'}
+              </Button>
             ) : null}
           </div>
         </CardContent>
@@ -309,6 +332,191 @@ function MessageEditor({
           Cancel
         </Button>
       </div>
+    </div>
+  );
+}
+
+function ABTestPanel({
+  message,
+  channel,
+  onClose,
+}: {
+  message: Message;
+  channel: MessageChannel;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const isEmail = channel === 'email';
+  const [variant, setVariant] = useState<{
+    angle: string;
+    subject: string | null;
+    body: string;
+  } | null>(null);
+
+  const generate = useAction(generateVariantAction, {
+    onSuccess: ({ data }) => {
+      if (data) {
+        setVariant({
+          angle: data.angle,
+          subject: data.subject ?? null,
+          body: data.body,
+        });
+      }
+    },
+    onError: ({ error }) => {
+      toast.error(error.serverError ?? 'Could not generate a variant');
+    },
+  });
+
+  const commit = useAction(updateMessageAction, {
+    onSuccess: () => {
+      toast.success('Variant B is now this message');
+      onClose();
+      router.refresh();
+    },
+    onError: ({ error }) => {
+      toast.error(error.serverError ?? 'Could not switch to Variant B');
+    },
+  });
+
+  const isGenerating = generate.status === 'executing';
+  const isCommitting = commit.status === 'executing';
+
+  return (
+    <div className="rounded-md border border-dashed bg-muted/30 p-3">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <FlaskConical className="size-4 text-primary" />
+          <span className="text-sm font-medium">A/B test</span>
+          <span className="text-xs text-muted-foreground">
+            Compare two angles, send the stronger one.
+          </span>
+        </div>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-7 text-muted-foreground"
+          aria-label="Close A/B test"
+          onClick={onClose}
+        >
+          <X className="size-3.5" />
+        </Button>
+      </div>
+
+      {variant === null ? (
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-xs text-muted-foreground">
+            Generate a contrasting Variant B that chases the same goal a
+            different way.
+          </p>
+          <Button
+            size="sm"
+            disabled={isGenerating}
+            onClick={() => generate.execute({ messageId: message.id })}
+          >
+            <FlaskConical className="mr-1 h-4 w-4" />
+            {isGenerating ? 'Generating Variant B...' : 'Generate Variant B'}
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-3 md:grid-cols-2">
+            <VariantColumn
+              tag="A"
+              tagLabel="Current"
+              subject={isEmail ? message.subject : null}
+              body={message.content}
+            />
+            <VariantColumn
+              tag="B"
+              tagLabel={variant.angle}
+              subject={isEmail ? variant.subject : null}
+              body={variant.body}
+              accent
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              disabled={isCommitting}
+              onClick={() =>
+                commit.execute({
+                  messageId: message.id,
+                  subject: isEmail ? variant.subject ?? '' : undefined,
+                  content: variant.body,
+                })
+              }
+            >
+              <Check className="mr-1 h-4 w-4" />
+              {isCommitting ? 'Switching...' : 'Use Variant B'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isCommitting}
+              onClick={onClose}
+            >
+              Keep A
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground"
+              disabled={isGenerating || isCommitting}
+              onClick={() => generate.execute({ messageId: message.id })}
+            >
+              {isGenerating ? 'Regenerating...' : 'Try another B'}
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function VariantColumn({
+  tag,
+  tagLabel,
+  subject,
+  body,
+  accent = false,
+}: {
+  tag: 'A' | 'B';
+  tagLabel: string;
+  subject: string | null;
+  body: string;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-md border bg-background p-3',
+        accent && 'border-primary/40'
+      )}
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <span
+          className={cn(
+            'flex size-5 items-center justify-center rounded-full text-xs font-semibold',
+            accent
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-foreground'
+          )}
+        >
+          {tag}
+        </span>
+        <span className="text-xs text-muted-foreground">{tagLabel}</span>
+      </div>
+      {subject ? (
+        <p className="mb-1 text-sm">
+          <span className="text-muted-foreground">Subject: </span>
+          <span className="font-medium">{subject}</span>
+        </p>
+      ) : null}
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+        {body}
+      </p>
     </div>
   );
 }

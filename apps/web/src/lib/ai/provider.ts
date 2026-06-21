@@ -12,11 +12,13 @@ import {
   adaptStrategySchema,
   archetypeSchema,
   inboundSchema,
+  messageVariantSchema,
   oracleSchema,
   strategySchema,
   type AdaptedStrategy,
   type ClassifiedArchetype,
   type ClassifiedInbound,
+  type GeneratedMessageVariant,
   type GeneratedStrategy,
 } from './schemas';
 
@@ -195,6 +197,37 @@ export async function adaptStrategy(
     console.error('Strategy adaptation error:', error);
     throw new AppError(
       'Failed to adapt strategy',
+      'AI_GENERATION_ERROR',
+      500
+    );
+  }
+}
+
+export async function generateMessageVariant(
+  systemPrompt: string
+): Promise<GeneratedMessageVariant> {
+  try {
+    const model = process.env.OPENAI_MODEL || 'gpt-4o';
+    const timer = startTimer();
+    logStep('variant', 'AI call → generateObject', { model });
+    const result = await generateObject({
+      model: openai(model),
+      schema: messageVariantSchema,
+      system: systemPrompt,
+      prompt: 'Write Variant B for this message.',
+      maxRetries: 1,
+      abortSignal: AbortSignal.timeout(20000),
+    });
+    logStep('variant', 'AI call ✓', {
+      ms: timer(),
+      angle: result.object.angle,
+    });
+    return result.object;
+  } catch (error) {
+    logError('variant', 'AI call failed', error);
+    console.error('Variant generation error:', error);
+    throw new AppError(
+      'Failed to generate message variant',
       'AI_GENERATION_ERROR',
       500
     );

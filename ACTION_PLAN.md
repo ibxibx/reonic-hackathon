@@ -8,15 +8,6 @@
 
 ---
 
-## ✅ Already shipped (don't rebuild)
-
-- Auth + RLS + base schema: `profiles, leads, quotes, strategies, messages` + `voice-notes` storage bucket
-- Lead CRUD: list table, new-lead form, detail page, status badges, delete
-- **Persona** detection (family / investor / environmentalist / skeptic) + multi-channel strategy gen (email / SMS / call / voice) as JSON via `lib/ai`
-- Strategy timeline UI: editable step cards, persona badge, rationale, **voice-note player**
-- Integration adapters: `elevenlabs.ts`, `resend.ts`, `twilio.ts` with `MOCK_EMAIL` / `MOCK_SMS` flags
-- Seed data (8+ leads) — just expanded
-
 ## 🎯 What Reonic actually scores (from the official track brief)
 
 The brief's **CORE** ask is simpler than our PRD. Build the CORE first; everything else is bonus.
@@ -32,7 +23,7 @@ The brief's **CORE** ask is simpler than our PRD. Build the CORE first; everythi
 - Predictive insights ("might ghost" / "ready to close") → **the Oracle**
 - Something unexpected → **the 40-code diagnosis** (and/or a richer *input* — see below)
 - Multi-channel smarts (SMS, call, voice) → **already shipped**
-- Localization (DE/EN) · Beautiful UX · **A/B testing** (currently unbuilt — deliberate cut unless we reach Phase 5 with time)
+- Localization (DE/EN) · Beautiful UX · **A/B testing** ✅ **DONE** *(per-message variant generator — see Phase 5 note)*
 
 > **Two brief-blessed angles we're currently NOT using — decide consciously, don't skip by accident:**
 > - **Input is open-ended.** The brief invites "JSON / CSV upload / *conversational chatbot interview*" as input. We default to the lead form. A conversational intake could itself be the "something unexpected" — flag as an option, not a commitment.
@@ -76,7 +67,7 @@ The brief's core ask is *believable, tailored, visual, iterable, 2+ profiles*. T
 
 **1c · Iterability is real** ✅ **DONE** *(do FIRST — it's the missing CORE feature)* — there is **no edit path today**: cards render read-only and `data/user/messages.ts` has no `updateMessage` action (verified). Add `updateMessageAction` (edit body + subject, save to DB) and make the timeline cards editable. The installer adjusting a message live is a core demo beat the brief explicitly rewards. *Shipped: `updateMessageAction` (ownership-checked, blocks edits on sent), pencil-to-edit UI in `timeline-step.tsx`.*
 
-**1a · Two contrasting demo profiles** — pick 2 seed leads that show maximum variety (e.g. a numbers-driven *investor* vs. a reassurance-seeking *family*). Confirm each generates a visibly different strategy, tone, and channel mix. This is a literal deliverable ("example output for at least 2 profiles").
+**1a · Two contrasting demo profiles** ✅ **DONE** — pick 2 seed leads that show maximum variety (e.g. a numbers-driven *investor* vs. a reassurance-seeking *family*). Confirm each generates a visibly different strategy, tone, and channel mix. This is a literal deliverable ("example output for at least 2 profiles").
 
 **1b · "Why this" is visible** ✅ **DONE** — the rationale + per-step reasoning must read as customer-specific, not generic. Tighten the prompt in `lib/ai/prompts.ts` so each step states *why this channel, why this tone, why now*. No code beyond prompt edits. Ismael judges output and flags where it still reads templated.
 
@@ -145,23 +136,23 @@ Further capabilities built and shipped during this phase.
 
 ---
 
-### Phase 3 — Problem Codes ("something unexpected" bonus)
+### Phase 3 — Problem Codes ("something unexpected" bonus) ✅ **DONE**
 Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Parallelize schema / AI / UI.
 
-**3a · Schema** — NEW migration file (never edit the existing one):
+**3a · Schema** ✅ — NEW migration file (never edit the existing one):
 `apps/database/supabase/migrations/20260620120000_problem_codes.sql`
 - `problem_codes(id, lead_id, code, family, confidence, evidence, resolved_at, created_at)`
 - RLS: copy the existing `strategies` policy pattern verbatim (`exists(... leads.installer_id = auth.uid())`)
 - index on `(lead_id)`
 - Apply → `pnpm gen-types-local`
 
-**3b · Taxonomy as data** — `lib/problem-codes.ts`: the 40 codes (code → family, label, counter-strategy, channel, message-angle). Content, not logic — a PM can own it.
+**3b · Taxonomy as data** ✅ — `lib/problem-codes.ts`: the 40 codes (code → family, label, counter-strategy, channel, message-angle). Content, not logic — a PM can own it.
 
-**3c · AI** — extend `lib/ai/schemas.ts` with `problemCodes: { code, confidence, evidence }[]`; update `lib/ai/prompts.ts` to return a priority-ordered code stack with verbatim evidence; persist in `data/user/strategies.ts`. Feed the stack into the Oracle prompt to sharpen its predicted blocker.
+**3c · AI** ✅ — extend `lib/ai/schemas.ts` with `problemCodes: { code, confidence, evidence }[]`; update `lib/ai/prompts.ts` to return a priority-ordered code stack with verbatim evidence; persist in `data/user/strategies.ts`. Feed the stack into the Oracle prompt to sharpen its predicted blocker.
 
-**3d · UI** — `components/strategy/problem-code-chips.tsx`: colored chips per family. Render on lead detail + as a column in `leads-table.tsx`.
+**3d · UI** ✅ — `components/strategy/problem-code-chips.tsx`: colored chips per family. Render on lead detail + as a column in `leads-table.tsx`.
 
-**Done when:** a strategy also produces & displays a stack like `P2 + T2 + C1`, hover-evidence tooltips, persisted in DB.
+**Done when:** a strategy also produces & displays a stack like `P2 + T2 + C1`, hover-evidence tooltips, persisted in DB. ✅
 
 > **Scope guard:** 40 codes is a lot. If time is tight, ship a *subset* (the ~12 codes that appear in the demo seed leads) rather than all 40. A believable 12-code system that demos cleanly beats 40 codes half-wired.
 
@@ -180,13 +171,13 @@ Only start once Phases 1–2 are demo-ready. This is upside, not the floor. Para
 ### Phase 5 — Polish & demo-proof (CUT-LINE)
 
 - DE/EN toggle on generated content (prompt-driven, don't hand-author twice)
-- Loading skeletons on Oracle + strategy (copy `strategy-skeleton.tsx`)
+- Loading skeletons on Oracle + strategy (copy `strategy-skeleton.tsx`) ✅ *(Oracle loading steps + spinner shipped)*
 - **Pre-cache the demo voice-note MP3** — wow moment must never depend on a live call
 - Seed realism: 8 leads across all 4 personas + varied code stacks
 - `pnpm typecheck && pnpm lint && pnpm test` green · run `pnpm test-db` for new RLS
 
 > **Surveys (FR-6) + full cadence engine are the cut candidates** — below the Oracle in judging value. Build only if you reach here with time to spare.
-> **A/B testing (named brief bonus) is consciously cut** unless Phase 5 runs ahead of schedule — cheapest version is a second strategy variant per lead with a "which would you send?" toggle, no new schema. Flagged so it's a *decision*, not an oversight.
+> **A/B testing (named brief bonus)** ✅ **DONE** — shipped as a per-message variant generator (no new schema, respects the `unique(strategy_id, channel_type)` constraint). On any unsent step the installer hits "A/B test" → `generateVariantAction` produces a contrasting **Variant B** (same channel + goal, deliberately different angle) → A vs B render side by side → "Use Variant B" commits through the existing `updateMessageAction`; "Keep A" / "Try another B" round it out. *Files: `lib/ai/schemas.ts` (`messageVariantSchema`), `lib/ai/prompts.ts` (`buildVariantPrompt`), `lib/ai/provider.ts` (`generateMessageVariant`), `data/user/messages.ts` (`generateVariantAction`), `components/strategy/timeline-step.tsx` (`ABTestPanel`).*
 
 ---
 

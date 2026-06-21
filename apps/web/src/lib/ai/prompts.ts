@@ -362,3 +362,44 @@ ${draftList}
 - No false promises ("guaranteed savings", "100% offset"). Convincing ≠ dishonest.
 - Return ONE rewritten message per channel listed above, in the same set of channels. Return only valid JSON matching the schema.`;
 }
+
+export function buildVariantPrompt(
+  lead: Lead,
+  quote: Quote,
+  strategy: { persona_detected?: string | null } | null,
+  channel: string,
+  goal: string | null,
+  originalSubject: string | null,
+  originalBody: string,
+): string {
+  const persona = strategy?.persona_detected || 'unknown';
+  const isEmail = channel === 'email';
+
+  return `You are a solar sales strategist running an A/B test. The installer already has a drafted ${channel.toUpperCase()} message ("Variant A"). Write a SINGLE contrasting alternative ("Variant B") for the SAME channel that pursues the SAME goal by a DELIBERATELY DIFFERENT route — so the installer can pick the one they'd actually send.
+
+## The customer
+- Name: ${lead.name}
+- Detected persona: ${persona}
+- Monthly bill: $${lead.monthly_bill}
+- System: ${quote.system_size_kw ?? 'n/a'} kWp${quote.total_cost ? `, quoted $${quote.total_cost}` : ''}
+
+## The message we're testing against (Variant A)
+Channel: ${channel}
+Goal: ${goal || 'n/a'}
+${isEmail && originalSubject ? `Subject: ${originalSubject}\n` : ''}Body:
+"""
+${originalBody}
+"""
+
+## How Variant B must differ
+- Same channel, same underlying goal — a different ANGLE, not a different objective.
+- Shift at least one of: emotional vs. rational framing, hook/opening, structure, or the lever it leans on (payback vs. reassurance vs. impact vs. social proof).
+- If A is numbers-forward, make B reassurance- or story-led (or vice versa). The two should feel like genuinely different sales instincts, not paraphrases.
+- Keep the persona plausible and the channel's natural length/format (SMS short, email fuller, call = talking points, voice = spoken and personal).
+${isEmail ? '- Write a fresh subject line for B that matches its angle.\n' : '- subject must be null for this channel.\n'}
+## Hard rules
+- Use ONLY real, defensible reasoning. Do NOT invent specific numbers, incentives, guarantees, rates, warranties, or legislation that weren't provided.
+- No false promises. Different ≠ dishonest.
+- 'angle' = a short label (3–6 words) naming how B differs from A, e.g. "Reassurance-led, story-first" or "ROI-forward, numbers-up-top".
+- Return only valid JSON matching the schema.`;
+}

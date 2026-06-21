@@ -124,3 +124,17 @@ export const adaptStrategySchema = z.object({
 
 export type AdaptedMessage = z.infer<typeof adaptedMessageSchema>;
 export type AdaptedStrategy = z.infer<typeof adaptStrategySchema>;
+
+// A/B testing: given one already-drafted message, produce a single contrasting
+// variant for the SAME channel and the SAME underlying goal — a deliberately
+// different angle (tone / framing / hook) so the installer can pick the one
+// they'd actually send. `angle` is a short human label for how Variant B
+// differs (e.g. "ROI-led, numbers-forward" vs "reassurance-led"). subject is
+// nullable (only meaningful for email) — OpenAI strict mode requires every key.
+export const messageVariantSchema = z.object({
+  angle: z.string().min(3).max(80),
+  subject: z.string().max(120).nullable(),
+  body: z.string().min(10).max(2500),
+});
+
+export type GeneratedMessageVariant = z.infer<typeof messageVariantSchema>;

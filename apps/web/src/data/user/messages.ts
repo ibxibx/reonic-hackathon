@@ -1,5 +1,7 @@
 'use server';
 
+import { buildVariantPrompt } from '@/lib/ai/prompts';
+import { generateMessageVariant } from '@/lib/ai/provider';
 import { authActionClient } from '@/lib/safe-action';
 import { generateVoiceNote } from '@/lib/integrations/elevenlabs';
 import { sendEmail } from '@/lib/integrations/resend';
@@ -238,4 +240,78 @@ export const updateMessageAction = authActionClient
     revalidatePath(`/leads/${message.lead_id}/strategy`);
 
     return { success: true };
+  });
+
+// A/B testing: generate a single contrasting "Variant B" for an unsent message.
+// Ephemeral by design — it returns the variant to the client and writes nothing.
+// If the installer picks B, the UI persists it through updateMessageAction,
+// which keeps the existing (strategy_id, channel_type) unique constraint intact.
+export const generateVariantAction = authActionClient
+  .schema(messageIdSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const { messageId } = parsedInput;
+    const supabase = await createSupabaseClient();
+
+    // Message + ownership (via the lead's installer_id).
+    const { data: message, error: messageError } = await supabase
+      .from('messages')
+      .select('*, leads!inner(installer_id)')
+      .eq('id', messageId)
+      .eq('leads.installer_id', ctx.userId)
+      .single();
+
+    if (messageError || !message) {
+      throw new Error('Message not found');
+    }
+
+    if (message.status === 'sent') {
+      throw new Error('Cannot A/B test a message that has already been sent');
+    }
+
+    // Context: lead + quote + strategy persona.
+    const { data: lead, error: leadError } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('id', message.lead_id)
+      .eq('installer_id', ctx.userId)
+      .single();
+
+    if (leadError || !lead) {
+      throw new Error('Lead not found');
+    }
+
+    const { data: quote, error: quoteError } = await supabase
+      .from('quotes')
+      .select('*')
+      .eq('lead_id', message.lead_id)
+      .single();
+
+    if (quoteError || !quote) {
+      throw new Error('Quote not found');
+    }
+
+    const { data: strategy } = await supabase
+      .from('strategies')
+      .select('persona_detected')
+      .eq('id', message.strategy_id)
+      .single();
+
+    const systemPrompt = buildVariantPrompt(
+      lead,
+      quote,
+      strategy,
+      message.channel_type,
+      message.goal,
+      message.subject,
+      message.content
+    );
+
+    const variant = await generateMessageVariant(systemPrompt);
+
+    // Email keeps an editable subject; other channels never carry one.
+    return {
+      angle: variant.angle,
+      subject: message.channel_type === 'email' ? variant.subject : null,
+      body: variant.body,
+    };
   });
