@@ -8,7 +8,10 @@
 > **Track:** Reonic — *AI-Powered Marketing to Enable Renewable Installers*
 > **Event:** {Tech:Europe} AI × Energy Hackathon, Berlin · 20–21 June 2026
 >
-> We **don't** just generate emails. We turn a solar quote into a *diagnosed*,
+> **RayCiprocity** is an **AI Sales Copilot** for **renewable (solar) installers** that turns a quote into a closing deal — with its secret sauces being a structured **Problem-Code diagnosis** of *why* each deal is stalling, the predictive **Oracle** (sign-vs-ghost scoring + the single blocking objection), and **persona-matched multi-channel outreach** (email · SMS · call · voice). 
+>
+>
+>We **don't** just generate emails. We turn a solar quote into a *diagnosed*,
 > persona-matched, **multi-channel closing strategy** — email · SMS · call · voice note —
 > tell the installer **exactly why each customer is stalling**, predict whether they'll
 > sign or ghost, and **rewrite the outreach automatically** when the customer pushes back.
