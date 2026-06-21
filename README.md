@@ -25,6 +25,121 @@
 
 ---
 
+
+## 🚀 Getting Started (Local Development)
+
+### Prerequisites
+
+| Tool | Version | Notes |
+|---|---|---|
+| **Node.js** | ≥ 24.0.0 | Check: `node -v`. Use [nvm](https://github.com/nvm-sh/nvm) — the repo ships `.nvmrc` |
+| **pnpm** | ≥ 11.0.0 | Install: `corepack enable && corepack prepare pnpm@11 --activate` |
+| **Docker** | Latest | Required for local Supabase (Postgres, Auth, Storage run in containers) |
+| **OpenAI API key** | — | Required for all AI features (diagnosis, strategy, Oracle) |
+
+### 1. Clone & install dependencies
+
+```bash
+git clone https://github.com/ibxibx/reonic-hackathon.git
+cd reonic-hackathon
+pnpm install
+```
+
+This installs all workspace dependencies across `apps/web`, `apps/database`, and `packages/`.
+
+### 2. Start local Supabase
+
+Make sure **Docker is running**, then:
+
+```bash
+pnpm database#start
+```
+
+This boots a full local Supabase stack (Postgres, Auth, Storage, Studio) and runs all
+migrations from `apps/database/supabase/migrations/` automatically. First run takes
+~30–60 seconds to pull images.
+
+Once started, note the printed credentials — you'll need the **API URL**, **anon key**, and
+**service role key** for the next step.
+
+**Local services & ports:**
+
+| Service | URL / Port |
+|---|---|
+| API (PostgREST) | `http://localhost:54321` |
+| Postgres | `localhost:54322` |
+| Supabase Studio (DB GUI) | `http://localhost:54323` |
+| Inbucket (email testing) | `http://localhost:54324` |
+
+Other useful commands:
+
+```bash
+pnpm database#status   # Show running services + credentials
+pnpm database#stop     # Stop local Supabase (state is preserved)
+```
+
+### 3. Configure environment variables
+
+```bash
+cp .env.local.example .env.local
+```
+
+Open `.env.local` and fill in your keys. The Supabase keys are printed by
+`pnpm database#start` (or `pnpm database#status`):
+
+| Variable | Required | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | `http://localhost:54321` for local |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes | Anon key from `database#status` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Service role key from `database#status` — **server-only, never expose to client** |
+| `OPENAI_API_KEY` | Yes | Powers diagnosis, strategy generator, Oracle, inbound triage |
+| `OPENAI_MODEL` | No | Defaults to `gpt-4o` |
+| `ELEVENLABS_API_KEY` | No | For voice note TTS; |
+| `ELEVENLABS_VOICE_ID` | No | ElevenLabs voice to use |
+| `RESEND_API_KEY` | No | For real email sends; set `MOCK_EMAIL=true` to use toast fallback |
+| `RESEND_FROM_EMAIL` | Yes | Sender address for Resend |
+| `TWILIO_ACCOUNT_SID` / `AUTH_TOKEN` / `PHONE_NUMBER` | Yes | For real SMS; set `MOCK_SMS=true` to use toast fallback |
+
+> The app **degrades gracefully** when optional keys are missing — Email/SMS mock,
+> voice generation is skipped — so you can run the full demo with just Supabase + OpenAI.
+
+### 4. Generate TypeScript types
+
+```bash
+pnpm gen-types-local
+```
+
+Generates type-safe database types from the local Supabase instance into
+`apps/database/lib/database.types.ts`. Re-run this after any migration change.
+
+### 5. Run the dev server
+
+```bash
+pnpm dev
+```
+
+Starts all apps in parallel via Turbopack. The web app is available at
+[http://localhost:3000](http://localhost:3000).
+
+To start only the web app:
+
+```bash
+pnpm web#dev
+```
+
+### 6. Other useful commands
+
+```bash
+pnpm build             # Production build
+pnpm lint              # Lint all workspaces (oxlint)
+pnpm typecheck         # Type-check all workspaces (tsc --noEmit)
+pnpm test              # Run unit tests (vitest)
+pnpm test:e2e          # Run E2E tests (Playwright)
+pnpm gen-types         # Generate types from remote Supabase (production)
+```
+
+---
+
 ## 🎯 The Brief, In One Line
 
 Solar installers lose deals in the gap between **"quote sent"** and **"contract
