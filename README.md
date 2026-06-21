@@ -12,8 +12,8 @@
 > tell the installer **exactly why each customer is stalling**, predict whether they'll
 > sign or ghost, and **rewrite the outreach automatically** when the customer pushes back.
 
-> 📋 Full product spec — features, the 40-code taxonomy, schema, demo script — lives in
-> [`PRD.md`](./PRD.md). Live build plan and shipped status in
+> 📋 Full product spec — features, the [40-code taxonomy](./prd/PRD.md), schema, demo script — lives in
+> [`prd/PRD.md`](./prd/PRD.md). Live build plan and shipped status in
 > [`ACTION_PLAN.md`](./ACTION_PLAN.md).
 
 ---
@@ -49,7 +49,7 @@ each with a preferred channel mix and tempo:
 
 Persona tells us *who* the customer is; the **Problem Code** tells us *why their deal
 is stuck right now*. Every stalled lead is diagnosed into one or more codes from a
-**40-code taxonomy across 7 families**, each carrying a recommended counter-strategy,
+**[40-code taxonomy](./prd/PRD.md) across 7 families**, each carrying a recommended counter-strategy,
 channel, and message angle. This is what makes the strategy explainable — "why this,
 now" — instead of a black box. The taxonomy is grounded in verbatim customer-voice
 research across the five languages/markets Reonic serves (DE/EN/NL/FR/IT).
@@ -76,7 +76,7 @@ sequence is *traceable back to a diagnosed reason*, not a generic template.
 ## 🔮 The "Oracle" — Predictive Next-Best-Action
 
 A *Minority Report*–inspired panel on every lead. Drawing on the lead's quote, persona,
-problem-code stack, and logged interaction signals, the Oracle outputs:
+problem-code stack, and logged interaction signals, the "Oracle" outputs:
 
 - **Sign probability** and **Ghost risk** (0–100, with trend arrows)
 - **Predicted objection** — the Problem Code most likely blocking the signature,
@@ -90,8 +90,9 @@ problem-code stack, and logged interaction signals, the Oracle outputs:
 Framed honestly as **decision-support, not a crystal ball.** Mechanically: the lead's
 quote, persona, problem-code stack, and interaction signals are fed as structured rows
 straight into a scoring prompt that returns the probabilities plus the single action
-with its evidence. (We deliberately skipped a vector/RAG layer — structured rows are
-faster, cheaper, and more than enough at this scale.)
+with its evidence. For the hackathon build we feed structured rows directly (fast,
+cheap, and plenty at this scale); a **per-lead vector store / RAG layer is planned** to
+let the "Oracle" reason over the full free-text interaction history as volume grows.
 
 ---
 
@@ -194,7 +195,7 @@ We make persona-tailored, reasoning-backed follow-up a one-click action.
    (interested · objection · ghost_risk · ready_to_close), the Orchestrator reacts, and
    **every remaining unsent message rewrites itself** to address the concern — the reply
    is interleaved into the timeline as a customer-side entry.
-8. **The Oracle updates.** Sign/ghost likelihood and the single recommended next action
+8. **The "Oracle" updates.** Sign/ghost likelihood and the single recommended next action
    are re-scored from the lead's quote, codes, and interaction signals, with evidence.
 
 The output isn't "here are four emails." It's *"here is the diagnosis, here is the
@@ -219,7 +220,7 @@ is real where an API key is present and **gracefully mocked otherwise** (`MOCK_E
 > **Roadmap channels (designed, not yet built):** WhatsApp (Business Cloud API) for warm,
 > high-open-rate touches, and a Survey / micro-poll channel to resolve an uncertain
 > Problem Code (*"Is it the upfront cost or the timing giving you pause?"* — resolves
-> `P1` vs `L1` and re-routes the strategy). Both are specced in [`PRD.md`](./PRD.md) §6.
+> `P1` vs `L1` and re-routes the strategy). Both are specced in [`prd/PRD.md`](./prd/PRD.md) §6.
 
 ---
 
@@ -234,11 +235,11 @@ flowchart TD
     classDef channel fill:#f1f5f9,stroke:#475569,color:#0f172a
 
     I["👷 Installer<br/>enters lead + quote"]:::installer
-    UI["🖥️ Next.js 16 Dashboard<br/>leads board · lead view · timeline · Oracle"]:::app
+    UI["🖥️ Next.js 16 Dashboard<br/>leads board · lead view · timeline · &quot;Oracle&quot;"]:::app
     SB[("🗄️ Supabase Postgres<br/>RLS-scoped per installer<br/>profiles · leads · quotes · strategies<br/>messages · interactions · problem_codes<br/>predictions · lead_orchestration · inbound_messages")]:::data
     DIAG["🧠 diagnose + classify<br/>Server Action → LLM<br/>persona + Problem-Code stack (JSON)"]:::brain
     GEN["🧠 generate-strategy<br/>Server Action → LLM<br/>multi-channel plan (JSON)"]:::brain
-    ORC["🔮 Oracle<br/>sign/ghost score + next action<br/>structured-row prompt"]:::brain
+    ORC["🔮 &quot;Oracle&quot;<br/>sign/ghost score + next action<br/>structured-row prompt"]:::brain
     ORCH["🔁 Orchestrator<br/>per-lead step state<br/>(DB source of truth)"]:::app
     INB["📥 Inbound triage<br/>categorize + adaptStrategy<br/>rewrites unsent msgs"]:::brain
     TL["🗂️ Outreach Timeline<br/>Email · SMS · Call · Voice<br/>editable · replies interleaved"]:::app
@@ -246,6 +247,7 @@ flowchart TD
     EM["📧 Resend<br/>email"]:::channel
     EL["🎙️ ElevenLabs TTS<br/>voice note"]:::channel
     ST[("🔊 Supabase Storage<br/>voice-notes · signed URLs")]:::data
+    RAG[("📚 Vector store / RAG<br/>pgvector · planned")]:::data
 
     I -->|"web form"| UI
     UI -->|"insert"| SB
@@ -269,6 +271,8 @@ flowchart TD
     INB ==>|"intent + rewrite unsent"| SB
     INB -->|"react"| ORCH
     SB -->|"signals"| ORC
+    SB -.->|"planned: embeddings"| RAG
+    RAG -.->|"planned: retrieval"| ORC
     ORC ==>|"predictions"| SB
     SB ==>|"live score + state"| UI
 ```
@@ -276,7 +280,7 @@ flowchart TD
 Every table is scoped by `installer_id = auth.uid()` through Row Level Security, so an
 installer only ever sees their own leads — the multi-tenant B2B-SaaS shape that answers
 the "could this be a company?" question directly. Full schema lives in
-[`PRD.md`](./PRD.md) (§9); shipped status in [`ACTION_PLAN.md`](./ACTION_PLAN.md).
+[`prd/PRD.md`](./prd/PRD.md) (§9); shipped status in [`ACTION_PLAN.md`](./ACTION_PLAN.md).
 
 ---
 
@@ -284,7 +288,7 @@ the "could this be a company?" question directly. Full schema lives in
 
 > 🏗️ **Production architecture** — this is built as a real, multi-tenant B2B SaaS
 > (secure, scalable), not a localStorage demo. Full spec in
-> [`PRD.md`](./PRD.md) (§9).
+> [`prd/PRD.md`](./prd/PRD.md) (§9).
 
 | Layer | Choice |
 |---|---|
@@ -292,6 +296,7 @@ the "could this be a company?" question directly. Full schema lives in
 | **UI** | Tailwind CSS + shadcn/ui + Lucide icons (premium SaaS look) |
 | **Database & Auth** | **Supabase** — PostgreSQL, Auth, Storage, **Row Level Security** |
 | **AI** | Vercel AI SDK → OpenAI (`gpt-4o`, strict JSON-schema mode) |
+| **RAG** *(planned)* | per-lead vector store (pgvector) to ground the "Oracle" + diagnosis in full interaction history |
 | **Data fetching** | `next-safe-action` Server Actions + TanStack Query |
 | **Email** | Resend (with `MOCK_EMAIL` fallback) |
 | **SMS** | Twilio (with `MOCK_SMS` fallback) |
@@ -329,7 +334,7 @@ Full SQL lives as timestamped migrations under `apps/database/supabase/migration
 RLS policy pattern: every table scoped through `installer_id = auth.uid()` (directly on
 `leads`, transitively via `lead_id` on the rest). The persona enum on
 `strategies.persona_detected` maps to the brief's four archetypes; `problem_codes.code`
-holds the 40-code taxonomy. *(The `surveys` table is specced in `PRD.md` §9 as roadmap,
+holds the 40-code taxonomy. *(The `surveys` table is specced in `prd/PRD.md` §9 as roadmap,
 not yet built.)*
 
 ---
@@ -409,17 +414,18 @@ showing its content, its driving Problem Code, and its status, and is
   spinners while pending; `sonner` toasts on success/failure.
 
 ### 6. Problem-Code Diagnosis Engine ⭐
-The 40-code taxonomy lives as content (code → counter-strategy → channel → message
+The [40-code taxonomy](./prd/PRD.md) lives as content (code → counter-strategy → channel → message
 angle), grounded in the verbatim customer-voice research. `diagnose.ts` writes the
 detected stack into `problem_codes` with confidence + evidence; the dashboard renders
-them as chips and the strategy generator consumes them. See PRD §4 for the full table.
+them as chips and the strategy generator consumes them. See the [full 40-code table](./prd/PRD.md) (PRD §4).
 
-### 7. The Oracle — Predictive Next-Best-Action ⭐
+### 7. The "Oracle" — Predictive Next-Best-Action ⭐
 `generateOracle(leadId)` feeds the lead's quote, persona, code stack, and interaction
 signals as structured rows into a scoring prompt → writes `predictions` (sign prob,
 ghost risk, predicted blocker, recommended action, evidence). The lead view shows a
 *Minority Report*–style panel with two recharts gauges and a "one recommended action"
-CTA that jumps to that channel's step. (No RAG — structured rows beat embeddings here.)
+CTA that jumps to that channel's step. (Structured rows today; a vector/RAG layer is
+**planned** — see Roadmap.)
 
 ### 8. The Orchestrator — Live Strategy-Execution State ⭐
 `data/user/orchestration.ts` + `lib/orchestration-core.ts`: a DB-backed per-lead state
@@ -440,9 +446,10 @@ the timeline. The strongest demo beat.
 stateless first-pass agent returning a single archetype + confidence + signals +
 reasoning, so persona is locked before a full strategy is generated.
 
-> **Roadmap (specced, not built):** keep-warm cadence engine, the survey loop (FR-6),
-> WhatsApp channel, and DE/EN A/B strategy variants — see [`PRD.md`](./PRD.md) §6 and
-> [`ACTION_PLAN.md`](./ACTION_PLAN.md) Phase 5.
+> **Roadmap (specced, not built):** a per-lead **vector store / RAG layer** (pgvector)
+> to ground the "Oracle" and diagnosis in full free-text history, the keep-warm cadence
+> engine, the survey loop (FR-6), the WhatsApp channel, and DE/EN A/B strategy variants —
+> see [`prd/PRD.md`](./prd/PRD.md) §6 and [`ACTION_PLAN.md`](./ACTION_PLAN.md) Phase 5.
 
 ---
 
@@ -472,12 +479,12 @@ Production execution order — but **demo wow-path first** if time tightens (see
 ## 🎬 Demo Flow Checklist (this is the script)
 
 - [ ] Dashboard: leads with archetype badges, **Problem-Code chips**, and **Oracle risk** column — "these deals are stalling, here's why"
-- [ ] Open a going-cold lead; **Oracle** reads sign/ghost %, predicted blocker, recommended action
+- [ ] Open a going-cold lead; the **"Oracle"** reads sign/ghost %, predicted blocker, recommended action
 - [ ] Click **Generate Strategy** → diagnosis + multi-channel plan stream in with per-step *why*
 - [ ] App shows the **outreach timeline** (Email → SMS → Call → Voice) + the **Orchestrator** state (*"Step 1 of 4"*)
 - [ ] Edit the **Voice Note** script → **Generate Voice** → ElevenLabs → **plays the audio** (the wow)
 - [ ] Installer clicks **Send Email** → Resend · **Send SMS** → Twilio (or mock toast) → step auto-advances
-- [ ] **Paste a customer objection** → it's categorized → **the remaining messages rewrite to address it**, reply shows in the timeline, Oracle updates
+- [ ] **Paste a customer objection** → it's categorized → **the remaining messages rewrite to address it**, reply shows in the timeline, "Oracle" updates
 - [ ] Installer reads the **Call script**
 
 ### 🛟 Demo-day insurance
@@ -586,7 +593,7 @@ doesn't happen. RayCiprocity collapses it to one click + a quick edit.
   +3-point close-rate lift, €15k average system) — and it scales linearly with quote volume.
 - **~11 hours/month per rep** of personalised-follow-up time removed (**~85% faster**
   per lead: ~20 min → ~3 min).
-- **Faster, relevant follow-up** on the leads most likely to ghost — the Oracle flags
+- **Faster, relevant follow-up** on the leads most likely to ghost — the "Oracle" flags
   ghost-risk *before* the customer goes cold, so reps spend their hours where they convert.
 - **Higher per-deal value** as a bonus: the same diagnose-and-address engine surfaces
   battery / heat-pump / EV-charger upsells the brief calls out, lifting average system
@@ -624,16 +631,16 @@ the kind of outcome that makes a module sticky and expandable.
 
 - **4 personas** — `family` · `investor` · `environmentalist` · `skeptic`, a closed
   enum the AI must classify into (so the output speaks the judges' exact language)
-- **40 Problem Codes across 7 families** — the diagnosis taxonomy (`P*·T*·C*·F*·L*·S*·E*`)
+- **[40 Problem Codes](./prd/PRD.md) across 7 families** — the diagnosis taxonomy (`P*·T*·C*·F*·L*·S*·E*`)
   that names *why* each deal is stuck, grounded in 5-language customer-voice research
 - **4 channels per strategy** — Email · SMS · Call · Voice note, each with its own
   timing, rationale, and driving Problem Code
-- **5 AI agents** — archetype classifier · diagnosis · strategy generator · Oracle ·
+- **5 AI agents** — archetype classifier · diagnosis · strategy generator · "Oracle" ·
   inbound triage, each a tagged, greppable, schema-validated step
 - **10 data tables** — `profiles`, `leads`, `quotes`, `strategies`, `messages`,
   `interactions`, `problem_codes`, `predictions`, `lead_orchestration`, `inbound_messages`
   + a private `voice-notes` bucket, all **Row-Level-Security scoped per installer**
-- **1 predictive Oracle** + **1 live Orchestrator** — sign/ghost scoring with evidence,
+- **1 predictive "Oracle"** + **1 live Orchestrator** — sign/ghost scoring with evidence,
   and a per-lead step state that auto-advances on every send
 - **1 self-rewriting outreach** — an inbound objection regenerates every unsent message
   to address it
@@ -656,9 +663,9 @@ the kind of outcome that makes a module sticky and expandable.
   inbound objection **re-aims the whole sequence automatically**.
 - **Multi-channel** — email, SMS, call, and voice in one strategy, each tied to a
   diagnosed reason (hitting the brief's bonus criteria, not just the baseline).
-- **Predictive insights** — the Oracle warns "this customer might ghost" / "ready to
+- **Predictive insights** — the "Oracle" warns "this customer might ghost" / "ready to
   close now," exactly the bonus the brief names.
-- **Something unexpected** — the 40-code diagnosis system, the Oracle, and the
+- **Something unexpected** — the 40-code diagnosis system, the "Oracle", and the
   self-rewriting outreach answer the brief's "an idea we didn't think of that works."
 - **Believably a company** — multi-tenant, RLS-secured, production-shaped — the answer
   to "could this be a real product?" with Point Nine in the room.
