@@ -40,19 +40,6 @@ The brief's **CORE** ask is simpler than our PRD. Build the CORE first; everythi
 
 > **Reonic's explicit note: "No massive documentation needed. Impress us with what you build, not what you write about building it."** Keep the README minimal — just enough to satisfy the submission rules.
 
-## 🔨 Remaining work — priority order (cut from the bottom)
-
-1. **CORE polish** — persona strategy believable + visual + 2 demo profiles · *this is the floor; the base flow is already built*
-2. **The Oracle** — sign/ghost prob + predicted blocker + one next action · *highest-value bonus*
-3. **Problem Codes** — the 40-code diagnosis · *"something unexpected" bonus*
-4. **Interactions log** + engagement signals (E1/E2/E3)
-5. **Surveys** (resolve uncertain codes) — *cut candidate*
-6. **Keep-warm cadence** + dashboard risk column — *cut candidate*
-
-> **Reframe vs. earlier draft:** Codes dropped from #1 to #3. The brief's core is "tailored strategy + visual + iterable," which the shipped persona flow already covers. Lock that and the Oracle before investing 6 hours in 40 codes.
-
----
-
 ## ⏱️ Phase-by-phase
 
 ### Phase 0 — Unblock & baseline · **everyone**
