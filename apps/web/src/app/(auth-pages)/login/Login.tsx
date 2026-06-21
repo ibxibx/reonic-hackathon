@@ -138,7 +138,7 @@ export function Login({
           heading="Redirecting to Dashboard"
         />
       ) : (
-        <div className="space-y-8 bg-background p-6 rounded-lg shadow-sm dark:border">
+        <div className="w-full space-y-6 bg-card border border-border/70 p-8 rounded-2xl shadow-xl shadow-black/5">
           <Tabs defaultValue="password" className="md:min-w-[400px]">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="password">Password</TabsTrigger>

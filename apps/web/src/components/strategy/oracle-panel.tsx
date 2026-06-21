@@ -209,7 +209,7 @@ function SparklineLegend() {
       <span className="inline-flex items-center gap-1">
         <span
           className="inline-block h-0.5 w-3 rounded-full"
-          style={{ backgroundColor: 'hsl(var(--chart-2))' }}
+          style={{ backgroundColor: '#40916c' }}
           aria-hidden
         />
         Sign
@@ -217,7 +217,7 @@ function SparklineLegend() {
       <span className="inline-flex items-center gap-1">
         <span
           className="inline-block h-0.5 w-3 rounded-full"
-          style={{ backgroundColor: 'hsl(var(--destructive))' }}
+          style={{ backgroundColor: '#dc2626' }}
           aria-hidden
         />
         Ghost
@@ -268,14 +268,14 @@ function TrendSparkline({ history }: { history: Prediction[] }) {
           >
             <CartesianGrid
               vertical={false}
-              stroke="hsl(var(--border))"
+              stroke="#e2e8e4"
               strokeOpacity={0.5}
               strokeDasharray="2 4"
             />
             <XAxis dataKey="i" hide />
             <YAxis domain={[0, 100]} ticks={[0, 50, 100]} hide />
             <Tooltip
-              cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
+              cursor={{ stroke: '#7a857e', strokeWidth: 1 }}
               contentStyle={{ fontSize: 11 }}
               formatter={(v: number, name: string) => [
                 `${v}%`,
@@ -287,7 +287,7 @@ function TrendSparkline({ history }: { history: Prediction[] }) {
               type="monotone"
               dataKey="sign"
               name="sign"
-              stroke="hsl(var(--chart-2))"
+              stroke="#40916c"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 3 }}
@@ -297,7 +297,7 @@ function TrendSparkline({ history }: { history: Prediction[] }) {
               type="monotone"
               dataKey="ghost"
               name="ghost"
-              stroke="hsl(var(--destructive))"
+              stroke="#dc2626"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 3 }}
@@ -539,13 +539,13 @@ export function OraclePanel({
                     <ScoreGauge
                       label="Likely to sign"
                       value={signValue}
-                      color="hsl(var(--chart-2))"
+                      color="#40916c"
                       band={signBand}
                     />
                     <ScoreGauge
                       label="Ghost risk"
                       value={ghostValue}
-                      color="hsl(var(--destructive))"
+                      color="#dc2626"
                       band={ghostBand}
                     />
                   </div>

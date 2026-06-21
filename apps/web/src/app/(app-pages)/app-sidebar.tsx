@@ -23,7 +23,7 @@ async function SidebarHeaderContent() {
       <SidebarMenuItem>
         <SidebarMenuButton size="lg" asChild>
           <Link href="/dashboard">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white">
+            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-800 text-white shadow-sm">
               <Sun className="size-4" />
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
