@@ -2,14 +2,8 @@
 import {
   Sidebar,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem
 } from '@/components/ui/sidebar';
 import { getCachedLoggedInVerifiedSupabaseUser } from '@/rsc-data/supabase';
-import {
-  Sun
-} from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { AppSidebarContent } from './app-sidebar-client';
@@ -18,24 +12,19 @@ import { AppSidebarContent } from './app-sidebar-client';
 
 async function SidebarHeaderContent() {
   'use cache'
-  return <SidebarHeader>
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton size="lg" asChild>
-          <Link href="/dashboard">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white">
-              <Sun className="size-4" />
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">RayCiprocity</span>
-              <span className="truncate text-xs text-muted-foreground">
-                Solar AI Copilot
-              </span>
-            </div>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    </SidebarMenu>
+  return <SidebarHeader className="p-2">
+    <Link
+      href="/dashboard"
+      aria-label="RayCiprocity — Solar AI Copilot"
+      className="block rounded-xl bg-white p-3 shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-rayci.png"
+        alt="RayCiprocity — Solar AI Copilot"
+        className="mx-auto h-auto w-[150px] max-w-full object-contain"
+      />
+    </Link>
   </SidebarHeader>
 
 }

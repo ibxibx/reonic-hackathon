@@ -30,7 +30,7 @@ export function DynamicLayoutProviders({
       <Suspense>
         <ProgressBar
           height="4px"
-          color="#0047ab"
+          color="#2d6a4f"
           options={{ showSpinner: false }}
           shallowRouting
         />

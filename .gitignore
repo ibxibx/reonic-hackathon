@@ -42,3 +42,5 @@ playwright/.auth/
 .claude
 .cursor/*.local
 .vscode/*.local
+.designref/
+screenshots/
