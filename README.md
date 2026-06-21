@@ -669,7 +669,7 @@ five: three full-stack engineers and two product developers.
 | **Ian Baumeister** | Full Stack Engineer | [@ibxibx](https://github.com/ibxibx) |
 | **Leonardo Sánchez** | Full Stack Engineer | [@Lordcreos](https://github.com/Lordcreos) |
 | **Ismael Montenegro** | Product Developer | [@ismaelmontenegro](https://github.com/ismaelmontenegro) |
-| **Sebastian [Kwiedor](https://www.linkedin.com/in/sebastian-kwiedor/)** | Product Developer | [@sebakwie](https://github.com/sebakwie) |
+| **Sebastian Kwiedor** | Product Developer | [@sebakwie](https://github.com/sebakwie) |
 
 ---
 
