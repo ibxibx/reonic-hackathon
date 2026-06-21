@@ -50,3 +50,13 @@ Entry format:
 - ai/schemas.ts: `oracleSchema` upgraded to EXACTLY match OracleLlmOutput (int 0-100 probs, 0-100 confidences, blockerCode enum, factors≤8, action/evidence bounds); GeneratedOracle assignable to OracleLlmOutput.
 - ai/prompts.ts: `buildOraclePrompt(ctx)` — blindfold removed; surfaces economics, persona/confidence, real engagementSummary, orchestration position, trend; model-mode locks supplied numbers+factors, degraded-mode estimates; strict no-hallucination.
 - ai/provider.ts: `generateOracleLlm` implemented (generateObject + oracleSchema, 20s timeout, 'oracle' logging); legacy `generateOracle` removed; generateStrategy/classifyArchetype untouched.
+
+---
+
+## [Phase B2] [A3] — Inference, calibration, eval (on real A1+A2)
+- Did: competing-risks.ts (`cumulativeIncidence` — discrete-time competing risks under the no-additional-touch counterfactual, clock rolled via advanceCovariates, sign+ghost from one trajectory, perPeriod decomposition; `attributeFactors` — standardized beta·z contributions, ranked, signed, human plainText). calibration.ts (`evaluate` Brier/rank-AUC/ECE+reliability; `fitCalibration` Platt 1-D logistic + isotonic PAVA; `applyCalibration`; `calibrateFromCorpus` lead-level seeded split, no leakage, held-out before/after). eval.ts (`buildSeedFeatures` 5 faithful seed.sql fixtures; `runGoldenCases` qualitative relative directions; `runEvalReport`).
+- Verified: lane tests 19 passed; project-wide `tsc --noEmit` GREEN; full suite **125 passed (13 files)**.
+- Results: **golden directions BOTH PASS** (model on seed:7/600 leads, H=14): Noah sign 0.026 / ghost 0.933; Lukas sign 0.452 / ghost 0.322 → ghost(Noah)>ghost(Lukas) ✓, sign(Lukas)>sign(Noah) ✓. Held-out ECE (Platt): sign 0.098→0.089; ghost 0.264→0.104.
+- Decisions: both CIFs from one no-touch trajectory (recommendedAction = the clock-reset lever on ghost); AUC rank-based w/ tie handling; calibrateFromCorpus splits LEADS not periods; calibration recovery test deliberately distorts scores then shows Platt restores ECE (honest demonstration).
+- Debt/Deferred: none. No contract changes. Continuable agentId a2bd62544404d989d.
+- Commit: (this commit)
