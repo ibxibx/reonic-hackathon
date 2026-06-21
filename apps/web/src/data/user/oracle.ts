@@ -1,9 +1,7 @@
 'use server';
 
-import { generateOracle } from '@/lib/ai/provider';
-import { buildOraclePrompt } from '@/lib/ai/prompts';
+import { scoreOracle } from '@/lib/oracle/engine';
 import { authActionClient } from '@/lib/safe-action';
-import { createSupabaseClient } from '@/supabase-clients/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -11,66 +9,25 @@ const generateOracleSchema = z.object({
   leadId: z.uuid(),
 });
 
+/**
+ * Run the hybrid Oracle engine for a lead and persist a rich snapshot.
+ * RLS is enforced inside the engine (installer-scoped Supabase client); the
+ * engine degrades gracefully (LLM mode, missing predictions table) and never
+ * throws on thin data. A5 finalizes engine behavior + richer return in Phase B3.
+ */
 export const generateOracleAction = authActionClient
   .schema(generateOracleSchema)
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput }) => {
     const { leadId } = parsedInput;
-    const supabase = await createSupabaseClient();
 
-    const { data: lead, error: leadError } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('id', leadId)
-      .eq('installer_id', ctx.userId)
-      .single();
-
-    if (leadError || !lead) {
-      throw new Error('Lead not found');
-    }
-
-    const { data: quote, error: quoteError } = await supabase
-      .from('quotes')
-      .select('*')
-      .eq('lead_id', leadId)
-      .single();
-
-    if (quoteError || !quote) {
-      throw new Error('Quote not found');
-    }
-
-    const { data: strategy, error: strategyError } = await supabase
-      .from('strategies')
-      .select('*')
-      .eq('lead_id', leadId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (strategyError) {
-      throw new Error('Failed to load strategy signals');
-    }
-
-    const oracle = await generateOracle(buildOraclePrompt(lead, quote, strategy));
-
-    const { data: prediction, error: predictionError } = await supabase
-      .from('predictions')
-      .insert({
-        lead_id: leadId,
-        sign_prob: oracle.signProbability,
-        ghost_risk: oracle.ghostRisk,
-        predicted_code: oracle.predictedCode,
-        recommended_action: oracle.recommendedAction,
-        evidence: oracle.evidence,
-      })
-      .select()
-      .single();
-
-    if (predictionError || !prediction) {
-      throw new Error('Failed to save Oracle prediction');
-    }
+    const score = await scoreOracle(leadId);
 
     revalidatePath(`/leads/${leadId}`);
     revalidatePath(`/leads/${leadId}/strategy`);
 
-    return { predictionId: prediction.id };
+    return {
+      predictionId: score.predictionId,
+      mode: score.mode,
+      calibrated: score.calibrated,
+    };
   });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { blockerCodeEnum } from './blocker-taxonomy';
 
 export const personaEnum = z.enum([
   'family',
@@ -45,10 +46,26 @@ export const strategySchema = z.object({
 
 export type GeneratedStrategy = z.infer<typeof strategySchema>;
 
+// Mirrors contracts.OracleLlmOutput exactly. In degraded mode the LLM supplies
+// the probabilities; in model mode the engine overrides them. `blockerCode` is
+// the frozen taxonomy enum; `factors[]` is the LLM's narration over supplied
+// model factors (never invented in model mode).
 export const oracleSchema = z.object({
   signProbability: z.number().int().min(0).max(100),
   ghostRisk: z.number().int().min(0).max(100),
-  predictedCode: z.string().min(2).max(50),
+  signConfidence: z.number().min(0).max(100),
+  ghostConfidence: z.number().min(0).max(100),
+  blockerCode: blockerCodeEnum,
+  factors: z
+    .array(
+      z.object({
+        feature: z.string(),
+        direction: z.enum(['increases', 'decreases']),
+        weight: z.number(),
+        plainText: z.string().min(1).max(300),
+      })
+    )
+    .max(8),
   recommendedAction: z.string().min(20).max(500),
   evidence: z.string().min(40).max(1200),
 });

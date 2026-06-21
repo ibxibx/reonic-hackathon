@@ -1,9 +1,9 @@
 import { DeleteLeadButton } from '@/components/leads/delete-lead-button';
 import { StatusBadge } from '@/components/leads/status-badge';
 import { GenerateStrategyButton } from '@/components/strategy/generate-strategy-button';
-import { PersonaBadge } from '@/components/strategy/persona-badge';
-import { OraclePanel } from '@/components/strategy/oracle-panel';
 import { InboundPanel } from '@/components/strategy/inbound-panel';
+import { OraclePanel } from '@/components/strategy/oracle-panel';
+import { PersonaBadge } from '@/components/strategy/persona-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,12 +15,13 @@ import {
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import {
-  getLeadWithQuote,
-  getLatestPredictionForLead,
-  getStrategyForLead,
-  getOrchestrationForLead,
-  getMessagesForLead,
   getLatestInboundForLead,
+  getLatestPredictionForLead,
+  getLeadWithQuote,
+  getMessagesForLead,
+  getOrchestrationForLead,
+  getPredictionHistoryForLead,
+  getStrategyForLead,
 } from '@/data/user/leads-read';
 import {
   CHANNEL_CONFIG,
@@ -61,10 +62,14 @@ export default async function LeadDetailPage(props: {
     notFound();
   }
 
-  const strategy = await getStrategyForLead(leadId);
-  const prediction = await getLatestPredictionForLead(leadId);
+  const [strategy, prediction, predictionHistory, orchestration] =
+    await Promise.all([
+      getStrategyForLead(leadId),
+      getLatestPredictionForLead(leadId),
+      getPredictionHistoryForLead(leadId),
+      getOrchestrationForLead(leadId),
+    ]);
   const confidence = strategy?.persona_confidence ?? null;
-  const orchestration = await getOrchestrationForLead(leadId);
   const latestInbound = await getLatestInboundForLead(leadId);
 
   // 2.5c — surface the NEXT step's actual message + its "why now" goal.
@@ -72,14 +77,14 @@ export default async function LeadDetailPage(props: {
   // the message at sequence_order = current_step + 1. Null when completed.
   const messages =
     orchestration &&
-    orchestration.status !== 'completed' &&
-    orchestration.current_step < orchestration.total_steps
+      orchestration.status !== 'completed' &&
+      orchestration.current_step < orchestration.total_steps
       ? await getMessagesForLead(leadId)
       : [];
   const nextStepMessage = orchestration
     ? (messages.find(
-        (m) => m.sequence_order === orchestration.current_step + 1
-      ) ?? null)
+      (m) => m.sequence_order === orchestration.current_step + 1
+    ) ?? null)
     : null;
 
   return (
@@ -140,7 +145,11 @@ export default async function LeadDetailPage(props: {
         </div>
       </div>
 
-      <OraclePanel leadId={leadId} prediction={prediction} />
+      <OraclePanel
+        leadId={leadId}
+        prediction={prediction}
+        predictions={predictionHistory}
+      />
 
       {strategy ? (
         <InboundPanel leadId={leadId} latestInbound={latestInbound} />
@@ -195,7 +204,7 @@ export default async function LeadDetailPage(props: {
                   label="Financing"
                   value={
                     FINANCING_TYPE_LABELS[
-                      quote.financing_type as FinancingType
+                    quote.financing_type as FinancingType
                     ] ?? quote.financing_type
                   }
                 />

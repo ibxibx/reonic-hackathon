@@ -1,5 +1,13 @@
+import type { Database } from '@/lib/database.types';
+import { AppError } from '@/lib/errors';
+import type {
+  GenerateOracleLlm,
+  OracleLlmOutput,
+} from '@/lib/oracle/contracts';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
+import { logError, logStep, startTimer } from './agent-log';
+import { buildArchetypePrompt } from './prompts';
 import {
   adaptStrategySchema,
   archetypeSchema,
@@ -9,13 +17,8 @@ import {
   type AdaptedStrategy,
   type ClassifiedArchetype,
   type ClassifiedInbound,
-  type GeneratedOracle,
   type GeneratedStrategy,
 } from './schemas';
-import type { Database } from '@/lib/database.types';
-import { AppError } from '@/lib/errors';
-import { buildArchetypePrompt } from './prompts';
-import { logStep, logError, startTimer } from './agent-log';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 type Quote = Database['public']['Tables']['quotes']['Row'];
@@ -92,13 +95,20 @@ export async function classifyArchetype(
   }
 }
 
-export async function generateOracle(
+/**
+ * A4 — Oracle LLM call. Returns the qualitative layer (blockerCode +
+ * recommendedAction + evidence, plus degraded-mode numbers and factor
+ * narration) via generateObject + the upgraded oracleSchema. The engine (A5)
+ * overrides the numbers with the fitted model in model mode. The caller
+ * (A5/engine) builds the system prompt via buildOraclePrompt and passes it in.
+ */
+export const generateOracleLlm: GenerateOracleLlm = async (
   systemPrompt: string
-): Promise<GeneratedOracle> {
+): Promise<OracleLlmOutput> => {
   try {
     const model = process.env.OPENAI_MODEL || 'gpt-4o';
     const timer = startTimer();
-    logStep('strategy', 'Oracle AI call → generateObject', { model });
+    logStep('oracle', 'AI call → generateObject', { model });
     const result = await generateObject({
       model: openai(model),
       schema: oracleSchema,
@@ -107,15 +117,16 @@ export async function generateOracle(
       maxRetries: 1,
       abortSignal: AbortSignal.timeout(20000),
     });
-    logStep('strategy', 'Oracle AI call ✓', {
+    logStep('oracle', 'AI call ✓', {
       ms: timer(),
       signProbability: result.object.signProbability,
       ghostRisk: result.object.ghostRisk,
-      predictedCode: result.object.predictedCode,
+      blockerCode: result.object.blockerCode,
+      factors: result.object.factors.length,
     });
-    return result.object;
+    return result.object as OracleLlmOutput;
   } catch (error) {
-    logError('strategy', 'Oracle AI call failed', error);
+    logError('oracle', 'AI call failed', error);
     console.error('Oracle generation error:', error);
     throw new AppError(
       'Failed to generate Oracle prediction',
