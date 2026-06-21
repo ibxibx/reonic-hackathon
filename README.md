@@ -17,6 +17,9 @@
 > [`prd/PRD.md`](./prd/PRD.md). Live build plan and shipped status in
 > [`ACTION_PLAN.md`](./ACTION_PLAN.md).
 
+> 🛠️ **Running it locally?** See [`SETUP.md`](./SETUP.md) — zero-to-dashboard setup,
+> environment variables, the demo login, and troubleshooting.
+
 ---
 
 ## 🎯 The Brief, In One Line
