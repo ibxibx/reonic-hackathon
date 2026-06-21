@@ -46,14 +46,14 @@
   --chart-4: var(--brand-300);
   --chart-5: var(--brand-400);
   --radius: 0.75rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: oklch(0.18 0 0);
-  --sidebar-primary: var(--brand-800);
-  --sidebar-primary-foreground: #f4faf6;
-  --sidebar-accent: var(--brand-50);
-  --sidebar-accent-foreground: var(--brand-800);
-  --sidebar-border: #e2e8e4;
-  --sidebar-ring: var(--brand-700);
+  --sidebar: var(--brand-800);
+  --sidebar-foreground: #d4e7dc;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: var(--brand-800);
+  --sidebar-accent: var(--brand-700);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: var(--brand-300);
   --background: #f6f8f7;
   --foreground: oklch(0.18 0 0);
 }
