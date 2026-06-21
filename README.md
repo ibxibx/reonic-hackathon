@@ -76,7 +76,7 @@ sequence is *traceable back to a diagnosed reason*, not a generic template.
 
 ## 🔮 The "Oracle" — Predictive Next-Best-Action
 
-A *Minority Report*–inspired panel on every lead. Drawing on the lead's quote, persona,
+A panel on every lead. Drawing on the lead's quote, persona,
 problem-code stack, and logged interaction signals, the "Oracle" outputs:
 
 - **Sign probability** and **Ghost risk** (0–100, with trend arrows)
