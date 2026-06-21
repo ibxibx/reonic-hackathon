@@ -1,0 +1,28 @@
+'use client';
+
+import i18next from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import resourcesToBackend from 'i18next-resources-to-backend';
+import { getOptions, type Locale } from './settings';
+
+i18next
+  .use(initReactI18next)
+  .use(
+    resourcesToBackend(
+      (language: string, namespace: string) =>
+        import(`./locales/${language}/${namespace}.json`),
+    ),
+  )
+  .init({
+    ...getOptions(),
+    ns: ['common', 'pages'],
+    react: { useSuspense: false },
+  });
+
+export function setClientLanguage(lng: Locale) {
+  if (i18next.language !== lng) {
+    i18next.changeLanguage(lng);
+  }
+}
+
+export default i18next;

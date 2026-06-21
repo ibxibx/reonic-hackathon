@@ -1,27 +1,18 @@
+'use client';
+
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Table } from '@/types';
 import { Inbox } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type Inbound = Table<'inbound_messages'>;
 
-const CATEGORY_CONFIG: Record<string, { label: string; className: string }> = {
-  interested: {
-    label: 'Interested',
-    className: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  },
-  objection: {
-    label: 'Objection',
-    className: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  },
-  ghost_risk: {
-    label: 'Ghost risk',
-    className: 'bg-red-500/15 text-red-400 border-red-500/30',
-  },
-  ready_to_close: {
-    label: 'Ready to close',
-    className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  },
+const CATEGORY_STYLES: Record<string, string> = {
+  interested: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  objection: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  ghost_risk: 'bg-red-500/15 text-red-400 border-red-500/30',
+  ready_to_close: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
 };
 
 /**
@@ -36,7 +27,11 @@ export function InboundTimelineEntry({
   inbound: Inbound;
   isLast: boolean;
 }) {
-  const cat = CATEGORY_CONFIG[inbound.category];
+  const { t } = useTranslation('pages');
+  const catStyle = CATEGORY_STYLES[inbound.category];
+  const catLabel = t(`strategy.category.${inbound.category}`, {
+    defaultValue: inbound.category,
+  });
 
   return (
     <div className="flex gap-4">
@@ -51,11 +46,11 @@ export function InboundTimelineEntry({
         <CardContent className="space-y-3 pt-6">
           <div className="flex items-start justify-between gap-3">
             <span className="text-sm font-medium text-primary">
-              Customer reply
+              {t('strategy.customerReply')}
             </span>
-            {cat ? (
-              <Badge variant="outline" className={cat.className}>
-                {cat.label}
+            {catStyle ? (
+              <Badge variant="outline" className={catStyle}>
+                {catLabel}
               </Badge>
             ) : (
               <Badge variant="outline">{inbound.category}</Badge>
@@ -68,14 +63,14 @@ export function InboundTimelineEntry({
 
           {inbound.reasoning ? (
             <p className="text-xs text-muted-foreground">
-              <span className="font-medium">Categorized because: </span>
+              <span className="font-medium">{t('strategy.categorizedBecause')}</span>
               {inbound.reasoning}
             </p>
           ) : null}
 
           {inbound.suggested_next_step ? (
             <p className="text-xs text-muted-foreground">
-              <span className="font-medium">Suggested next step: </span>
+              <span className="font-medium">{t('strategy.suggestedNextStep')}</span>
               {inbound.suggested_next_step}
             </p>
           ) : null}

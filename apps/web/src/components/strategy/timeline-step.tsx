@@ -30,6 +30,7 @@ import { useAction } from 'next-safe-action/hooks';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 const ICONS: Record<MessageChannel, LucideIcon> = {
   email: Mail,
@@ -49,6 +50,7 @@ export function TimelineStep({
   isLast: boolean;
   voiceSignedUrl: string | null;
 }) {
+  const { t } = useTranslation('pages');
   const channel = message.channel_type as MessageChannel;
   const Icon = ICONS[channel] ?? Mail;
   const label = CHANNEL_CONFIG[channel]?.label ?? channel;
@@ -74,12 +76,12 @@ export function TimelineStep({
               <div className="flex items-center gap-2">
                 <span className="font-medium">{label}</span>
                 <span className="text-xs text-muted-foreground">
-                  Day {message.sequence_order}
+                  {t('strategy.day', { n: message.sequence_order })}
                 </span>
               </div>
               {message.goal ? (
                 <p className="text-xs text-muted-foreground">
-                  Goal: {message.goal}
+                  {t('strategy.goal', { goal: message.goal })}
                 </p>
               ) : null}
             </div>
@@ -90,7 +92,7 @@ export function TimelineStep({
                   size="icon"
                   variant="ghost"
                   className="size-7 text-muted-foreground"
-                  aria-label="Edit message"
+                  aria-label={t('strategy.editMessage')}
                   onClick={() => setEditing(true)}
                 >
                   <Pencil className="size-3.5" />
@@ -109,7 +111,7 @@ export function TimelineStep({
             <>
               {message.subject ? (
                 <p className="text-sm">
-                  <span className="text-muted-foreground">Subject: </span>
+                  <span className="text-muted-foreground">{t('strategy.subject')}</span>
                   <span className="font-medium">{message.subject}</span>
                 </p>
               ) : null}
@@ -129,7 +131,7 @@ export function TimelineStep({
                     onClick={() => setExpanded((v) => !v)}
                     className="mt-1 text-xs font-medium text-primary hover:underline"
                   >
-                    {expanded ? 'Show less' : 'Show more'}
+                    {expanded ? t('common.showLess') : t('common.showMore')}
                   </button>
                 ) : null}
               </div>
@@ -166,6 +168,7 @@ function SendButton({
   message: Message;
   channel: 'email' | 'sms';
 }) {
+  const { t } = useTranslation('pages');
   const router = useRouter();
   const toastRef = useRef<string | number | undefined>(undefined);
   const action = channel === 'email' ? sendEmailAction : sendSmsAction;
@@ -173,22 +176,22 @@ function SendButton({
   const { execute, status } = useAction(action, {
     onExecute: () => {
       toastRef.current = toast.loading(
-        `Sending ${channel === 'email' ? 'email' : 'SMS'}...`
+        channel === 'email' ? t('strategy.sendingEmail') : t('strategy.sendingSms')
       );
     },
     onSuccess: ({ data }) => {
       if (data?.mock) {
-        toast.success('Simulated send (mock mode)', { id: toastRef.current });
+        toast.success(t('strategy.sentMock'), { id: toastRef.current });
       } else if (data?.success) {
-        toast.success('Sent', { id: toastRef.current });
+        toast.success(t('strategy.sent'), { id: toastRef.current });
       } else {
-        toast.error(data?.error ?? 'Send failed', { id: toastRef.current });
+        toast.error(data?.error ?? t('strategy.sendFailed'), { id: toastRef.current });
       }
       toastRef.current = undefined;
       router.refresh();
     },
     onError: ({ error }) => {
-      toast.error(error.serverError ?? 'Send failed', { id: toastRef.current });
+      toast.error(error.serverError ?? t('strategy.sendFailed'), { id: toastRef.current });
       toastRef.current = undefined;
     },
   });
@@ -204,12 +207,13 @@ function SendButton({
       onClick={() => execute({ messageId: message.id })}
     >
       <Send className="mr-1 h-4 w-4" />
-      {isSending ? 'Sending...' : alreadySent ? 'Resend' : 'Send'}
+      {isSending ? t('strategy.sending') : alreadySent ? t('strategy.resend') : t('strategy.send')}
     </Button>
   );
 }
 
 function CopyButton({ content }: { content: string }) {
+  const { t } = useTranslation('pages');
   return (
     <Button
       size="sm"
@@ -217,12 +221,12 @@ function CopyButton({ content }: { content: string }) {
       onClick={() => {
         navigator.clipboard
           .writeText(content)
-          .then(() => toast.success('Script copied'))
-          .catch(() => toast.error('Could not copy'));
+          .then(() => toast.success(t('strategy.scriptCopied')))
+          .catch(() => toast.error(t('strategy.copyFailed')));
       }}
     >
       <Copy className="mr-1 h-4 w-4" />
-      Copy script
+      {t('strategy.copyScript')}
     </Button>
   );
 }
@@ -237,6 +241,7 @@ function MessageEditor({
   channel: MessageChannel;
   onDone: () => void;
 }) {
+  const { t } = useTranslation('pages');
   const router = useRouter();
   const isEmail = channel === 'email';
   const [subject, setSubject] = useState(message.subject ?? '');
@@ -244,12 +249,12 @@ function MessageEditor({
 
   const { execute, status } = useAction(updateMessageAction, {
     onSuccess: () => {
-      toast.success('Message updated');
+      toast.success(t('strategy.messageUpdated'));
       onDone();
       router.refresh();
     },
     onError: ({ error }) => {
-      toast.error(error.serverError ?? 'Update failed');
+      toast.error(error.serverError ?? t('strategy.updateFailed'));
     },
   });
 
@@ -263,18 +268,18 @@ function MessageEditor({
     <div className="space-y-2">
       {isEmail ? (
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Subject</label>
+          <label className="text-xs text-muted-foreground">{t('strategy.subjectLabel')}</label>
           <Input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            placeholder="Email subject"
+            placeholder={t('strategy.emailSubjectPlaceholder')}
             disabled={isSaving}
           />
         </div>
       ) : null}
 
       <div className="space-y-1">
-        <label className="text-xs text-muted-foreground">Message</label>
+        <label className="text-xs text-muted-foreground">{t('strategy.messageLabel')}</label>
         <Textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -297,7 +302,7 @@ function MessageEditor({
           }
         >
           <Check className="mr-1 h-4 w-4" />
-          {isSaving ? 'Saving...' : 'Save'}
+          {isSaving ? t('strategy.saving') : t('strategy.save')}
         </Button>
         <Button
           size="sm"
@@ -306,7 +311,7 @@ function MessageEditor({
           onClick={onDone}
         >
           <X className="mr-1 h-4 w-4" />
-          Cancel
+          {t('strategy.cancel')}
         </Button>
       </div>
     </div>

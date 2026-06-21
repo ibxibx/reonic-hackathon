@@ -1,7 +1,11 @@
 import '@/styles/globals.css';
+import { Suspense } from 'react';
 import localFont from 'next/font/local';
 import { DynamicLayoutProviders } from './DynamicLayoutProviders';
 import { ClientLayout } from './ClientLayout';
+import { I18nProvider } from '@/i18n/provider';
+import { getLocale } from '@/i18n/server';
+import { fallbackLng } from '@/i18n/settings';
 
 const inter = localFont({
   src: [
@@ -28,16 +32,33 @@ export const metadata = {
   description: 'Built with Next.js, Supabase, and Tailwind CSS',
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+async function LocalizedProviders({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
+  return <I18nProvider locale={locale}>{children}</I18nProvider>;
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${robotoMono.variable}`}>
+    <html lang={fallbackLng} suppressHydrationWarning className={`${inter.variable} ${robotoMono.variable}`}>
       <head />
       <body>
-        <DynamicLayoutProviders>
-          <ClientLayout>
-            {children}
-          </ClientLayout>
-        </DynamicLayoutProviders>
+        <Suspense
+          fallback={
+            <I18nProvider locale={fallbackLng}>
+              <DynamicLayoutProviders>
+                <ClientLayout>{children}</ClientLayout>
+              </DynamicLayoutProviders>
+            </I18nProvider>
+          }
+        >
+          <LocalizedProviders>
+            <DynamicLayoutProviders>
+              <ClientLayout>
+                {children}
+              </ClientLayout>
+            </DynamicLayoutProviders>
+          </LocalizedProviders>
+        </Suspense>
       </body>
     </html>
   );

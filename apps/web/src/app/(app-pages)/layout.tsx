@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation';
 import { type ReactNode, Suspense } from 'react';
 import { AppSidebar } from './app-sidebar';
 import { DynamicBreadcrumb } from '@/components/dynamic-breadcrumb';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 async function AuthGuard({ children }: { children: ReactNode }) {
   const isLoggedIn = await getCachedIsUserLoggedIn();
@@ -29,6 +30,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <Suspense fallback={null}>
             <DynamicBreadcrumb />
           </Suspense>
+          <div className="ml-auto flex items-center gap-2">
+            <LanguageSwitcher variant="full" />
+          </div>
         </header>
         <Suspense fallback={null}>
           <AuthGuard>{children}</AuthGuard>

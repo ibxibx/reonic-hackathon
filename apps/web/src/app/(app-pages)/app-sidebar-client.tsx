@@ -16,19 +16,20 @@ import { ChevronUp, Home, LogOut, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTransition } from "react";
-const navigationItems: { title: string; url: string; icon: React.ElementType }[] = [
+import { useTranslation } from "react-i18next";
+const navigationItems: { key: string; url: string; icon: React.ElementType }[] = [
   {
-    title: 'Dashboard',
+    key: 'dashboard',
     url: '/dashboard',
     icon: Home,
   },
   {
-    title: 'Leads',
+    key: 'leads',
     url: '/leads',
     icon: Users,
   },
   {
-    title: 'Settings',
+    key: 'settings',
     url: '/settings',
     icon: Settings,
   },
@@ -39,6 +40,7 @@ const navigationItems: { title: string; url: string; icon: React.ElementType }[]
 export function AppSidebarContent({ user }: { user: User }) {
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
+  const { t } = useTranslation('common');
 
   function handleSignOut() {
     startTransition(async () => {
@@ -56,7 +58,7 @@ export function AppSidebarContent({ user }: { user: User }) {
     .slice(0, 2);
   return <><SidebarContent>
     <SidebarGroup>
-      <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+      <SidebarGroupLabel>{t('nav.navigation')}</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
           {navigationItems.map((item) => {
@@ -64,11 +66,11 @@ export function AppSidebarContent({ user }: { user: User }) {
               pathname === item.url || pathname.startsWith(`${item.url}/`);
             const Icon = item.icon;
             return (
-              <SidebarMenuItem key={item.title}>
+              <SidebarMenuItem key={item.key}>
                 <SidebarMenuButton asChild isActive={isActive}>
                   <Link href={item.url}>
                     <Icon />
-                    <span>{item.title}</span>
+                    <span>{t(`nav.${item.key}`)}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -126,13 +128,13 @@ export function AppSidebarContent({ user }: { user: User }) {
               <DropdownMenuItem asChild>
                 <Link href="/settings">
                   <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                  {t('nav.settings')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} disabled={isPending}>
                 <LogOut className="mr-2 h-4 w-4" />
-                {isPending ? 'Signing out...' : 'Sign out'}
+                {isPending ? t('nav.signingOut') : t('nav.signOut')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

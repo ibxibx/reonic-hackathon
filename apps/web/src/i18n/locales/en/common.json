@@ -1,0 +1,31 @@
+{
+  "app": {
+    "name": "RayCiprocity",
+    "tagline": "Solar AI Copilot"
+  },
+  "nav": {
+    "navigation": "Navigation",
+    "dashboard": "Dashboard",
+    "leads": "Leads",
+    "settings": "Settings",
+    "signOut": "Sign out",
+    "signingOut": "Signing out...",
+    "account": "Account"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "back": "Back",
+    "next": "Next",
+    "loading": "Loading...",
+    "search": "Search"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "de": "Deutsch"
+  }
+}

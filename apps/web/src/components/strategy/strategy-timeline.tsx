@@ -1,3 +1,5 @@
+'use client';
+
 import { TimelineStep } from '@/components/strategy/timeline-step';
 import { InboundTimelineEntry } from '@/components/strategy/inbound-timeline-entry';
 import {
@@ -9,6 +11,7 @@ import {
 } from '@/components/ui/card';
 import type { Table } from '@/types';
 import { Workflow } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type Message = Table<'messages'>;
 type Inbound = Table<'inbound_messages'>;
@@ -61,6 +64,7 @@ export function StrategyTimeline({
   inbound: Array<Inbound>;
   voiceSignedUrl: string | null;
 }) {
+  const { t } = useTranslation('pages');
   const entries = buildTimeline(messages, inbound);
 
   return (
@@ -68,16 +72,16 @@ export function StrategyTimeline({
       <CardHeader>
         <div className="flex items-center gap-2">
           <Workflow className="h-5 w-5 text-primary" />
-          <CardTitle>Outreach timeline</CardTitle>
+          <CardTitle>{t('strategy.timelineTitle')}</CardTitle>
         </div>
         <CardDescription>
-          Multi-channel outreach with customer replies in sequence.
+          {t('strategy.timelineDescription')}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {entries.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No messages were generated for this strategy.
+            {t('strategy.noMessages')}
           </p>
         ) : (
           <div>

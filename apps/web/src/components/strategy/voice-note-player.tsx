@@ -9,6 +9,7 @@ import { useAction } from 'next-safe-action/hooks';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function VoiceNotePlayer({
   messageId,
@@ -20,6 +21,7 @@ export function VoiceNotePlayer({
   initialSignedUrl: string | null;
 }) {
   const router = useRouter();
+  const { t } = useTranslation('pages');
   const toastRef = useRef<string | number | undefined>(undefined);
   const [audioPath, setAudioPath] = useState<string | null>(initialAudioPath);
   const [audioUrl, setAudioUrl] = useState<string | null>(initialSignedUrl);
@@ -27,10 +29,10 @@ export function VoiceNotePlayer({
 
   const { execute, status } = useAction(generateVoiceNoteAction, {
     onExecute: () => {
-      toastRef.current = toast.loading('ElevenLabs is recording...');
+      toastRef.current = toast.loading(t('voice.recording'));
     },
     onSuccess: async ({ data }) => {
-      toast.success('Voice note ready', { id: toastRef.current });
+      toast.success(t('voice.ready'), { id: toastRef.current });
       toastRef.current = undefined;
       if (data?.audioPath) {
         setAudioPath(data.audioPath);
@@ -40,7 +42,7 @@ export function VoiceNotePlayer({
       router.refresh();
     },
     onError: ({ error }) => {
-      toast.error(error.serverError ?? 'Failed to generate voice note', {
+      toast.error(error.serverError ?? t('voice.generateFailed'), {
         id: toastRef.current,
       });
       toastRef.current = undefined;
@@ -55,14 +57,14 @@ export function VoiceNotePlayer({
     const url = await getVoiceNoteSignedUrl(audioPath);
     setAudioUrl(url);
     setReloading(false);
-    if (!url) toast.error('Could not refresh audio link');
+    if (!url) toast.error(t('voice.refreshFailed'));
   }
 
   if (isGenerating) {
     return (
       <div className="flex items-center gap-3 rounded-md border border-dashed p-4 text-sm text-muted-foreground">
         <Spinner className="h-4 w-4" />
-        ElevenLabs is recording the voice note...
+        {t('voice.recordingInline')}
       </div>
     );
   }
@@ -71,7 +73,7 @@ export function VoiceNotePlayer({
     return (
       <Button onClick={() => execute({ messageId })} variant="secondary">
         <Mic className="mr-1 h-4 w-4" />
-        Generate Voice Note
+        {t('voice.generate')}
       </Button>
     );
   }
@@ -85,11 +87,11 @@ export function VoiceNotePlayer({
           className="w-full"
           onError={reloadUrl}
         >
-          Your browser does not support the audio element.
+          {t('voice.noAudioSupport')}
         </audio>
       ) : (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Audio link expired.</span>
+          <span>{t('voice.linkExpired')}</span>
           <Button
             variant="link"
             size="sm"
@@ -97,7 +99,7 @@ export function VoiceNotePlayer({
             onClick={reloadUrl}
             disabled={reloading}
           >
-            {reloading ? 'Reloading...' : 'Reload audio'}
+            {reloading ? t('voice.reloading') : t('voice.reload')}
           </Button>
         </div>
       )}
@@ -109,13 +111,13 @@ export function VoiceNotePlayer({
           onClick={() => execute({ messageId })}
         >
           <RefreshCw className="mr-1 h-4 w-4" />
-          Regenerate
+          {t('voice.regenerate')}
         </Button>
         {audioUrl ? (
           <Button asChild variant="ghost" size="sm">
             <a href={audioUrl} download>
               <Download className="mr-1 h-4 w-4" />
-              Download
+              {t('voice.download')}
             </a>
           </Button>
         ) : null}

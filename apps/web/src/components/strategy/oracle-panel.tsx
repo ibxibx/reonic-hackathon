@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PolarAngleAxis, RadialBar, RadialBarChart, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 type Prediction = Table<'predictions'>;
 
@@ -74,13 +75,14 @@ export function OraclePanel({
   prediction: Prediction | null;
 }) {
   const router = useRouter();
+  const { t } = useTranslation('pages');
   const { execute, status } = useAction(generateOracleAction, {
     onSuccess: () => {
-      toast.success(prediction ? 'Oracle refreshed' : 'Oracle prediction ready');
+      toast.success(prediction ? t('oracle.refreshed') : t('oracle.ready'));
       router.refresh();
     },
     onError: ({ error }) => {
-      toast.error(error.serverError ?? 'Could not generate Oracle prediction');
+      toast.error(error.serverError ?? t('oracle.failed'));
     },
   });
 
@@ -98,10 +100,10 @@ export function OraclePanel({
         <div className="space-y-1">
           <CardTitle className="flex items-center gap-2">
             <BrainCircuit className="size-5 text-primary" />
-            The Oracle
+            {t('oracle.title')}
           </CardTitle>
           <CardDescription>
-            A calibrated close-risk signal and the one best next move.
+            {t('oracle.description')}
           </CardDescription>
         </div>
         <Button
@@ -116,10 +118,10 @@ export function OraclePanel({
             <Sparkles className="mr-1.5 size-4" />
           )}
           {isGenerating
-            ? 'Reading lead...'
+            ? t('oracle.reading')
             : prediction
-              ? 'Refresh Oracle'
-              : 'Run Oracle'}
+              ? t('oracle.refresh')
+              : t('oracle.run')}
         </Button>
       </CardHeader>
       <CardContent>
@@ -127,12 +129,12 @@ export function OraclePanel({
           <div className="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
             <div className="flex justify-center gap-5 sm:gap-8">
               <ScoreGauge
-                label="Likely to sign"
+                label={t('oracle.likelyToSign')}
                 value={Math.round(Number(prediction.sign_prob))}
                 color="hsl(var(--chart-2))"
               />
               <ScoreGauge
-                label="Ghost risk"
+                label={t('oracle.ghostRisk')}
                 value={Math.round(Number(prediction.ghost_risk))}
                 color="hsl(var(--destructive))"
               />
@@ -141,9 +143,9 @@ export function OraclePanel({
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium">Predicted blocker</span>
+                  <span className="text-sm font-medium">{t('oracle.predictedBlocker')}</span>
                   <Badge variant="secondary" className="font-mono">
-                    {prediction.predicted_code ?? 'Uncoded'}
+                    {prediction.predicted_code ?? t('oracle.uncoded')}
                   </Badge>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
@@ -153,14 +155,14 @@ export function OraclePanel({
 
               <div className="rounded-lg border bg-background/70 p-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  One recommended action
+                  {t('oracle.oneAction')}
                 </p>
                 <p className="mt-1 text-sm font-medium leading-relaxed">
                   {prediction.recommended_action}
                 </p>
                 <Button asChild variant="link" size="sm" className="mt-2 h-auto px-0">
                   <Link href={actionHref}>
-                    {channel ? `Jump to ${channel} step` : 'Open outreach timeline'}
+                    {channel ? t('oracle.jumpToStep', { channel }) : t('oracle.openTimeline')}
                     <ChevronRight className="ml-1 size-4" />
                   </Link>
                 </Button>
@@ -169,8 +171,7 @@ export function OraclePanel({
           </div>
         ) : (
           <div className="rounded-lg border border-dashed bg-background/50 p-5 text-sm text-muted-foreground">
-            Run the Oracle to identify the most likely blocker and the next
-            outreach move for this lead.
+            {t('oracle.emptyState')}
           </div>
         )}
       </CardContent>

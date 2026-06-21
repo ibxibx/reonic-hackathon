@@ -11,17 +11,23 @@ import {
 import { Home } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 
-const routeLabels: Record<string, string> = {
-    dashboard: 'Dashboard',
-    'private-items': 'Private Items',
-    'private-item': 'Private Item',
-    item: 'Item',
-    new: 'New',
+const segmentKeys: Record<string, string> = {
+    dashboard: 'dashboard',
+    leads: 'leads',
+    settings: 'settings',
+    'private-items': 'privateItems',
+    'private-item': 'privateItem',
+    item: 'item',
+    new: 'new',
+    voice: 'voice',
+    strategy: 'strategy',
 };
 
 export function DynamicBreadcrumb() {
     const pathname = usePathname();
+    const { t } = useTranslation('pages');
     const segments = pathname.split('/').filter(Boolean);
 
     if (segments.length === 0) {
@@ -29,7 +35,7 @@ export function DynamicBreadcrumb() {
             <Breadcrumb>
                 <BreadcrumbList>
                     <BreadcrumbItem>
-                        <BreadcrumbPage>Home</BreadcrumbPage>
+                        <BreadcrumbPage>{t('breadcrumb.home')}</BreadcrumbPage>
                     </BreadcrumbItem>
                 </BreadcrumbList>
             </Breadcrumb>
@@ -43,14 +49,15 @@ export function DynamicBreadcrumb() {
                     <BreadcrumbLink asChild>
                         <Link href="/dashboard" className="flex items-center gap-1">
                             <Home className="h-3.5 w-3.5" />
-                            <span>Home</span>
+                            <span>{t('breadcrumb.home')}</span>
                         </Link>
                     </BreadcrumbLink>
                 </BreadcrumbItem>
                 {segments.map((segment, index) => {
                     const isLast = index === segments.length - 1;
                     const href = '/' + segments.slice(0, index + 1).join('/');
-                    const label = routeLabels[segment] || segment;
+                    const labelKey = segmentKeys[segment];
+                    const label = labelKey ? t(`breadcrumb.${labelKey}`) : segment;
 
                     // Skip UUID segments in breadcrumb display
                     const isUUID =
@@ -64,7 +71,7 @@ export function DynamicBreadcrumb() {
                             <BreadcrumbSeparator />
                             <BreadcrumbItem>
                                 {isLast ? (
-                                    <BreadcrumbPage>{isUUID ? 'Details' : label}</BreadcrumbPage>
+                                    <BreadcrumbPage>{isUUID ? t('breadcrumb.details') : label}</BreadcrumbPage>
                                 ) : (
                                     <BreadcrumbLink asChild>
                                         <Link href={href}>{label}</Link>

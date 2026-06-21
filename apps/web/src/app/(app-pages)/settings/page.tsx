@@ -14,12 +14,15 @@ import { getMyProfile } from '@/data/user/profile';
 import { getIntegrationStatus } from '@/lib/integration-status';
 import { getCachedLoggedInVerifiedSupabaseUser } from '@/rsc-data/supabase';
 import { cn } from '@/lib/utils';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { getServerTranslation } from '@/i18n/server';
 
 export default async function SettingsPage() {
-  const [profile, { user }, integrations] = await Promise.all([
+  const [profile, { user }, integrations, { t }] = await Promise.all([
     getMyProfile(),
     getCachedLoggedInVerifiedSupabaseUser(),
     Promise.resolve(getIntegrationStatus()),
+    getServerTranslation('pages'),
   ]);
 
   const email = user.email ?? '';
@@ -28,54 +31,54 @@ export default async function SettingsPage() {
     {
       name: 'OpenAI',
       connected: integrations.openai,
-      note: integrations.openai ? 'Connected' : 'Not configured',
+      note: integrations.openai ? t('settings.connected') : t('settings.notConfigured'),
     },
     {
       name: 'ElevenLabs',
       connected: integrations.elevenlabs,
-      note: integrations.elevenlabs ? 'Connected' : 'Not configured',
+      note: integrations.elevenlabs ? t('settings.connected') : t('settings.notConfigured'),
     },
     {
       name: 'Resend (Email)',
       connected: !integrations.emailMock,
-      note: integrations.emailMock ? 'Simulated (mock)' : 'Connected',
+      note: integrations.emailMock ? t('settings.simulated') : t('settings.connected'),
     },
     {
       name: 'Twilio (SMS)',
       connected: !integrations.smsMock,
-      note: integrations.smsMock ? 'Simulated (mock)' : 'Connected',
+      note: integrations.smsMock ? t('settings.simulated') : t('settings.connected'),
     },
   ];
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 max-w-3xl w-full">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('settings.title')}</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your profile, integrations and preferences.
+          {t('settings.subtitle')}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Profile</CardTitle>
-          <CardDescription>Your company and account details.</CardDescription>
+          <CardTitle>{t('settings.profileTitle')}</CardTitle>
+          <CardDescription>{t('settings.profileDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <ProfileForm companyName={profile?.company_name ?? ''} />
           <Separator />
           <div className="space-y-1">
-            <Label>Account email</Label>
-            <p className="text-sm text-muted-foreground">{email || 'Unknown'}</p>
+            <Label>{t('settings.accountEmail')}</Label>
+            <p className="text-sm text-muted-foreground">{email || t('settings.unknown')}</p>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Integrations</CardTitle>
+          <CardTitle>{t('settings.integrationsTitle')}</CardTitle>
           <CardDescription>
-            Status of the services that power RayCiprocity.
+            {t('settings.integrationsDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent className="divide-y divide-border">
@@ -103,17 +106,26 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Preferences</CardTitle>
-          <CardDescription>Appearance and display options.</CardDescription>
+          <CardTitle>{t('settings.preferencesTitle')}</CardTitle>
+          <CardDescription>{t('settings.preferencesDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <Label>Theme</Label>
+            <Label>{t('settings.theme')}</Label>
             <p className="text-sm text-muted-foreground">
-              Toggle between light and dark mode.
+              {t('settings.themeDescription')}
             </p>
           </div>
           <ModeToggle />
+        </CardContent>
+        <CardContent className="flex items-center justify-between border-t pt-6">
+          <div className="space-y-0.5">
+            <Label>{t('settings.languageSection')}</Label>
+            <p className="text-sm text-muted-foreground">
+              {t('settings.languageDescription')}
+            </p>
+          </div>
+          <LanguageSwitcher variant="full" />
         </CardContent>
       </Card>
     </div>

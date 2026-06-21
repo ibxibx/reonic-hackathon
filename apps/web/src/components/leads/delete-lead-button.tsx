@@ -18,6 +18,7 @@ import { useAction } from 'next-safe-action/hooks';
 import { useRouter } from 'next/navigation';
 import { useRef, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export function DeleteLeadButton({
   leadId,
@@ -33,14 +34,15 @@ export function DeleteLeadButton({
   trigger?: ReactNode;
 }) {
   const router = useRouter();
+  const { t } = useTranslation('pages');
   const toastRef = useRef<string | number | undefined>(undefined);
 
   const { execute, status } = useAction(deleteLeadAction, {
     onExecute: () => {
-      toastRef.current = toast.loading('Deleting lead...');
+      toastRef.current = toast.loading(t('leads.deleting'));
     },
     onSuccess: () => {
-      toast.success('Lead deleted', { id: toastRef.current });
+      toast.success(t('leads.deleted'), { id: toastRef.current });
       toastRef.current = undefined;
       if (redirectTo) {
         router.push(redirectTo);
@@ -49,7 +51,7 @@ export function DeleteLeadButton({
       }
     },
     onError: ({ error }) => {
-      toast.error(error.serverError ?? 'Failed to delete lead', {
+      toast.error(error.serverError ?? t('leads.deleteFailed'), {
         id: toastRef.current,
       });
       toastRef.current = undefined;
@@ -66,26 +68,25 @@ export function DeleteLeadButton({
             className="text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="mr-1 h-4 w-4" />
-            Delete
+            {t('common.delete')}
           </Button>
         )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {leadName}?</AlertDialogTitle>
+          <AlertDialogTitle>{t('leads.deleteConfirmTitle', { name: leadName })}</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently deletes the lead, its quote, strategy and all
-            generated messages. This action cannot be undone.
+            {t('leads.deleteConfirmDescription')}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction
             disabled={status === 'executing'}
             onClick={() => execute({ leadId })}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Delete
+            {t('common.delete')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

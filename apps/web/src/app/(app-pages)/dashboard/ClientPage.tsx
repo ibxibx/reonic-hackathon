@@ -6,6 +6,7 @@ import { useAction } from 'next-safe-action/hooks';
 import { useRouter } from 'next/navigation';
 import { useRef } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
@@ -46,6 +47,7 @@ const formVariants = {
 
 export const CreatePrivateItemForm: React.FC = () => {
   const router = useRouter();
+  const { t } = useTranslation('pages');
   const toastRef = useRef<string | number | undefined>(undefined);
 
   const form = useForm<FormData>({
@@ -59,10 +61,10 @@ export const CreatePrivateItemForm: React.FC = () => {
 
   const { execute, status } = useAction(insertPrivateItemAction, {
     onExecute: () => {
-      toastRef.current = toast.loading('Creating item');
+      toastRef.current = toast.loading(t('dashboard.toastCreating'));
     },
     onSuccess: ({ data }) => {
-      toast.success('Item created', { id: toastRef.current });
+      toast.success(t('dashboard.toastCreated'), { id: toastRef.current });
       toastRef.current = undefined;
       router.refresh();
       if (data) {
@@ -70,7 +72,7 @@ export const CreatePrivateItemForm: React.FC = () => {
       }
     },
     onError: ({ error }) => {
-      const errorMessage = error.serverError ?? 'Failed to create item';
+      const errorMessage = error.serverError ?? t('dashboard.toastFailed');
       toast.error(errorMessage, { id: toastRef.current });
       toastRef.current = undefined;
     },
@@ -92,11 +94,11 @@ export const CreatePrivateItemForm: React.FC = () => {
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
             <CardTitle>
-              <T.H2>Create Private Item</T.H2>
+              <T.H2>{t('dashboard.createTitle')}</T.H2>
             </CardTitle>
           </div>
           <CardDescription>
-            This item will be private and only visible to you when logged in
+            {t('dashboard.createDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -107,9 +109,9 @@ export const CreatePrivateItemForm: React.FC = () => {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{t('dashboard.name')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter item name" {...field} />
+                      <Input placeholder={t('dashboard.namePlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -120,10 +122,10 @@ export const CreatePrivateItemForm: React.FC = () => {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>{t('dashboard.description')}</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Enter item description"
+                        placeholder={t('dashboard.descriptionPlaceholder')}
                         rows={4}
                         {...field}
                       />
@@ -140,10 +142,10 @@ export const CreatePrivateItemForm: React.FC = () => {
                 {status === 'executing' ? (
                   <>
                     <Spinner className="h-4 w-4" />
-                    <span>Creating Item...</span>
+                    <span>{t('dashboard.creating')}</span>
                   </>
                 ) : (
-                  'Create Private Item'
+                  t('dashboard.createButton')
                 )}
               </Button>
             </form>

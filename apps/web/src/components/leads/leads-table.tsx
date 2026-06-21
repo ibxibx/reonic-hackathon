@@ -32,10 +32,12 @@ import { format } from 'date-fns';
 import { Eye, Plus, Search, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type Lead = DbTable<'leads'>;
 
 export function LeadsTable({ leads }: { leads: Lead[] }) {
+  const { t } = useTranslation('pages');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
 
@@ -60,15 +62,15 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
             <Users className="size-6 text-muted-foreground" />
           </div>
           <div>
-            <p className="font-medium">No leads yet</p>
+            <p className="font-medium">{t('leads.emptyTitle')}</p>
             <p className="text-sm text-muted-foreground">
-              Create your first lead to start generating closing strategies.
+              {t('leads.emptyDescription')}
             </p>
           </div>
           <Button asChild>
             <Link href="/leads/new">
               <Plus className="mr-1 h-4 w-4" />
-              Create Lead
+              {t('leads.createLead')}
             </Link>
           </Button>
         </CardContent>
@@ -80,16 +82,16 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
     <Card>
       <CardHeader className="gap-4">
         <div className="flex flex-col gap-1">
-          <CardTitle>All leads</CardTitle>
+          <CardTitle>{t('leads.allLeads')}</CardTitle>
           <CardDescription>
-            {filtered.length} of {leads.length} leads
+            {t('leads.countSummary', { shown: filtered.length, total: leads.length })}
           </CardDescription>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name or email..."
+              placeholder={t('leads.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8"
@@ -100,10 +102,10 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
             onValueChange={(v) => setStatusFilter(v as LeadStatus | 'all')}
           >
             <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('leads.filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="all">{t('leads.allStatuses')}</SelectItem>
               {LEAD_STATUSES.map((status) => (
                 <SelectItem key={status} value={status} className="capitalize">
                   {status}
@@ -118,12 +120,12 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Homeowner</TableHead>
-                <TableHead className="hidden md:table-cell">Address</TableHead>
-                <TableHead className="text-right">Monthly bill</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden lg:table-cell">Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('leads.colHomeowner')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('leads.colAddress')}</TableHead>
+                <TableHead className="text-right">{t('leads.colMonthlyBill')}</TableHead>
+                <TableHead>{t('leads.colStatus')}</TableHead>
+                <TableHead className="hidden lg:table-cell">{t('leads.colCreated')}</TableHead>
+                <TableHead className="text-right">{t('leads.colActions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -133,7 +135,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                     colSpan={6}
                     className="h-24 text-center text-muted-foreground"
                   >
-                    No leads match your filters.
+                    {t('leads.noMatch')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -165,7 +167,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
                         <Button asChild variant="ghost" size="icon">
-                          <Link href={`/leads/${lead.id}`} aria-label="View lead">
+                          <Link href={`/leads/${lead.id}`} aria-label={t('leads.viewLead')}>
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>
@@ -176,7 +178,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                             <Button
                               variant="ghost"
                               size="icon"
-                              aria-label="Delete lead"
+                              aria-label={t('leads.deleteLead')}
                               className="text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />

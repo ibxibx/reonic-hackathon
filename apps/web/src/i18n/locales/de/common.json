@@ -1,0 +1,31 @@
+{
+  "app": {
+    "name": "RayCiprocity",
+    "tagline": "Solar-KI-Copilot"
+  },
+  "nav": {
+    "navigation": "Navigation",
+    "dashboard": "Dashboard",
+    "leads": "Leads",
+    "settings": "Einstellungen",
+    "signOut": "Abmelden",
+    "signingOut": "Wird abgemeldet...",
+    "account": "Konto"
+  },
+  "actions": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "loading": "Wird geladen...",
+    "search": "Suchen"
+  },
+  "language": {
+    "label": "Sprache",
+    "en": "English",
+    "de": "Deutsch"
+  }
+}

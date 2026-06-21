@@ -1,3 +1,5 @@
+'use client';
+
 import { PersonaBadge } from '@/components/strategy/persona-badge';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -13,12 +15,14 @@ import { Separator } from '@/components/ui/separator';
 import { PERSONA_CONFIG, type Persona } from '@/lib/solar';
 import type { Table } from '@/types';
 import { Brain } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function StrategyRationale({
   strategy,
 }: {
   strategy: Table<'strategies'>;
 }) {
+  const { t } = useTranslation('pages');
   const confidence = strategy.persona_confidence;
   const personaInfo =
     PERSONA_CONFIG[strategy.persona_detected as Persona] ??
@@ -29,17 +33,17 @@ export function StrategyRationale({
       <CardHeader>
         <div className="flex items-center gap-2">
           <Brain className="h-5 w-5 text-primary" />
-          <CardTitle>AI Reasoning</CardTitle>
+          <CardTitle>{t('strategy.rationaleTitle')}</CardTitle>
         </div>
         <CardDescription>
-          Why this strategy was chosen for this homeowner.
+          {t('strategy.rationaleDescription')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
-              Persona detected
+              {t('strategy.personaDetected')}
             </span>
             <PersonaBadge persona={strategy.persona_detected} />
           </div>
@@ -49,7 +53,7 @@ export function StrategyRationale({
           {confidence !== null ? (
             <div className="space-y-1.5 pt-1">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Confidence</span>
+                <span className="text-muted-foreground">{t('strategy.confidence')}</span>
                 <span className="font-medium tabular-nums">
                   {Math.round(Number(confidence) * 100)}%
                 </span>
@@ -61,7 +65,7 @@ export function StrategyRationale({
 
         {strategy.signals && strategy.signals.length > 0 ? (
           <div className="space-y-2">
-            <p className="text-sm font-medium">Signals used</p>
+            <p className="text-sm font-medium">{t('strategy.signalsUsed')}</p>
             <div className="flex flex-wrap gap-2">
               {strategy.signals.map((signal, i) => (
                 <Badge key={i} variant="secondary" className="font-normal">
@@ -73,7 +77,7 @@ export function StrategyRationale({
         ) : null}
 
         <div className="space-y-2">
-          <p className="text-sm font-medium">Recommended core message</p>
+          <p className="text-sm font-medium">{t('strategy.coreMessage')}</p>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {strategy.strategy_summary}
           </p>
@@ -82,7 +86,7 @@ export function StrategyRationale({
         <Separator />
 
         <div className="space-y-2">
-          <p className="text-sm font-medium">Full rationale</p>
+          <p className="text-sm font-medium">{t('strategy.fullRationale')}</p>
           <ScrollArea className="h-56 rounded-md border bg-muted/30 p-3">
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
               {strategy.rationale}

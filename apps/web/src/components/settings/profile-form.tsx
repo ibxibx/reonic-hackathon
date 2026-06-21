@@ -18,6 +18,7 @@ import { useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { useTranslation } from 'react-i18next';
 
 const schema = z.object({
   companyName: z.string().min(1, 'Company name is required').max(120),
@@ -26,6 +27,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export function ProfileForm({ companyName }: { companyName: string }) {
+  const { t } = useTranslation('pages');
   const toastRef = useRef<string | number | undefined>(undefined);
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -35,14 +37,14 @@ export function ProfileForm({ companyName }: { companyName: string }) {
 
   const { execute, status } = useAction(updateProfileAction, {
     onExecute: () => {
-      toastRef.current = toast.loading('Saving...');
+      toastRef.current = toast.loading(t('profile.saving'));
     },
     onSuccess: () => {
-      toast.success('Profile updated', { id: toastRef.current });
+      toast.success(t('profile.saved'), { id: toastRef.current });
       toastRef.current = undefined;
     },
     onError: ({ error }) => {
-      toast.error(error.serverError ?? 'Failed to update profile', {
+      toast.error(error.serverError ?? t('profile.saveFailed'), {
         id: toastRef.current,
       });
       toastRef.current = undefined;
@@ -60,9 +62,9 @@ export function ProfileForm({ companyName }: { companyName: string }) {
           name="companyName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Company name</FormLabel>
+              <FormLabel>{t('profile.companyName')}</FormLabel>
               <FormControl>
-                <Input placeholder="Acme Solar Co." {...field} />
+                <Input placeholder={t('profile.companyPlaceholder')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -75,10 +77,10 @@ export function ProfileForm({ companyName }: { companyName: string }) {
           {status === 'executing' ? (
             <>
               <Spinner className="mr-1 h-4 w-4" />
-              Saving...
+              {t('profile.saving')}
             </>
           ) : (
-            'Save changes'
+            t('profile.saveChanges')
           )}
         </Button>
       </form>
