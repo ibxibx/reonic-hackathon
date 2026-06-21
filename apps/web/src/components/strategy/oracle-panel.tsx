@@ -22,6 +22,7 @@ import type { Table } from '@/types';
 import {
   ArrowDown,
   ArrowUp,
+  Badge,
   BadgeCheck,
   BrainCircuit,
   ChevronRight,
@@ -462,11 +463,10 @@ export function OraclePanel({
               <InfoTooltip>
                 <InfoTooltipTrigger asChild>
                   <Badge
-                    variant="outline"
                     tabIndex={0}
                     className={`cursor-help ${calibrated
-                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
-                        : 'border-amber-500/40 bg-amber-500/10 text-amber-700'
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+                      : 'border-amber-500/40 bg-amber-500/10 text-amber-700'
                       }`}
                     aria-label={
                       calibrated
@@ -583,7 +583,6 @@ export function OraclePanel({
                         </span>
                       ) : null}
                       <Badge
-                        variant="secondary"
                         className="font-mono"
                         aria-label={`Blocker code ${blockerCode ?? 'Uncoded'}`}
                       >
