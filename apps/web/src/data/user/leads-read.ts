@@ -131,7 +131,10 @@ export async function getOrchestrationForLead(
     .eq('lead_id', leadId)
     .maybeSingle();
 
-  if (error) throw error;
+  // Degrade gracefully if the lead_orchestration table is unavailable (e.g. the
+  // migration hasn't been applied yet → PGRST205). A missing orchestration row
+  // is a clean empty state, never a page crash.
+  if (error) return null;
   return data;
 }
 
