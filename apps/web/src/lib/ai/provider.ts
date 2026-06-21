@@ -1,20 +1,24 @@
-import { createOpenAI } from '@ai-sdk/openai';
-import { generateObject } from 'ai';
-import {
-  archetypeSchema,
-  oracleSchema,
-  strategySchema,
-  type ClassifiedArchetype,
-  type GeneratedStrategy,
-} from './schemas';
 import type { Database } from '@/lib/database.types';
+import { AppError } from '@/lib/errors';
 import type {
   GenerateOracleLlm,
   OracleLlmOutput,
 } from '@/lib/oracle/contracts';
-import { AppError } from '@/lib/errors';
+import { createOpenAI } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
+import { logError, logStep, startTimer } from './agent-log';
 import { buildArchetypePrompt } from './prompts';
-import { logStep, logError, startTimer } from './agent-log';
+import {
+  adaptStrategySchema,
+  archetypeSchema,
+  inboundSchema,
+  oracleSchema,
+  strategySchema,
+  type AdaptedStrategy,
+  type ClassifiedArchetype,
+  type ClassifiedInbound,
+  type GeneratedStrategy,
+} from './schemas';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 type Quote = Database['public']['Tables']['quotes']['Row'];
@@ -130,4 +134,69 @@ export const generateOracleLlm: GenerateOracleLlm = async (
       500
     );
   }
-};
+}
+
+
+export async function categorizeInbound(
+  systemPrompt: string
+): Promise<ClassifiedInbound> {
+  try {
+    const model = process.env.OPENAI_MODEL || 'gpt-4o';
+    const timer = startTimer();
+    logStep('inbound', 'AI call → generateObject', { model });
+    const result = await generateObject({
+      model: openai(model),
+      schema: inboundSchema,
+      system: systemPrompt,
+      prompt: 'Categorize this customer reply.',
+      maxRetries: 1,
+      abortSignal: AbortSignal.timeout(15000),
+    });
+    logStep('inbound', 'AI call ✓', {
+      ms: timer(),
+      category: result.object.category,
+      confidence: result.object.confidence,
+    });
+    return result.object;
+  } catch (error) {
+    logError('inbound', 'AI call failed', error);
+    console.error('Inbound categorization error:', error);
+    throw new AppError(
+      'Failed to categorize inbound reply',
+      'AI_CLASSIFICATION_ERROR',
+      500
+    );
+  }
+}
+
+
+export async function adaptStrategy(
+  systemPrompt: string
+): Promise<AdaptedStrategy> {
+  try {
+    const model = process.env.OPENAI_MODEL || 'gpt-4o';
+    const timer = startTimer();
+    logStep('inbound', 'adapt AI call → generateObject', { model });
+    const result = await generateObject({
+      model: openai(model),
+      schema: adaptStrategySchema,
+      system: systemPrompt,
+      prompt: 'Rewrite the remaining messages to tackle the concern.',
+      maxRetries: 1,
+      abortSignal: AbortSignal.timeout(25000),
+    });
+    logStep('inbound', 'adapt AI call ✓', {
+      ms: timer(),
+      rewritten: result.object.messages.length,
+    });
+    return result.object;
+  } catch (error) {
+    logError('inbound', 'adapt AI call failed', error);
+    console.error('Strategy adaptation error:', error);
+    throw new AppError(
+      'Failed to adapt strategy',
+      'AI_GENERATION_ERROR',
+      500
+    );
+  }
+}

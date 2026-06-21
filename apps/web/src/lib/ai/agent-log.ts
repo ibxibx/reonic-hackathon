@@ -15,7 +15,7 @@ const ENABLED =
   process.env.NODE_ENV !== 'production' &&
   process.env.DEBUG_AGENTS !== 'false';
 
-type AgentName = 'archetype' | 'strategy' | 'orchestrator' | 'oracle';
+type AgentName = 'archetype' | 'strategy' | 'orchestrator' | 'oracle' | 'inbound';
 
 export function logStep(
   agent: AgentName,

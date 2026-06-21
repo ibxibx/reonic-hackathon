@@ -17,6 +17,7 @@ import {
   getMessagesForLead,
   getStrategyForLead,
   getVoiceNoteSignedUrl,
+  getInboundForLead,
 } from '@/data/user/leads-read';
 import { getIntegrationStatus } from '@/lib/integration-status';
 import { ArrowLeft, Sparkles, TriangleAlert } from 'lucide-react';
@@ -98,6 +99,7 @@ export default async function StrategyPage(props: {
 
   // Strategy exists — load messages + voice URL + integration status
   const messages = await getMessagesForLead(leadId);
+  const inbound = await getInboundForLead(leadId);
   const { emailMock, smsMock } = getIntegrationStatus();
 
   const voiceMessage = messages.find(
@@ -131,6 +133,7 @@ export default async function StrategyPage(props: {
         <StrategyRationale strategy={strategy} />
         <StrategyTimeline
           messages={messages}
+          inbound={inbound}
           voiceSignedUrl={voiceSignedUrl}
         />
       </div>
