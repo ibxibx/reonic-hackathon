@@ -104,7 +104,7 @@ const SDS: number[] = FEATURE_NAMES.map((n) => {
 });
 
 function standardize(xRaw: number[]): number[] {
-  const z = new Array<number>(FEATURE_COUNT);
+  const z = Array.from({ length: FEATURE_COUNT }, () => 0);
   for (let i = 0; i < FEATURE_COUNT; i++) {
     z[i] = (xRaw[i] - MEANS[i]) / SDS[i];
   }
@@ -211,7 +211,7 @@ function sampleAttrs(rng: () => number): RawAttrs {
 
 /** Build the RAW x0 covariate vector (FEATURE_NAMES order) at t=0. */
 function buildX0(attrs: RawAttrs): number[] {
-  const x = new Array<number>(FEATURE_COUNT).fill(0);
+  const x = Array.from({ length: FEATURE_COUNT }, () => 0);
 
   const econ = computeSolarEconomics({
     monthlyBill: attrs.monthlyBill,

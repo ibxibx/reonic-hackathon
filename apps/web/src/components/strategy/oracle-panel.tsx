@@ -61,27 +61,50 @@ function clamp0to100(v: number): number {
   return v;
 }
 
-/** Safely parse the jsonb `factors` column into OracleFactor[] (empty on failure). */
+/**
+ * Safely parse the jsonb `factors` column into OracleFactor[].
+ *
+ * Fully defensive: tolerates null/objects/strings/garbage and NEVER throws —
+ * any malformed shape (bad JSON, non-array, non-object rows, a row whose getters
+ * throw) is dropped and the function returns whatever valid rows remain ([] in
+ * the worst case). The panel relies on this so a corrupt jsonb blob renders as
+ * "no drivers" instead of crashing the lead detail page.
+ */
 function parseFactors(raw: Prediction['factors']): OracleFactor[] {
-  if (!raw) return [];
+  if (raw == null) return [];
+  let arr: unknown;
   try {
-    const arr = Array.isArray(raw) ? raw : JSON.parse(String(raw));
-    if (!Array.isArray(arr)) return [];
-    return arr
-      .filter((f) => f && typeof f === 'object' && typeof f.feature === 'string')
-      .map((f) => ({
-        feature: String(f.feature),
-        direction: f.direction === 'decreases' ? 'decreases' : 'increases',
-        weight: Number.isFinite(f.weight) ? Number(f.weight) : 0,
-        target: f.target === 'ghost' ? 'ghost' : 'sign',
-        plainText:
-          typeof f.plainText === 'string' && f.plainText.length > 0
-            ? f.plainText
-            : `${f.feature} ${f.direction ?? 'affects'} ${f.target ?? 'outcome'}`,
-      })) as OracleFactor[];
+    arr = Array.isArray(raw) ? raw : JSON.parse(String(raw));
   } catch {
     return [];
   }
+  if (!Array.isArray(arr)) return [];
+
+  const out: OracleFactor[] = [];
+  for (const item of arr) {
+    try {
+      if (!item || typeof item !== 'object') continue;
+      const f = item as Record<string, unknown>;
+      if (typeof f.feature !== 'string' || f.feature.length === 0) continue;
+      const direction: OracleFactor['direction'] =
+        f.direction === 'decreases' ? 'decreases' : 'increases';
+      const target: OracleFactor['target'] =
+        f.target === 'ghost' ? 'ghost' : 'sign';
+      const weight =
+        typeof f.weight === 'number' && Number.isFinite(f.weight)
+          ? f.weight
+          : 0;
+      const plainText =
+        typeof f.plainText === 'string' && f.plainText.length > 0
+          ? f.plainText
+          : `${f.feature} ${direction} ${target}`;
+      out.push({ feature: f.feature, direction, weight, target, plainText });
+    } catch {
+      // A single bad row never poisons the rest of the list.
+      continue;
+    }
+  }
+  return out;
 }
 
 function ScoreGauge({
@@ -365,10 +388,16 @@ export function OraclePanel({
 
                 {factors.length > 0 ? (
                   <div className="space-y-1.5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <p
+                      id={`oracle-drivers-${leadId}`}
+                      className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    >
                       Top drivers
                     </p>
-                    <ul className="space-y-1">
+                    <ul
+                      className="space-y-1"
+                      aria-labelledby={`oracle-drivers-${leadId}`}
+                    >
                       {factors.slice(0, 6).map((f, i) => (
                         <FactorRow key={`${f.target}:${f.feature}:${i}`} factor={f} />
                       ))}
@@ -403,7 +432,10 @@ export function OraclePanel({
             ) : null}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed bg-background/50 p-5 text-sm text-muted-foreground">
+          <div
+            role="status"
+            className="rounded-lg border border-dashed bg-background/50 p-5 text-sm text-muted-foreground"
+          >
             Run the Oracle to identify the most likely blocker and the next
             outreach move for this lead.
           </div>

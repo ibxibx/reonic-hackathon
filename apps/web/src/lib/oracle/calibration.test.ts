@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { mulberry32 } from './synthetic';
+import { generateSyntheticCorpus, mulberry32 } from './synthetic';
 import {
+  calibrateFromCorpus,
   evaluate,
   fitCalibration,
   applyCalibration,
 } from './calibration';
-import type { CalibrationParams } from './contracts';
+import { fitMultinomial } from './model/fitter';
+import type { CalibrationParams, SyntheticRegime } from './contracts';
 
 function sigmoid(x: number): number {
   return 1 / (1 + Math.exp(-x));
@@ -149,4 +151,65 @@ describe('applyCalibration', () => {
       prev = out;
     }
   });
+});
+
+describe('calibrateFromCorpus — across regimes', () => {
+  // Small epsilon: held-out ECE on a finite test split is noisy, so we only
+  // demand calibration does not make ECE materially WORSE, and that the model
+  // still ranks the held-out leads meaningfully (AUC > 0.6).
+  const ECE_EPS = 0.05;
+
+  function fitForRegime(regime: SyntheticRegime, seed: number) {
+    const corpus = generateSyntheticCorpus({ seed, nLeads: 700, regime });
+    const model = fitMultinomial(corpus.rows, {
+      l2: 0.5,
+      lr: 0.4,
+      maxIter: 600,
+    });
+    return { corpus, model };
+  }
+
+  for (const regime of ['high-ghost', 'high-sign'] as const) {
+    it(`ghost calibration does not worsen ECE and held-out AUC > 0.6 (${regime})`, () => {
+      const { corpus, model } = fitForRegime(regime, 13);
+      const { heldOut } = calibrateFromCorpus(model, corpus, 'ghost', {
+        method: 'platt',
+        splitSeed: 99,
+      });
+
+      // Calibration must not materially increase the held-out ECE.
+      expect(
+        heldOut.after.ece,
+        `ghost ECE after=${heldOut.after.ece.toFixed(
+          4
+        )} before=${heldOut.before.ece.toFixed(4)} (${regime})`
+      ).toBeLessThanOrEqual(heldOut.before.ece + ECE_EPS);
+
+      // The competing-risks model ranks ghosters above non-ghosters.
+      expect(
+        heldOut.before.auc,
+        `ghost held-out AUC=${heldOut.before.auc.toFixed(4)} (${regime})`
+      ).toBeGreaterThan(0.6);
+    }, 60000);
+
+    it(`sign calibration does not worsen ECE and held-out AUC > 0.6 (${regime})`, () => {
+      const { corpus, model } = fitForRegime(regime, 13);
+      const { heldOut } = calibrateFromCorpus(model, corpus, 'sign', {
+        method: 'platt',
+        splitSeed: 99,
+      });
+
+      expect(
+        heldOut.after.ece,
+        `sign ECE after=${heldOut.after.ece.toFixed(
+          4
+        )} before=${heldOut.before.ece.toFixed(4)} (${regime})`
+      ).toBeLessThanOrEqual(heldOut.before.ece + ECE_EPS);
+
+      expect(
+        heldOut.before.auc,
+        `sign held-out AUC=${heldOut.before.auc.toFixed(4)} (${regime})`
+      ).toBeGreaterThan(0.6);
+    }, 60000);
+  }
 });

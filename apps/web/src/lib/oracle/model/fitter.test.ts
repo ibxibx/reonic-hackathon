@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { PeriodOutcome, PersonPeriodRow } from '../contracts';
+import { FEATURE_COUNT } from '../contracts';
 import { fitMultinomial, predictProbabilities } from './fitter';
 
 // ─── self-contained seeded RNG (no Math.random) ─────────────────────────────
@@ -59,7 +60,7 @@ function genCorpus(
   const rng = mulberry32(seed);
   const rows: PersonPeriodRow[] = [];
   for (let r = 0; r < nRows; r++) {
-    const x = new Array<number>(p);
+    const x = Array.from({ length: p }, () => 0);
     for (let j = 0; j < p; j++) x[j] = nextGaussian(rng);
     const logits = [0];
     for (let c = 0; c < trueCoef.length; c++) {
@@ -81,6 +82,9 @@ function genCorpus(
 }
 
 describe('fitMultinomial — coefficient recovery', () => {
+  // Heavy GD fit (6000 rows x 2000 iters): give it headroom so it never trips
+  // the 5s default under parallel full-suite CPU contention. Additive timeout
+  // only — assertions/behavior unchanged.
   it('recovers known standardized betas (signs + correlation)', () => {
     const p = 5;
     // [intercept, b1..b5] for sign and ghost rows.
@@ -139,7 +143,7 @@ describe('fitMultinomial — coefficient recovery', () => {
     }
     const corr = cov / (Math.sqrt(vt) * Math.sqrt(vf));
     expect(corr).toBeGreaterThan(0.9);
-  });
+  }, 30000);
 });
 
 describe('predictProbabilities', () => {
@@ -162,8 +166,9 @@ describe('predictProbabilities', () => {
       sum += probs[k];
     }
     expect(sum).toBeCloseTo(1, 10);
-  });
+  }, 30000);
 
+  // Heavy fit (6000 rows x 1500 iters): timeout headroom under parallel load.
   it('is monotone in a positive-beta feature for sign', () => {
     const p = 3;
     // Feature 0 strongly increases sign, nothing else.
@@ -179,12 +184,11 @@ describe('predictProbabilities', () => {
     const hi = predictProbabilities(model, [2, 0, 0]).sign;
     expect(lo).toBeLessThan(mid);
     expect(mid).toBeLessThan(hi);
-  });
+  }, 30000);
 });
 
 describe('numerical stability', () => {
   it('produces finite coefficients with extreme values + high L2', () => {
-    const p = 4;
     const rng = mulberry32(99);
     const rows: PersonPeriodRow[] = [];
     for (let r = 0; r < 1500; r++) {
@@ -222,7 +226,6 @@ describe('numerical stability', () => {
   });
 
   it('handles a constant feature (sd guarded to 1)', () => {
-    const p = 3;
     const rng = mulberry32(5);
     const rows: PersonPeriodRow[] = [];
     for (let r = 0; r < 600; r++) {
@@ -244,6 +247,8 @@ describe('numerical stability', () => {
 });
 
 describe('convergence', () => {
+  // Two full fits (4000 rows; 600-iter late fit): headroom for the 5s default
+  // under parallel full-suite contention. Additive timeout only.
   it('training log-loss decreases over iterations', () => {
     const p = 4;
     const trueCoef = [
@@ -275,7 +280,7 @@ describe('convergence', () => {
     expect(Number.isFinite(lossEarly)).toBe(true);
     expect(Number.isFinite(lossLate)).toBe(true);
     expect(lossLate).toBeLessThan(lossEarly);
-  });
+  }, 30000);
 });
 
 describe('feature-name resolution', () => {
@@ -299,5 +304,291 @@ describe('feature-name resolution', () => {
     expect(model.featureNames).toEqual(['a', 'b', 'c']);
     expect(model.nLeads).toBeGreaterThan(0);
     expect(model.nRows).toBe(300);
+  });
+});
+
+// ─── HARDENING (A2) ─────────────────────────────────────────────────────────
+
+/** L2 norm of all betas (skips the per-class intercept at index 0). */
+function betaL2Norm(model: ReturnType<typeof fitMultinomial>): number {
+  let acc = 0;
+  for (const row of model.coefficients) {
+    for (let j = 1; j < row.length; j++) acc += row[j] * row[j];
+  }
+  return Math.sqrt(acc);
+}
+
+describe('hardening — regularization sweep', () => {
+  it(
+    'increasing L2 monotonically shrinks the L2 norm of fitted betas',
+    () => {
+      const p = 4;
+      // Clear signal, but a MODEST sample so the L2 term has real leverage over
+      // the data term across the sweep (heavy L2 must genuinely pull betas down).
+      const trueCoef = [
+        [-0.2, 1.5, -1.0, 0.8, 0.0], // sign
+        [0.1, -0.7, 1.2, 0.0, 0.9], // ghost
+      ];
+      const rows = genCorpus(101, 600, p, trueCoef);
+
+      // Same optimizer budget; only L2 varies. Wide, well-separated grid spanning
+      // light -> very heavy so the trend toward 0 is unambiguous.
+      const l2Grid = [0.01, 1, 10, 100, 1000];
+      const norms = l2Grid.map((l2) =>
+        betaL2Norm(
+          fitMultinomial(rows, { l2, lr: 0.5, maxIter: 400, tol: 1e-9 })
+        )
+      );
+
+      // Every norm is finite.
+      for (const v of norms) expect(Number.isFinite(v)).toBe(true);
+
+      // Strictly decreasing across the grid (heavier penalty -> smaller betas).
+      for (let i = 1; i < norms.length; i++) {
+        expect(norms[i]).toBeLessThan(norms[i - 1]);
+      }
+
+      // Trend points toward 0: the heaviest penalty collapses the betas to a
+      // small fraction of the lightly-penalized norm (genuine shrinkage).
+      expect(norms[norms.length - 1]).toBeLessThan(norms[0] * 0.2);
+      expect(norms[norms.length - 1]).toBeGreaterThanOrEqual(0);
+    },
+    30000
+  );
+});
+
+describe('hardening — distribution property (random standardized inputs)', () => {
+  it('predictProbabilities returns a 3-key distribution summing to 1', () => {
+    const p = 6;
+    const trueCoef = [
+      [0.1, 0.9, -0.5, 0.3, 0.0, 0.4, -0.2],
+      [-0.1, -0.4, 0.8, 0.0, 0.5, -0.3, 0.6],
+    ];
+    const rows = genCorpus(202, 4000, p, trueCoef);
+    const model = fitMultinomial(rows, { l2: 0.2, lr: 0.4, maxIter: 600 });
+
+    const rng = mulberry32(7777);
+    const keys: PeriodOutcome[] = ['stay', 'sign', 'ghost'];
+    for (let trial = 0; trial < 400; trial++) {
+      // Random standardized-ish inputs spanning a wide range.
+      const x = Array.from({ length: p }, () => nextGaussian(rng) * 3);
+      const probs = predictProbabilities(model, x);
+
+      // Exactly the three outcome keys, all present.
+      expect(Object.keys(probs).sort()).toEqual(
+        ['ghost', 'sign', 'stay'].sort()
+      );
+
+      let sum = 0;
+      for (const k of keys) {
+        expect(Number.isFinite(probs[k])).toBe(true);
+        expect(probs[k]).toBeGreaterThanOrEqual(0);
+        expect(probs[k]).toBeLessThanOrEqual(1);
+        sum += probs[k];
+      }
+      expect(Math.abs(sum - 1)).toBeLessThan(1e-9);
+    }
+  });
+});
+
+describe('hardening — degenerate label distributions', () => {
+  it('all-one-class rows degrade gracefully (no NaN)', () => {
+    const p = 4;
+    const rng = mulberry32(31);
+    const rows: PersonPeriodRow[] = [];
+    for (let r = 0; r < 800; r++) {
+      const x = Array.from({ length: p }, () => nextGaussian(rng));
+      rows.push({
+        leadId: `one-${r % 40}`,
+        t: 0,
+        outcome: 'stay', // every single row is the reference class
+        x,
+        synthetic: true,
+      });
+    }
+    const model = fitMultinomial(rows, { l2: 1, lr: 0.3, maxIter: 300 });
+
+    // No NaN/Infinity anywhere in the coefficients.
+    for (const row of model.coefficients) {
+      for (const v of row) expect(Number.isFinite(v)).toBe(true);
+    }
+
+    // Probabilities remain a valid distribution; reference class dominates.
+    const probs = predictProbabilities(model, [0.5, -1, 0.2, 0.8]);
+    let sum = 0;
+    for (const k of ['stay', 'sign', 'ghost'] as PeriodOutcome[]) {
+      expect(Number.isFinite(probs[k])).toBe(true);
+      sum += probs[k];
+    }
+    expect(Math.abs(sum - 1)).toBeLessThan(1e-9);
+    expect(probs.stay).toBeGreaterThan(probs.sign);
+    expect(probs.stay).toBeGreaterThan(probs.ghost);
+  });
+
+  it('a single non-reference class present (no `sign` rows) stays finite', () => {
+    const p = 3;
+    const rng = mulberry32(63);
+    const rows: PersonPeriodRow[] = [];
+    for (let r = 0; r < 700; r++) {
+      const x = Array.from({ length: p }, () => nextGaussian(rng));
+      // Only stay + ghost ever occur; `sign` class is never observed.
+      rows.push({
+        leadId: `two-${r % 35}`,
+        t: 0,
+        outcome: r % 2 === 0 ? 'stay' : 'ghost',
+        x,
+        synthetic: true,
+      });
+    }
+    const model = fitMultinomial(rows, { l2: 0.5, lr: 0.3, maxIter: 300 });
+    for (const row of model.coefficients) {
+      for (const v of row) expect(Number.isFinite(v)).toBe(true);
+    }
+    const probs = predictProbabilities(model, [1, -1, 0.5]);
+    let sum = 0;
+    for (const k of ['stay', 'sign', 'ghost'] as PeriodOutcome[]) {
+      expect(Number.isFinite(probs[k])).toBe(true);
+      sum += probs[k];
+    }
+    expect(Math.abs(sum - 1)).toBeLessThan(1e-9);
+  });
+});
+
+describe('hardening — numerical robustness of inputs', () => {
+  it('scrubs NaN/Infinity in training rows (finite model + finite probs)', () => {
+    const rng = mulberry32(8);
+    const rows: PersonPeriodRow[] = [];
+    for (let r = 0; r < 1200; r++) {
+      const x = [
+        nextGaussian(rng),
+        // Sprinkle non-finite garbage into otherwise-usable rows.
+        r % 7 === 0 ? Number.NaN : nextGaussian(rng),
+        r % 11 === 0 ? Number.POSITIVE_INFINITY : nextGaussian(rng),
+        r % 13 === 0 ? Number.NEGATIVE_INFINITY : nextGaussian(rng),
+      ];
+      rows.push({
+        leadId: `nan-${r % 60}`,
+        t: 0,
+        outcome: CLASSES[r % 3],
+        x,
+        synthetic: true,
+      });
+    }
+    const model = fitMultinomial(rows, { l2: 1, lr: 0.3, maxIter: 250 });
+
+    // Standardization is finite & guarded.
+    for (const m of model.standardization.mean) {
+      expect(Number.isFinite(m)).toBe(true);
+    }
+    for (const s of model.standardization.sd) {
+      expect(Number.isFinite(s)).toBe(true);
+      expect(s).toBeGreaterThan(0);
+    }
+    // Coefficients finite.
+    for (const row of model.coefficients) {
+      for (const v of row) expect(Number.isFinite(v)).toBe(true);
+    }
+
+    // Even a non-finite INFERENCE vector yields a valid distribution.
+    const probs = predictProbabilities(model, [
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      0.5,
+    ]);
+    let sum = 0;
+    for (const k of ['stay', 'sign', 'ghost'] as PeriodOutcome[]) {
+      expect(Number.isFinite(probs[k])).toBe(true);
+      sum += probs[k];
+    }
+    expect(Math.abs(sum - 1)).toBeLessThan(1e-9);
+  });
+
+  it('guards a near-constant feature (sd -> 1, no blow-up)', () => {
+    const rng = mulberry32(404);
+    const rows: PersonPeriodRow[] = [];
+    for (let r = 0; r < 900; r++) {
+      const x = [
+        // Near-constant: tiny jitter well below the 1e-9 sd guard threshold.
+        3 + (rng() - 0.5) * 1e-12,
+        nextGaussian(rng),
+        nextGaussian(rng),
+      ];
+      rows.push({
+        leadId: `nc-${r % 45}`,
+        t: 0,
+        outcome: CLASSES[r % 3],
+        x,
+        synthetic: true,
+      });
+    }
+    const model = fitMultinomial(rows, { l2: 1, lr: 0.3, maxIter: 250 });
+    // Near-constant column's sd is guarded to exactly 1.
+    expect(model.standardization.sd[0]).toBe(1);
+    for (const row of model.coefficients) {
+      for (const v of row) expect(Number.isFinite(v)).toBe(true);
+    }
+    const probs = predictProbabilities(model, [3, 0.2, -0.4]);
+    let sum = 0;
+    for (const k of ['stay', 'sign', 'ghost'] as PeriodOutcome[]) {
+      expect(Number.isFinite(probs[k])).toBe(true);
+      sum += probs[k];
+    }
+    expect(Math.abs(sum - 1)).toBeLessThan(1e-9);
+  });
+});
+
+describe('hardening — feature-width property', () => {
+  it('width != FEATURE_COUNT yields f0..fN names and width+1 params/class', () => {
+    // Sweep several widths, all deliberately != FEATURE_COUNT.
+    for (const width of [1, 2, 7, FEATURE_COUNT + 3]) {
+      // Build a trueCoef matrix [intercept, ...width betas] for sign & ghost.
+      const signRow = [0, ...Array.from({ length: width }, () => 0)];
+      const ghostRow = [0, ...Array.from({ length: width }, () => 0)];
+      if (width >= 1) {
+        signRow[1] = 1.2; // give some signal so the fit actually runs
+        ghostRow[1] = -0.9;
+      }
+      const rows = genCorpus(900 + width, 600, width, [signRow, ghostRow]);
+      const model = fitMultinomial(rows);
+
+      // Generated f-names, exactly width of them.
+      expect(model.featureNames).toEqual(
+        Array.from({ length: width }, (_, i) => `f${i}`)
+      );
+
+      // One coefficient row per non-reference class (sign, ghost) = 2.
+      expect(model.coefficients.length).toBe(2);
+      for (const row of model.coefficients) {
+        // width betas + 1 intercept.
+        expect(row.length).toBe(width + 1);
+        for (const v of row) expect(Number.isFinite(v)).toBe(true);
+      }
+
+      // predictProbabilities works at the model's width.
+      const probs = predictProbabilities(
+        model,
+        Array.from({ length: width }, () => 0.3)
+      );
+      let sum = 0;
+      for (const k of ['stay', 'sign', 'ghost'] as PeriodOutcome[]) {
+        sum += probs[k];
+      }
+      expect(Math.abs(sum - 1)).toBeLessThan(1e-9);
+    }
+  });
+
+  it('at width == FEATURE_COUNT, canonical names are used (not f-names)', () => {
+    const width = FEATURE_COUNT;
+    const signRow = [0, ...Array.from({ length: width }, (_, i) =>
+      i === 0 ? 1 : 0
+    )];
+    const ghostRow = [0, ...Array.from({ length: width }, () => 0)];
+    const rows = genCorpus(555, 400, width, [signRow, ghostRow]);
+    const model = fitMultinomial(rows);
+    expect(model.featureNames.length).toBe(FEATURE_COUNT);
+    // Canonical first name, and not the generated 'f0'.
+    expect(model.featureNames[0]).not.toBe('f0');
+    expect(model.coefficients[0].length).toBe(FEATURE_COUNT + 1);
   });
 });

@@ -302,3 +302,169 @@ describe('assembleFeatures — fallbacks', () => {
     expect(f.ghostRiskSlope).toBe(0);
   });
 });
+
+// ── Robustness: assemble must never emit NaN and the projected vector must
+//    always be exactly FEATURE_COUNT long, whatever substrate is missing. ──
+describe('assembleFeatures — edge cases stay finite & well-shaped', () => {
+  /** Every numeric field of OracleFeatures + every vector slot must be finite. */
+  function expectNoNaN(input: FeatureAssemblyInput): ReturnType<typeof assembleFeatures> {
+    const f = assembleFeatures(input);
+    for (const [key, v] of Object.entries(f)) {
+      if (typeof v === 'number') {
+        expect(Number.isFinite(v), `feature ${key} must be finite (got ${v})`).toBe(
+          true
+        );
+      }
+    }
+    const v = featuresToVector(f);
+    expect(v).toHaveLength(FEATURE_COUNT);
+    v.forEach((value, i) =>
+      expect(Number.isFinite(value), `vector slot ${i} must be finite`).toBe(true)
+    );
+    return f;
+  }
+
+  it('zero messages: counts 0, no channels, last-touch falls back to pipeline', () => {
+    const f = expectNoNaN(noahInput({ messages: [] }));
+    expect(f.messagesSent).toBe(0);
+    expect(f.messagesDraft).toBe(0);
+    expect(f.messagesFailed).toBe(0);
+    expect(f.distinctChannels).toBe(0);
+    expect(f.maxSequenceOrder).toBe(0);
+    expect(f.lastChannel).toBeNull();
+    expect(f.daysSinceLastTouch).toBeCloseTo(f.daysInPipeline, 6);
+  });
+
+  it('missing quote (null): economics zero-guarded, hasQuote false, payback sentinel', () => {
+    const f = expectNoNaN(noahInput({ quote: null }));
+    expect(f.systemSizeKw).toBe(0);
+    expect(f.totalCost).toBe(0);
+    expect(f.costPerKw).toBe(0);
+    expect(f.roi25yrRatio).toBe(0);
+    expect(f.simplePaybackYears).toBe(99); // no savings → documented sentinel
+    expect(f.hasQuote).toBe(false);
+  });
+
+  it('no orchestration: step ratio 0, not awaiting, daysToNextAction 0', () => {
+    const f = expectNoNaN(noahInput({ orchestration: null }));
+    expect(f.currentStep).toBe(0);
+    expect(f.totalSteps).toBe(0);
+    expect(f.stepProgressRatio).toBe(0);
+    expect(f.awaitingReply).toBe(false);
+    expect(f.daysToNextAction).toBe(0);
+  });
+
+  it('no strategy: persona null, confidence 0, strategy-age falls back to pipeline', () => {
+    const f = expectNoNaN(noahInput({ strategy: null }));
+    expect(f.persona).toBeNull();
+    expect(f.personaConfidence).toBe(0);
+    expect(f.hasStrategy).toBe(false);
+    expect(f.daysSinceLatestStrategy).toBeCloseTo(f.daysInPipeline, 6);
+  });
+
+  it('a single prior prediction → both slopes 0 (need >=2 points)', () => {
+    const f = expectNoNaN(
+      noahInput({
+        priorPredictions: [
+          { sign_prob: 55, ghost_risk: 20 },
+        ] as unknown as FeatureAssemblyInput['priorPredictions'],
+      })
+    );
+    expect(f.signProbSlope).toBe(0);
+    expect(f.ghostRiskSlope).toBe(0);
+  });
+
+  it('zero prior predictions → both slopes 0', () => {
+    const f = expectNoNaN(
+      noahInput({
+        priorPredictions:
+          [] as unknown as FeatureAssemblyInput['priorPredictions'],
+      })
+    );
+    expect(f.signProbSlope).toBe(0);
+    expect(f.ghostRiskSlope).toBe(0);
+  });
+
+  it('completely bare lead (everything missing) is finite with sane fallbacks', () => {
+    const bareLead = {
+      id: 'bare',
+      monthly_bill: null,
+      roof_type: null,
+      created_at: null,
+      status: 'new',
+      address: '',
+      email: '',
+      installer_id: 'i',
+      name: 'Bare',
+      phone: '',
+    } as unknown as FeatureAssemblyInput['lead'];
+    const f = expectNoNaN({
+      lead: bareLead,
+      quote: null,
+      strategy: null,
+      messages: [],
+      orchestration: null,
+      priorPredictions: [],
+      nowMs: NOW,
+    });
+    expect(f.monthlyBill).toBe(0);
+    expect(f.daysInPipeline).toBe(0); // created_at null → 0
+    expect(f.daysSinceLastTouch).toBe(0); // no msgs → pipeline → 0
+    expect(f.daysSinceLatestStrategy).toBe(0); // no strategy → pipeline → 0
+    expect(f.hasQuote).toBe(false);
+    expect(f.hasStrategy).toBe(false);
+  });
+
+  it('messages sent in the FUTURE relative to nowMs → negative last-touch, still finite', () => {
+    // day(-3) is 3 days AFTER NOW; a clock-skewed sent_at must not produce NaN
+    const futureMsg = [
+      {
+        id: 'mf',
+        lead_id: 'noah',
+        channel_type: 'email',
+        status: 'sent',
+        sequence_order: 1,
+        sent_at: day(-3), // 3 days in the future
+        created_at: day(-3),
+        strategy_id: 's',
+        content: '',
+        subject: null,
+        goal: null,
+        audio_path: null,
+        error_message: null,
+        provider_message_id: null,
+      },
+    ] as unknown as FeatureAssemblyInput['messages'];
+    const f = expectNoNaN(noahInput({ messages: futureMsg }));
+    expect(f.messagesSent).toBe(1);
+    // (nowMs - futureSentMs) / day = -3 → time-since-touch is negative, finite
+    expect(f.daysSinceLastTouch).toBeCloseTo(-3, 6);
+    expect(f.lastChannel).toBe('email');
+  });
+
+  it('next_action_at in the past → daysToNextAction negative (overdue), finite', () => {
+    const pastDue = {
+      id: 'o',
+      lead_id: 'noah',
+      current_step: 5,
+      total_steps: 6,
+      status: 'active',
+      next_action_at: day(4), // 4 days ago → overdue
+      strategy_id: 's',
+      updated_at: day(1),
+    } as unknown as FeatureAssemblyInput['orchestration'];
+    const f = expectNoNaN(noahInput({ orchestration: pastDue }));
+    expect(f.daysToNextAction).toBeCloseTo(-4, 6);
+    expect(f.awaitingReply).toBe(false); // status !== awaiting_reply
+  });
+
+  it('unparseable timestamps are treated as absent (no NaN)', () => {
+    const badLead = {
+      ...noahInput().lead,
+      created_at: 'not-a-date',
+    } as unknown as FeatureAssemblyInput['lead'];
+    const f = expectNoNaN(noahInput({ lead: badLead }));
+    // created_at unparseable → daysInPipeline 0, and last-touch from msgs still works
+    expect(f.daysInPipeline).toBe(0);
+  });
+});

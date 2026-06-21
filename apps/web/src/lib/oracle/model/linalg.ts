@@ -19,7 +19,7 @@ export function dot(a: number[], b: number[]): number {
 /** Element-wise sum a + b. */
 export function addVec(a: number[], b: number[]): number[] {
   const n = Math.min(a.length, b.length);
-  const out = new Array<number>(n);
+  const out = Array.from({ length: n }, () => 0);
   for (let i = 0; i < n; i++) {
     out[i] = a[i] + b[i];
   }
@@ -29,7 +29,7 @@ export function addVec(a: number[], b: number[]): number[] {
 /** Element-wise difference a - b. */
 export function subVec(a: number[], b: number[]): number[] {
   const n = Math.min(a.length, b.length);
-  const out = new Array<number>(n);
+  const out = Array.from({ length: n }, () => 0);
   for (let i = 0; i < n; i++) {
     out[i] = a[i] - b[i];
   }
@@ -39,7 +39,7 @@ export function subVec(a: number[], b: number[]): number[] {
 /** Scalar multiple s * v. */
 export function scaleVec(v: number[], s: number): number[] {
   const n = v.length;
-  const out = new Array<number>(n);
+  const out = Array.from({ length: n }, () => 0);
   for (let i = 0; i < n; i++) {
     out[i] = v[i] * s;
   }
@@ -48,11 +48,7 @@ export function scaleVec(v: number[], s: number): number[] {
 
 /** Zero vector of length n. */
 export function zeros(n: number): number[] {
-  const out = new Array<number>(Math.max(0, n));
-  for (let i = 0; i < out.length; i++) {
-    out[i] = 0;
-  }
-  return out;
+  return Array.from({ length: Math.max(0, n) }, () => 0);
 }
 
 /**
@@ -61,7 +57,7 @@ export function zeros(n: number): number[] {
  */
 export function matVecMul(m: number[][], v: number[]): number[] {
   const rows = m.length;
-  const out = new Array<number>(rows);
+  const out = Array.from({ length: rows }, () => 0);
   for (let i = 0; i < rows; i++) {
     out[i] = dot(m[i], v);
   }
@@ -76,9 +72,9 @@ export function transpose(m: number[][]): number[][] {
   for (let i = 0; i < rows; i++) {
     if (m[i].length > cols) cols = m[i].length;
   }
-  const out: number[][] = new Array(cols);
+  const out: number[][] = Array.from({ length: cols }, () => []);
   for (let j = 0; j < cols; j++) {
-    const col = new Array<number>(rows);
+    const col = Array.from({ length: rows }, () => 0);
     for (let i = 0; i < rows; i++) {
       col[i] = j < m[i].length ? m[i][j] : 0;
     }
@@ -122,7 +118,7 @@ export function softmax(logits: number[]): number[] {
     const v = logits[i];
     if (v > max) max = v;
   }
-  const out = new Array<number>(n);
+  const out = Array.from({ length: n }, () => 0);
   if (!Number.isFinite(max)) {
     // All -Infinity or NaN: degrade gracefully to uniform.
     const u = 1 / n;

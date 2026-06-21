@@ -11,7 +11,7 @@ import {
 } from './contracts';
 
 function zeroVector(): number[] {
-  return new Array(FEATURE_COUNT).fill(0);
+  return Array.from({ length: FEATURE_COUNT }, () => 0);
 }
 
 const idx = (name: string) => FEATURE_NAMES.indexOf(name as never);

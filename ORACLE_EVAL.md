@@ -77,6 +77,27 @@ The calibration machinery itself is verified separately: a deliberately distorte
 (underconfident) score is restored by Platt with a clear ECE drop (calibration
 unit test).
 
+### 4.1 Feature-group ablation (held-out AUC)
+
+Fitting on feature subsets (zeroing the other groups) shows the full feature set
+dominates — engagement and economics are complementary, not redundant:
+
+| Subset | ghost AUC | sign AUC |
+|---|---|---|
+| economics-only | 0.674 | 0.667 |
+| engagement-only | 0.607 | 0.613 |
+| **full** | **0.746** | **0.748** |
+
+(seed 7, n=350, held-out split; a higher-fidelity probe n=500/maxIter=600 gives
+the same ordering: ghost econ 0.677 / engage 0.585 / full 0.704.) Economics
+carries most of the **sign** signal; engagement alone is the weakest **ghost**
+predictor; combining both is strictly best for both targets. This is the
+quantitative justification for using the previously-unused engagement/
+orchestration/trend signals — they add real lift.
+
+Horizon-H is also verified monotone: both `signProbability` and `ghostRisk` are
+non-decreasing as H grows (1→30 days) and per-period survival is non-increasing.
+
 ## 5. Golden-case directions (balanced model, H=14) — BOTH PASS
 
 Qualitative/relative checks on the real seed leads (not absolute thresholds):

@@ -78,5 +78,16 @@ Entry format:
 - Eval headlines (synthetic, seed 7, 800 leads/regime): coefficient recovery r 0.73–0.85; Platt improves GHOST ECE in every regime (balanced 0.193→0.049, high-ghost 0.195→0.027), SIGN already ~calibrated (Platt neutral); AUC 0.71–0.86; golden BOTH PASS (Noah ghost 0.86 > Lukas 0.37; Lukas sign 0.44 > Noah 0.07). Honest limitation logged: Elena (real=closed) reads high-ghost because her no-strategy fixture looks disengaged — fixed by real-label retraining, not a hand override.
 - Decisions: page wiring + prediction-history read are Orchestrator integration (kept A5 lane disjoint); graceful PGRST205 in the read layer realizes the "degrade, never crash" principle end-to-end.
 - Debt/Deferred: live DB apply of the migration deferred (standard additive/idempotent DDL; apply via `supabase db reset` when bringing up the local stack); no-new-array lint warnings → Phase D code-quality.
-- Commit: (this commit)
+- Commit: 4b52d15
 - Next: Phase D hardening swarm.
+
+---
+
+## [Phase D] [ORCH] — Hardening swarm integrated
+- Did: dispatched A1–A5 hardening lanes in parallel (additive only). Integrated all. As integrator, added a global vitest `testTimeout: 120000` to `vitest.config.ts` (the robust fix several lanes flagged — heavy GD model fits exceeded the 5s default under concurrent load; this replaces scattered per-test bandaids). Folded A3's feature-group ablation + horizon-H findings into ORACLE_EVAL.md §4.1.
+- Verified (authoritative sequential run): `tsc --noEmit` GREEN; full suite **250 passed (14 files)** (up from 146; no timeouts); `oxlint` **0 warnings, 0 errors** (was 37 warnings — all cleared).
+- Lane results: A1 +~30 edge tests (zero-msg/null-quote/no-orch/bare-lead/future-dated/0&1 prior preds; censored-heavy regime; byte-identical determinism; extreme economics) + lint clean; honestly documented two solar edge behaviors instead of changing frozen source. A2 cleared 20 no-new-array warnings, +8 property tests (L2 shrinkage sweep, distribution sum-to-1, degenerate labels, NaN/Inf scrub, feature-width). A3 +6 tests (horizon-H monotonicity, across-regime calibration, **ablation** econ/engage/full), lint clean. A4 tests-only 15→58 (schema boundaries, taxonomy parity, prompt hallucination guards, degenerate-input renders), no runtime change. A5 engine-core 21→40 (clamping/non-finite/blocker-fallback/decideMode/bounded confidence), engine.ts README+JSDoc, panel defensive parseFactors + a11y, lint clean.
+- Ablation (held-out AUC): full > economics-only > engagement-only for BOTH targets (ghost 0.75 vs 0.67/0.61; sign 0.75 vs 0.67/0.61) — quantitative proof the engagement/orchestration signals add lift.
+- Decisions: global testTimeout is shared-infra (Orchestrator); kept lanes' additive per-test timeouts (harmless). No public API/contract changes anywhere in Phase D.
+- Debt/Deferred: live DB migration apply (standard additive DDL — apply via `supabase db reset`); panel render smoke-test skipped (would need a vitest @/ alias + heavy mocking — out of scope), defensive parsing covers the risk.
+- Commit: (this commit)

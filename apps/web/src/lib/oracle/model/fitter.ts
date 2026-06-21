@@ -62,9 +62,7 @@ function clamp(v: number, lo: number, hi: number): number {
 function resolveFeatureNames(width: number, explicit?: string[]): string[] {
   if (explicit && explicit.length === width) return explicit.slice();
   if (width === FEATURE_COUNT) return FEATURE_NAMES.slice();
-  const names = new Array<string>(width);
-  for (let i = 0; i < width; i++) names[i] = `f${i}`;
-  return names;
+  return Array.from({ length: width }, (_, i) => `f${i}`);
 }
 
 /**
@@ -76,8 +74,8 @@ export function computeStandardization(
   width: number
 ): Standardization {
   const n = rows.length;
-  const mean = new Array<number>(width).fill(0);
-  const sd = new Array<number>(width).fill(1);
+  const mean = Array.from({ length: width }, () => 0);
+  const sd = Array.from({ length: width }, () => 1);
   if (n === 0) return { mean, sd };
 
   for (let r = 0; r < n; r++) {
@@ -89,7 +87,7 @@ export function computeStandardization(
   }
   for (let j = 0; j < width; j++) mean[j] /= n;
 
-  const varAcc = new Array<number>(width).fill(0);
+  const varAcc = Array.from({ length: width }, () => 0);
   for (let r = 0; r < n; r++) {
     const x = rows[r].x;
     for (let j = 0; j < width; j++) {
@@ -114,7 +112,7 @@ function standardizeVec(
   std: Standardization,
   width: number
 ): number[] {
-  const z = new Array<number>(width);
+  const z = Array.from({ length: width }, () => 0);
   for (let j = 0; j < width; j++) {
     const raw = j < xRaw.length ? xRaw[j] : 0;
     const v = isFiniteNum(raw) ? raw : 0;
@@ -135,7 +133,7 @@ function classProbsFromZ(
   nClasses: number,
   width: number
 ): number[] {
-  const logits = new Array<number>(nClasses);
+  const logits = Array.from({ length: nClasses }, () => 0);
   logits[0] = 0; // reference
   for (let c = 1; c < nClasses; c++) {
     const row = coefficients[c - 1];
@@ -176,8 +174,8 @@ export function fitMultinomial(
 
   // Precompute standardized design matrix and label indices.
   const n = rows.length;
-  const Z: number[][] = new Array(n);
-  const y: number[] = new Array(n);
+  const Z: number[][] = Array.from({ length: n }, () => []);
+  const y: number[] = Array.from({ length: n }, () => 0);
   let usable = 0;
   const distinctLeads = new Set<string>();
   for (let r = 0; r < n; r++) {
@@ -193,19 +191,17 @@ export function fitMultinomial(
 
   // Coefficient matrix: (nClasses-1) rows, each width+1 (intercept first).
   const nParamRows = Math.max(0, nClasses - 1);
-  const coefficients: number[][] = new Array(nParamRows);
-  for (let c = 0; c < nParamRows; c++) {
-    coefficients[c] = new Array<number>(width + 1).fill(0);
-  }
+  const coefficients: number[][] = Array.from({ length: nParamRows }, () =>
+    Array.from({ length: width + 1 }, () => 0)
+  );
 
   if (usable > 0 && nParamRows > 0) {
     let prevLoss = Infinity;
     for (let iter = 0; iter < maxIter; iter++) {
       // Gradient accumulators, same shape as coefficients.
-      const grad: number[][] = new Array(nParamRows);
-      for (let c = 0; c < nParamRows; c++) {
-        grad[c] = new Array<number>(width + 1).fill(0);
-      }
+      const grad: number[][] = Array.from({ length: nParamRows }, () =>
+        Array.from({ length: width + 1 }, () => 0)
+      );
       let loss = 0;
 
       for (let r = 0; r < n; r++) {

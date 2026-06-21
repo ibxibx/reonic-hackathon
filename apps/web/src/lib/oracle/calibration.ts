@@ -101,7 +101,7 @@ function computeAuc(predicted: number[], labels: number[], n: number): number {
   // Rank all scores (average ranks for ties), 1-based.
   const idx = Array.from({ length: n }, (_, i) => i);
   idx.sort((a, b) => clamp01(predicted[a]) - clamp01(predicted[b]));
-  const rank = new Array<number>(n);
+  const rank = Array.from({ length: n }, () => 0);
   let i = 0;
   while (i < n) {
     let j = i;
@@ -127,9 +127,9 @@ function computeEceReliability(
   n: number,
   bins: number
 ): { ece: number; reliability: ReliabilityBin[] } {
-  const sumPred = new Array<number>(bins).fill(0);
-  const sumObs = new Array<number>(bins).fill(0);
-  const count = new Array<number>(bins).fill(0);
+  const sumPred = Array.from({ length: bins }, () => 0);
+  const sumObs = Array.from({ length: bins }, () => 0);
+  const count = Array.from({ length: bins }, () => 0);
 
   for (let i = 0; i < n; i++) {
     const p = clamp01(predicted[i]);
@@ -176,8 +176,8 @@ function fitPlatt(predicted: number[], labels: number[]): PlattParams {
   const n = Math.min(predicted.length, labels.length);
   if (n === 0) return { a: 1, b: 0 };
 
-  const x = new Array<number>(n);
-  const y = new Array<number>(n);
+  const x = Array.from({ length: n }, () => 0);
+  const y = Array.from({ length: n }, () => 0);
   for (let i = 0; i < n; i++) {
     x[i] = logit(predicted[i]);
     y[i] = labels[i] >= 0.5 ? 1 : 0;
@@ -372,8 +372,8 @@ export function calibrateFromCorpus(
   const nLeads = labels.length;
 
   // Build (predicted, y) per lead.
-  const predicted = new Array<number>(nLeads);
-  const y = new Array<number>(nLeads);
+  const predicted = Array.from({ length: nLeads }, () => 0);
+  const y = Array.from({ length: nLeads }, () => 0);
   for (let i = 0; i < nLeads; i++) {
     const label = labels[i];
     const ci = cumulativeIncidence(model, label.features, H);

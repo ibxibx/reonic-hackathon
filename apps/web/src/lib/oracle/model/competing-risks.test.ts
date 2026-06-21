@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { FEATURE_NAMES, FEATURE_COUNT } from '../contracts';
-import type { PersonPeriodRow } from '../contracts';
 import { fitMultinomial } from './fitter';
 import { generateSyntheticCorpus } from '../synthetic';
 import { cumulativeIncidence, attributeFactors } from './competing-risks';
@@ -14,7 +13,7 @@ function fitOnCorpus(seed = 7, nLeads = 500) {
 
 /** A plausible base raw vector (FEATURE_NAMES order). */
 function baseVector(daysSinceLastTouch: number): number[] {
-  const x = new Array<number>(FEATURE_COUNT).fill(0);
+  const x = Array.from({ length: FEATURE_COUNT }, () => 0);
   x[IDX('monthlyBill')] = 300;
   x[IDX('systemSizeKw')] = 9;
   x[IDX('totalCost')] = 26000;
@@ -63,6 +62,41 @@ describe('cumulativeIncidence', () => {
     const long = cumulativeIncidence(model, baseVector(6), 20);
     expect(long.signProbability).toBeGreaterThan(short.signProbability);
     expect(long.ghostRisk).toBeGreaterThan(short.ghostRisk);
+  });
+
+  // Horizon-H sensitivity: sweeping H from 1..30 must never DECREASE either
+  // cumulative incidence (more periods can only absorb more mass) and the
+  // terminal per-period survival must be NON-INCREASING. Checked at several base
+  // states so the property is not an artifact of one favourable vector.
+  it('signProbability and ghostRisk are non-decreasing as horizon grows', () => {
+    for (const dslt of [1, 6, 14, 25]) {
+      const base = baseVector(dslt);
+      let prevSign = -1;
+      let prevGhost = -1;
+      let prevSurvive = Number.POSITIVE_INFINITY;
+      for (let H = 1; H <= 30; H++) {
+        const ci = cumulativeIncidence(model, base, H);
+        expect(
+          ci.signProbability,
+          `sign dropped at H=${H} dslt=${dslt}`
+        ).toBeGreaterThanOrEqual(prevSign - 1e-12);
+        expect(
+          ci.ghostRisk,
+          `ghost dropped at H=${H} dslt=${dslt}`
+        ).toBeGreaterThanOrEqual(prevGhost - 1e-12);
+        // Terminal survival of horizon H = product of stay probs over H
+        // periods, which can only shrink as H grows.
+        const pp = ci.perPeriod!;
+        const terminalSurvive = pp[pp.length - 1].survive;
+        expect(
+          terminalSurvive,
+          `terminal survive rose at H=${H} dslt=${dslt}`
+        ).toBeLessThanOrEqual(prevSurvive + 1e-12);
+        prevSign = ci.signProbability;
+        prevGhost = ci.ghostRisk;
+        prevSurvive = terminalSurvive;
+      }
+    }
   });
 
   it('per-period survive is non-increasing and each step in [0,1]', () => {

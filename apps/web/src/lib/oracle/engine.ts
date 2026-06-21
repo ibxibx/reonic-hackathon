@@ -19,6 +19,43 @@
  * This file is the Next runtime boundary: it imports `server-only`, uses `@/`
  * imports, and may use `Date.now()`. It never runs under vitest — the pure,
  * tested logic lives in `engine-core.ts`. Only thing that throws: a missing lead.
+ *
+ * ─── SEMANTICS & GUARANTEES (read this before changing scoring behavior) ──────
+ *
+ * MODE  — `mode` is a pure function of MODEL AVAILABILITY, not of label count
+ *   (see engine-core.decideMode). A fitted model in hand ⇒ `model` mode (model
+ *   supplies numbers + factors; the LLM only narrates blocker/action/evidence).
+ *   No model ⇒ `degraded` mode (the LLM estimates the numbers). Today a model is
+ *   ALWAYS present (the synthetic singleton), so we are effectively always in
+ *   `model` mode; `degraded` is the wiring that takes over if model construction
+ *   ever fails.
+ *
+ * CALIBRATED — `calibrated` is an HONESTY flag, independent of mode. It is `true`
+ *   only when BOTH (a) ≥ MODEL_MODE_MIN_LABELS real absorbed outcomes exist AND
+ *   (b) real calibration params have been fit. Neither holds tonight, so it is
+ *   hard-coded `false`: a synthetic-trained model is a real model but is flagged
+ *   uncalibrated, which widens the confidence band (±15 vs ±8) so the UI never
+ *   overstates trust. `realLabelCount` is still computed + logged so the switch
+ *   is observable the moment real data accrues.
+ *
+ * SYNTHETIC-MODEL MEMOIZATION — `getSyntheticModel()` fits the model ONCE per
+ *   server process and caches it in the module-level `SYNTHETIC_MODEL` singleton.
+ *   The fit is deterministic (fixed seed=7, fixed corpus options, no Date.now /
+ *   Math.random in the pure fitter), so the cached model is identical to a fresh
+ *   fit — memoization is a pure performance optimization, never a behavior change.
+ *
+ * DEGRADATION GUARANTEES (this function degrades, it does not crash) —
+ *   • Missing `predictions` table (PostgREST error code PGRST205, "could not find
+ *     the table … in the schema cache", e.g. migration not yet applied) or ANY
+ *     other read error on prior predictions ⇒ `loadPriorPredictions` returns []
+ *     (no trend slopes), never throws.
+ *   • Same PGRST205 / error on the absorbed-lead count ⇒ `countAbsorbedLeads`
+ *     returns 0 (stays uncalibrated, stays in model mode via the synthetic model).
+ *   • LLM provider failure of ANY kind ⇒ `tryLlm` returns null and engine-core
+ *     applies the deterministic blocker/action/evidence fallback.
+ *   • Prediction INSERT failure (missing table / RLS / network) ⇒ the rich score
+ *     is still returned with `predictionId = createdAt = null` (unpersisted).
+ *   The ONLY thrown error is a missing lead ("Lead not found").
  */
 import 'server-only';
 

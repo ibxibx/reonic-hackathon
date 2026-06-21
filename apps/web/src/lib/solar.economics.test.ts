@@ -8,6 +8,7 @@ import {
   PRODUCTION_PER_KW,
   ROI_HORIZON_YEARS,
   type EconomicsInput,
+  type SolarEconomics,
 } from './solar';
 
 const base: EconomicsInput = {
@@ -162,5 +163,106 @@ describe('computeSolarEconomics — monotonicity', () => {
     expect(loan.financingAdjustedUpfront).toBeLessThan(
       cash.financingAdjustedUpfront
     );
+  });
+});
+
+describe('computeSolarEconomics — extreme inputs stay finite & in-bounds', () => {
+  /** Assert every numeric field is a finite number (no NaN/±Infinity). */
+  function expectAllFinite(econ: SolarEconomics): void {
+    for (const [key, v] of Object.entries(econ)) {
+      expect(Number.isFinite(v), `${key} must be finite (got ${v})`).toBe(true);
+    }
+  }
+
+  it('all-zero input stays finite with documented sentinels', () => {
+    const econ = computeSolarEconomics({
+      monthlyBill: 0,
+      systemSizeKw: 0,
+      totalCost: 0,
+      financingType: 'cash',
+    });
+    expectAllFinite(econ);
+    expect(econ.costPerKw).toBe(0); // guarded size=0
+    expect(econ.estMonthlySavings).toBe(0); // no production
+    expect(econ.monthlySavingsRatio).toBe(0); // guarded bill=0
+    expect(econ.roi25yrRatio).toBe(0); // guarded cost=0
+    expect(econ.simplePaybackYears).toBe(99); // no-savings sentinel
+    expect(econ.financingAdjustedUpfront).toBe(0);
+  });
+
+  it('size near zero (1e-9 kW) does not blow up costPerKw to Infinity', () => {
+    const econ = computeSolarEconomics({
+      monthlyBill: 200,
+      systemSizeKw: 1e-9,
+      totalCost: 30_000,
+      financingType: 'cash',
+    });
+    expectAllFinite(econ);
+    // costPerKw is huge but must remain finite (size > 0 so the guard passes)
+    expect(econ.costPerKw).toBeGreaterThan(0);
+    // production is tiny-but-positive → payback is enormous yet FINITE (the
+    // key invariant: no Infinity even when savings approach zero)
+    expect(econ.simplePaybackYears).toBeGreaterThan(1e6);
+    expect(Number.isFinite(econ.simplePaybackYears)).toBe(true);
+    expect(econ.roi25yrRatio).toBeGreaterThanOrEqual(0);
+    expect(econ.monthlySavingsRatio).toBeGreaterThanOrEqual(0);
+    expect(econ.monthlySavingsRatio).toBeLessThanOrEqual(1.5);
+  });
+
+  it('huge total cost keeps every field finite and ratio in-bounds', () => {
+    const econ = computeSolarEconomics({
+      monthlyBill: 200,
+      systemSizeKw: 10,
+      totalCost: 1e12, // absurd cost
+      financingType: 'cash',
+    });
+    expectAllFinite(econ);
+    expect(econ.costPerKw).toBeCloseTo(1e12 / 10, 0);
+    // big cost vs small savings → enormous but finite payback, tiny ROI
+    expect(econ.simplePaybackYears).toBeGreaterThan(0);
+    expect(econ.roi25yrRatio).toBeGreaterThanOrEqual(0);
+    expect(econ.roi25yrRatio).toBeLessThan(1); // savings dwarfed by cost
+    expect(econ.monthlySavingsRatio).toBeGreaterThanOrEqual(0);
+    expect(econ.monthlySavingsRatio).toBeLessThanOrEqual(1.5);
+  });
+
+  it('huge bill with modest system caps savings at production (ratio bounded)', () => {
+    const econ = computeSolarEconomics({
+      monthlyBill: 100_000, // unrealistic bill
+      systemSizeKw: 8,
+      totalCost: 24_000,
+      financingType: 'loan',
+    });
+    expectAllFinite(econ);
+    // savings limited by production, so the ratio is well under 1
+    expect(econ.monthlySavingsRatio).toBeGreaterThanOrEqual(0);
+    expect(econ.monthlySavingsRatio).toBeLessThanOrEqual(1.5);
+    expect(econ.financingAdjustedUpfront).toBe(0); // loan
+  });
+
+  it('negative inputs stay finite; ratios are guarded to 0', () => {
+    const econ = computeSolarEconomics({
+      monthlyBill: -200,
+      systemSizeKw: -10,
+      totalCost: -30_000,
+      financingType: 'cash',
+    });
+    // Robustness contract: nothing blows up to NaN/Infinity on garbage input,
+    // and the two guarded ratios collapse to 0 (bill<=0 and cost<=0 guards).
+    expectAllFinite(econ);
+    expect(econ.costPerKw).toBe(0); // size<=0 guard
+    expect(econ.monthlySavingsRatio).toBe(0); // bill<=0 guard
+    expect(econ.roi25yrRatio).toBe(0); // cost<=0 guard
+  });
+
+  it('unknown financing string keeps fields finite and falls back to full cost', () => {
+    const econ = computeSolarEconomics({
+      monthlyBill: 200,
+      systemSizeKw: 10,
+      totalCost: 30_000,
+      financingType: 'crypto-barter',
+    });
+    expectAllFinite(econ);
+    expect(econ.financingAdjustedUpfront).toBe(30_000);
   });
 });
